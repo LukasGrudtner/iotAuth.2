@@ -116,19 +116,26 @@ void Arduino::rft(States *state, int socket, struct sockaddr *server, socklen_t 
 */
 void Arduino::hello(States *state, int socket, struct sockaddr *server, socklen_t size)
 {
-    cout << "SEND HELLO" << endl;
+    cout << "SEND SYN" << endl;
+    sequence = iotAuth.randomNumber(9999);
 
-    string hello (HELLO_MESSAGE);
-    char *message;
-    strncpy(message, hello.c_str(), hello.length());
+    string source = "0.0.0.0";
+    string receiver = "0.0.0.0";
+    char *nounceA = iotAuth.getNounce(&source, &receiver, sequence);
 
-    sendto(socket, message, strlen(message), 0, server, size);
+    structSyn toSend;
+    strncpy(toSend.nounce, nounceA, sizeof(toSend.nounce));
 
-    char received[1];
-    recvfrom(socket, received, sizeof(received), 0, server, &size);
+    sendto(socket, (syn*)&toSend, sizeof(syn), 0, server, size);
+
+    structAck received;
+    recvfrom(socket, &received, sizeof(ack), 0, server, &size);
+    
+    cout << "NOUNCE A: " << nounceA << endl << endl;
+    cout << "NOUNCE B: " << received.nounceB << endl << endl;
 
     /* Verifica se a mensagem recebida é um HELLO. */
-    if (received[0] == HELLO_ACK_CHAR) {
+    if (received.ack == ACK) {
         *state = SRSA;
         if (VERBOSE) {hello_sucessfull_verbose();}
     } else {

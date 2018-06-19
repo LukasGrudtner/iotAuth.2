@@ -5,6 +5,7 @@
 #include <netdb.h>
 #include <string>
 #include <iostream>
+#include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -27,6 +28,8 @@ using namespace std;
 RSAStorage *rsaStorage;
 DHStorage *diffieHellmanStorage;
 IotAuth iotAuth;
+
+int sequence;
 
 /*  Calculate FDR Value
     Calcula a resposta de uma dada FDR. */
@@ -104,28 +107,38 @@ void rft(States *state, int socket, struct sockaddr *client, socklen_t size)
 */
 void hello(States *state, int socket, struct sockaddr *client, socklen_t size)
 {
-    char message[512];
-    recvfrom(socket, message, sizeof(message), 0, client, &size);
+    sequence = iotAuth.randomNumber(9999);
 
-    if (checkRequestForTermination(message)) {
-        *state = RFT;
-    } else {
-        /* Verifica se a mensagem recebida é um HELLO. */
-        if (strcmp(message, HELLO_MESSAGE) == 0) {
+    structSyn received;
+    recvfrom(socket, &received, sizeof(syn), 0, client, &size);
 
-            /* Se for, envia um HELLO ACK ao Cliente. */
-            int sended = sendto(socket, HELLO_ACK, strlen(HELLO_ACK), 0, client, size);
 
-            /* Se a mensagem foi enviada corretamente, troca o estado para RSAX. */
-            if (sended >= 0) {
-                *state = RRSA;
-                if (VERBOSE) {hello_sucessfull_verbose();}
+    /* Verifica se a mensagem recebida é um HELLO. */
+    if (received.syn == SYN) {
 
-            /* Senão, continua no estado HELLO. */
-            } else {
-                *state = HELLO;
-                if (VERBOSE) {hello_failed_verbose();}
-            }
+        /* Se for, envia um HELLO ACK ao Cliente. */
+        string source = "0.0.0.0";
+        string receiver = "0.0.0.0";
+        char *nounceB = iotAuth.getNounce(&source, &receiver, sequence);
+
+        cout << "NOUNCE A: " << received.nounce << endl << endl;
+        cout << "NOUNCE B: " << nounceB << endl << endl;
+
+        structAck toSend;
+        strncpy(toSend.nounceA, received.nounce, sizeof(toSend.nounceA));
+        strncpy(toSend.nounceB, nounceB, sizeof(toSend.nounceB));
+        
+        int sended = sendto(socket, &toSend, sizeof(ack), 0, client, size);
+
+        /* Se a mensagem foi enviada corretamente, troca o estado para RSAX. */
+        if (sended >= 0) {
+            *state = RRSA;
+            if (VERBOSE) {hello_sucessfull_verbose();}
+
+        /* Senão, continua no estado HELLO. */
+        } else {
+            *state = HELLO;
+            if (VERBOSE) {hello_failed_verbose();}
         }
     }
 }
@@ -471,7 +484,7 @@ void stateMachine(int socket, struct sockaddr *client, socklen_t size)
         /* Hello */
         case HELLO:
         {
-            cout << "RECEIVE HELLO" << endl;
+            cout << "RECEIVE SYN" << endl;
             hello(&state, socket, client, size);
             break;
         }
@@ -537,8 +550,20 @@ int main(int argc, char *argv[]){
 
     tam_cliente=sizeof(struct sockaddr_in);
 
+    // struct in_addr ipAddrClient = cliente.sin_addr;
+    // struct in_addr ipAddrServer = servidor.sin_addr;
+    
+
     while(1){
        stateMachine(meuSocket, (struct sockaddr*)&cliente, tam_cliente);
+
+    //     char ipServer[INET_ADDRSTRLEN];
+    //     char ipClient[INET_ADDRSTRLEN];
+    //     inet_ntop( AF_INET, &ipAddrClient, ipClient, INET_ADDRSTRLEN );
+    //     inet_ntop( AF_INET, &ipAddrServer, ipServer, INET_ADDRSTRLEN );
+
+    //    cout << "IP CLIENT: " << ipClient << endl;
+    //    cout << "IP SERVER: " << ipServer << endl;
     }
 
     close(meuSocket);

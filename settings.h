@@ -9,12 +9,29 @@
 #define DEFAULT_PORT 8080
 #define SPACER '#'
 #define SPACER_S "#"
-#define HELLO_MESSAGE "HELLO"
+
 #define DONE_MESSAGE "DONE"
-#define HELLO_ACK "#"
-#define HELLO_ACK_CHAR '#'
+
 #define DONE_ACK "!"
 #define DONE_ACK_CHAR '!'
+
+#define ACK '!'
+#define SYN '#'
+
+typedef struct syn
+{
+    char syn = SYN;
+    char nounce[128];    /* HASH(time | idDestino | idOrigem | seq) */
+} structSyn;
+
+typedef struct ack
+{
+    char ack = ACK;
+    char nounceA[128];
+    char nounceB[128];
+} structAck;
+
+
 
 /* Definição do tipo "byte" utilizado. */
 typedef unsigned char byte;

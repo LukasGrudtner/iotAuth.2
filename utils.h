@@ -109,4 +109,6 @@ T& from_bytes(const array<byte, sizeof(T)> &bytes, T& object)
     return object ;
 }
 
+std::string stringTime();
+
 #endif

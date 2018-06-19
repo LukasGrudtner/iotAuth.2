@@ -107,6 +107,7 @@ class Arduino
     private:
 
         IotAuth iotAuth;
+        int sequence;
         
         RSAStorage *rsaStorage;
         DHStorage *dhStorage;

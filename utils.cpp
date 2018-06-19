@@ -101,3 +101,23 @@ std::vector<unsigned char> hex_to_bytes(std::string const& hex)
     }
     return bytes;
 }
+
+std::string stringTime()
+{
+    time_t timer;
+    struct tm *currentTime;
+
+    time(&timer); // Obtem informações de data e hora
+    currentTime = localtime(&timer); // Converte a hora atual para a hora local
+
+    int day = currentTime->tm_mday;
+    int month = currentTime->tm_mon + 1;
+    int year = currentTime->tm_year + 1900;
+
+    int hour = currentTime->tm_hour;
+    int min  = currentTime->tm_min;
+    int sec  = currentTime->tm_sec;
+
+    string result = std::to_string(hour) + ":" + std::to_string(min) + ":" + std::to_string(sec);
+    return result;
+}
