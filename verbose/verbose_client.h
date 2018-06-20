@@ -13,7 +13,7 @@ using namespace std;
 void rft_verbose();
 void hello_sucessfull_verbose();
 void hello_failed_verbose();
-void srsa_verbose(RSAStorage *rsaStorage, RSAKeyExchange *rsaKeyExchange);
+void srsa_verbose(RSAStorage *rsaStorage, RSAPackage *rsaKeyExchange);
 void rrsa_verbose1(RSAKeyExchange *rsaKeyExchange, RSAStorage *rsaStorage);
 void rrsa_verbose2();
 void rrsa_verbose3();

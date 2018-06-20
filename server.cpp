@@ -32,6 +32,7 @@ IotAuth iotAuth;
 char *serverIP;
 char *clientIP;
 int sequence;
+char *nonceA;
 
 /*  Calculate FDR Value
     Calcula a resposta de uma dada FDR. */
@@ -72,6 +73,7 @@ bool checkRequestForTermination(char* message)
     } else {
         return false;
     }
+
 }
 
 /*  Waiting Done Confirmation
@@ -159,16 +161,16 @@ void done(States *state, int socket, struct sockaddr *client, socklen_t size)
 /*  Setup RSA
     Inicializa os valores pertinentes a troca de chaves RSA: IV, FDR e as próprias chaves RSA.
 */
-void setupRSA(RSAKeyExchange *rsaKeyExchange)
+void setupRSA(RSAPackage *rsaKeyExchange)
 {
     rsaStorage = new RSAStorage();
 
     rsaStorage->setKeyPair(iotAuth.generateRSAKeyPair());
-    rsaStorage->setMyIV(iotAuth.generateIV());
+    // rsaStorage->setMyIV(iotAuth.generateIV());
     rsaStorage->setMyFDR(iotAuth.generateFDR());
-    rsaStorage->setPartnerPublicKey(rsaKeyExchange->getPublicKey());
-    rsaStorage->setPartnerIV(rsaKeyExchange->getIV());
-    rsaStorage->setPartnerFDR(rsaKeyExchange->getFDR());
+    rsaStorage->setPartnerPublicKey(rsaKeyExchange->publicKey);
+    // rsaStorage->setPartnerIV(rsaKeyExchange->getIV());
+    rsaStorage->setPartnerFDR(rsaKeyExchange->fdr);
 }
 
 /*  Receive RSA
@@ -176,8 +178,9 @@ void setupRSA(RSAKeyExchange *rsaKeyExchange)
 */
 void rrsa(States *state, int socket, struct sockaddr *client, socklen_t size)
 {
-    RSAKeyExchange* rsaReceived = new RSAKeyExchange();
-    recvfrom(socket, rsaReceived, sizeof(RSAKeyExchange), 0, client, &size);
+    // RSAKeyExchange* rsaReceived = new RSAKeyExchange();
+    RSAPackage *rsaReceived = new RSAPackage();
+    recvfrom(socket, rsaReceived, sizeof(RSAPackage), 0, client, &size);
 
     setupRSA(rsaReceived);
 
@@ -194,14 +197,14 @@ void rrsa(States *state, int socket, struct sockaddr *client, socklen_t size)
 void srsa(States *state, int socket, struct sockaddr *client, socklen_t size)
 {
     /******************** Resposta FDR ********************/
-    int answerFdr = calculateFDRValue(rsaStorage->getPartnerIV(), rsaStorage->getPartnerFDR());
+    // int answerFdr = calculateFDRValue(rsaStorage->getPartnerIV(), rsaStorage->getPartnerFDR());
 
     /******************** RSA Key Exchange ********************/
     RSAKeyExchange rsaSent;
     rsaSent.setPublicKey(*rsaStorage->getMyPublicKey());
-    rsaSent.setIV(rsaStorage->getMyIV());
+    // rsaSent.setIV(rsaStorage->getMyIV());
     rsaSent.setFDR(*rsaStorage->getMyFDR());
-    rsaSent.setAnswerFDR(answerFdr);
+    // rsaSent.setAnswerFDR(answerFdr);
 
     /******************** Envio ********************/
     int sended = sendto(socket, (RSAKeyExchange*)&rsaSent, sizeof(rsaSent), 0, client, size);
@@ -261,7 +264,7 @@ string decryptHash(DHKeyExchange *dhKeyExchange)
 void setupDiffieHellman(DiffieHellmanPackage *diffieHellmanPackage)
 {
     diffieHellmanStorage = new DHStorage();
-    diffieHellmanStorage->setMyIV(rsaStorage->getMyIV());
+    // diffieHellmanStorage->setMyIV(rsaStorage->getMyIV());
     diffieHellmanStorage->setMyFDR(*rsaStorage->getMyFDR());
 
     diffieHellmanStorage->setExponent(iotAuth.randomNumber(3)+2);
@@ -333,8 +336,8 @@ void mountDHPackage(DiffieHellmanPackage *dhPackage)
     dhPackage->setModulus(diffieHellmanStorage->getModulus());
     dhPackage->setIV(diffieHellmanStorage->getMyIV());
 
-    int answerFDR = calculateFDRValue(rsaStorage->getPartnerIV(), rsaStorage->getPartnerFDR());
-    dhPackage->setAnswerFDR(answerFDR);
+    // int answerFDR = calculateFDRValue(rsaStorage->getPartnerIV(), rsaStorage->getPartnerFDR());
+    // dhPackage->setAnswerFDR(answerFDR);
 }
 
 /*  Get Encrypted Hash
@@ -500,37 +503,37 @@ void stateMachine(int socket, struct sockaddr *client, socklen_t size)
             break;
         }
 
-        /* Send RSA */
-        case SRSA:
-        {
-            cout << "SEND RSA KEY" << endl;
-            srsa(&state, socket, client, size);
-            break;
-        }
+        // /* Send RSA */
+        // case SRSA:
+        // {
+        //     cout << "SEND RSA KEY" << endl;
+        //     srsa(&state, socket, client, size);
+        //     break;
+        // }
 
-        /* Receive Diffie-Hellman */
-        case RDH:
-        {
-            cout << "RECEIVE DIFFIE HELLMAN KEY" << endl;
-            rdh(&state, socket, client, size);
-            break;
-        }
+        // /* Receive Diffie-Hellman */
+        // case RDH:
+        // {
+        //     cout << "RECEIVE DIFFIE HELLMAN KEY" << endl;
+        //     rdh(&state, socket, client, size);
+        //     break;
+        // }
 
-        /* Send Diffie-Hellman */
-        case SDH:
-        {
-            cout << "SEND DIFFIE HELLMAN KEY" << endl;
-            sdh(&state, socket, client, size);
-            break;
-        }
+        // /* Send Diffie-Hellman */
+        // case SDH:
+        // {
+        //     cout << "SEND DIFFIE HELLMAN KEY" << endl;
+        //     sdh(&state, socket, client, size);
+        //     break;
+        // }
 
-        /* Data Transfer */
-        case DT:
-        {
-            cout << "RECEIVE ENCRYPTED DATA" << endl;
-            dt(&state, socket, client, size);
-            break;
-        }
+        // /* Data Transfer */
+        // case DT:
+        // {
+        //     cout << "RECEIVE ENCRYPTED DATA" << endl;
+        //     dt(&state, socket, client, size);
+        //     break;
+        // }
     }
 }
 

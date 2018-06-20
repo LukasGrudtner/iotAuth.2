@@ -17,6 +17,7 @@
 #include "RSA/RSAKeyExchange.h"
 
 #include "verbose/verbose_client.h"
+#include <sys/time.h>
 
 using namespace std;
 
@@ -25,8 +26,12 @@ using namespace std;
 class Arduino
 {
     public:
+
+        Arduino();
+        
         char *clientIP;
         char *serverIP;
+        char *nonceB = new char[129];
 
         void stateMachine(int socket, struct sockaddr *client, socklen_t size);
 

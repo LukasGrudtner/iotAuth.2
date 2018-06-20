@@ -2,6 +2,8 @@
 
 RSAKeyExchange::RSAKeyExchange() {
     publicKey = {0,0};
+    nonceA[128] = '\0';
+    nonceB[128] = '\0';
 }
 
 RSAKey RSAKeyExchange::getPublicKey() {
@@ -10,10 +12,6 @@ RSAKey RSAKeyExchange::getPublicKey() {
 
 int RSAKeyExchange::getAnswerFDR() {
     return answerFdr;
-}
-
-int RSAKeyExchange::getIV() {
-    return iv;
 }
 
 FDR RSAKeyExchange::getFDR() {
@@ -28,10 +26,6 @@ void RSAKeyExchange::setAnswerFDR(int aFdr) {
     answerFdr = aFdr;
 }
 
-void RSAKeyExchange::setIV(int _iv) {
-    iv = _iv;
-}
-
 void RSAKeyExchange::setFDR(FDR _fdr) {
     fdr = _fdr;
 }
@@ -40,9 +34,33 @@ std::string RSAKeyExchange::toString() {
     std::string result =    std::to_string(getPublicKey().d)    + " | " +
                             std::to_string(getPublicKey().n)    + " | " +
                             std::to_string(getAnswerFDR())      + " | " +
-                            std::to_string(getIV())             + " | " +
-                            getFDR().getOperator() +
-                            std::to_string(getFDR().getOperand());
+                            getFDR().toString()                 + " | " + 
+                            getNonceA()                         + " | " +
+                            getNonceB();
 
     return result;
+}
+
+void RSAKeyExchange::setNonceA(char *nonce)
+{
+    for (int i = 0; i < 128; i++) {
+        nonceA[i] = nonce[i];
+    }
+}
+
+void RSAKeyExchange::setNonceB(char *nonce)
+{
+    for (int i = 0; i < 128; i++) {
+        nonceB[i] = nonce[i];
+    }
+}
+
+char *RSAKeyExchange::getNonceA()
+{
+    return nonceA;
+}
+
+char *RSAKeyExchange::getNonceB()
+{
+    return nonceB;
 }

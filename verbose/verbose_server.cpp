@@ -21,14 +21,14 @@ void hello_failed_verbose()
         cout << "***********************************\n"   << endl;
 }
 
-void rrsa_verbose(RSAKeyExchange *rsaKeyExchange, RSAStorage *rsaStorage)
+void rrsa_verbose(RSAPackage *rsaKeyExchange, RSAStorage *rsaStorage)
 {
         cout << "******RSA | RECEIVE FROM CLIENT******" << endl;
         cout << "Generated RSA Key: {(" << rsaStorage->getMyPublicKey()->d      << ", "
                                         << rsaStorage->getMyPublicKey()->n      << "), ";
         cout << "("                     << rsaStorage->getMyPrivateKey()->d     << ", "
                                         << rsaStorage->getMyPrivateKey()->n     << ")}" << endl;
-        cout << "My IV: "               << rsaStorage->getMyIV()                << endl;
+        // cout << "My IV: "               << rsaStorage->getMyIV()                << endl;
         cout << "My FDR: "              << rsaStorage->getMyFDR()->toString()   << endl;
         cout << "Received: "            << rsaKeyExchange->toString()           << endl;    
         cout << "***********************************\n" << endl;

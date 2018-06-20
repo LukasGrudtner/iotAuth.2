@@ -14,22 +14,27 @@ class RSAKeyExchange
         /* Getters */
         RSAKey getPublicKey();
         int getAnswerFDR();
-        int getIV();
         FDR getFDR();
+        char *getNonceA();
+        char *getNonceB();
 
         /* Setters */
         void setPublicKey(RSAKey pKey);
         void setAnswerFDR(int aFdr);
-        void setIV(int _iv);
         void setFDR(FDR _fdr);
+        void setNonceA(char *nonce);
+        void setNonceB(char *nonce);
+
 
         std::string toString();
 
     private:
         RSAKey publicKey;
-        int answerFdr = 0;
-        int iv = 0;
         FDR fdr;
+        char nonceA[129];
+        char nonceB[129];
+        int answerFdr = 0;
+        char ack = '.';
 
 };
 
