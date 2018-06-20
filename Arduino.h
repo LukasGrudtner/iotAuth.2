@@ -25,6 +25,9 @@ using namespace std;
 class Arduino
 {
     public:
+        char *clientIP;
+        char *serverIP;
+
         void stateMachine(int socket, struct sockaddr *client, socklen_t size);
 
         /*  Waiting Done Confirmation
@@ -108,6 +111,7 @@ class Arduino
 
         IotAuth iotAuth;
         int sequence;
+
         
         RSAStorage *rsaStorage;
         DHStorage *dhStorage;

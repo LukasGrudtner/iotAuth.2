@@ -130,7 +130,7 @@ bool IotAuth::isHashValid(string *message, string *hash) {
     return *hash == hash2;
 }
 
-char* IotAuth::getNounce(string *source, string *receiver, int sequence)
+char* IotAuth::getNounce(char *source, char *receiver, int sequence)
 {
     string message = stringTime() + *source + *receiver + to_string(sequence);
     string hash = this->hash(&message);

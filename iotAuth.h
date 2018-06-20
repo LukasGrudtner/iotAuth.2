@@ -36,7 +36,7 @@ class IotAuth
         int* encryptRSA(byte *plain, RSAKey *rsaKey, int size);
         byte* decryptRSA(int *cipher, RSAKey *rsaKey, int size);
 
-        char* getNounce(string *source, string *receiver, int sequence);
+        char* getNounce(char *source, char *receiver, int sequence);
 
     private:
 

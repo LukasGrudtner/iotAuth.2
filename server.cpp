@@ -29,6 +29,8 @@ RSAStorage *rsaStorage;
 DHStorage *diffieHellmanStorage;
 IotAuth iotAuth;
 
+char *serverIP;
+char *clientIP;
 int sequence;
 
 /*  Calculate FDR Value
@@ -114,19 +116,20 @@ void hello(States *state, int socket, struct sockaddr *client, socklen_t size)
 
 
     /* Verifica se a mensagem recebida é um HELLO. */
-    if (received.syn == SYN) {
+    if (received.message == SYN) {
 
         /* Se for, envia um HELLO ACK ao Cliente. */
-        string source = "0.0.0.0";
-        string receiver = "0.0.0.0";
-        char *nounceB = iotAuth.getNounce(&source, &receiver, sequence);
+        char *nonceB = iotAuth.getNounce(serverIP, clientIP, sequence);
 
-        cout << "NOUNCE A: " << received.nounce << endl << endl;
-        cout << "NOUNCE B: " << nounceB << endl << endl;
+        cout << "SERVER IP: " << serverIP << endl;
+        cout << "CLIENT IP: " << clientIP << endl;
+
+        cout << "NONCE A: " << received.nonce << endl << endl;
+        cout << "NONCE B: " << nonceB << endl << endl;
 
         structAck toSend;
-        strncpy(toSend.nounceA, received.nounce, sizeof(toSend.nounceA));
-        strncpy(toSend.nounceB, nounceB, sizeof(toSend.nounceB));
+        strncpy(toSend.nonceA, received.nonce, sizeof(toSend.nonceA));
+        strncpy(toSend.nonceB, nonceB, sizeof(toSend.nonceB));
         
         int sended = sendto(socket, &toSend, sizeof(ack), 0, client, size);
 
@@ -550,20 +553,30 @@ int main(int argc, char *argv[]){
 
     tam_cliente=sizeof(struct sockaddr_in);
 
-    // struct in_addr ipAddrClient = cliente.sin_addr;
+    struct in_addr ipAddrClient = cliente.sin_addr;
     // struct in_addr ipAddrServer = servidor.sin_addr;
-    
+
+    /* Get IP Address Server */
+    struct hostent *server;
+    char host_name[256];
+    gethostname(host_name, sizeof(host_name));
+    server = gethostbyname(host_name);
+    // char *serverIP;
+    serverIP = inet_ntoa(*(struct in_addr *)*server->h_addr_list);
+
+    /* Get IP Address Client */
+    struct hostent *client;
+    char client_name[256];
+    gethostname(client_name, sizeof(client_name));
+    client = gethostbyname(client_name);
+    // char *clientIP;
+    clientIP = inet_ntoa(*(struct in_addr *)*client->h_addr_list);
 
     while(1){
        stateMachine(meuSocket, (struct sockaddr*)&cliente, tam_cliente);
 
-    //     char ipServer[INET_ADDRSTRLEN];
-    //     char ipClient[INET_ADDRSTRLEN];
-    //     inet_ntop( AF_INET, &ipAddrClient, ipClient, INET_ADDRSTRLEN );
-    //     inet_ntop( AF_INET, &ipAddrServer, ipServer, INET_ADDRSTRLEN );
-
-    //    cout << "IP CLIENT: " << ipClient << endl;
-    //    cout << "IP SERVER: " << ipServer << endl;
+    //    cout << "IP CLIENT: " << clientIP << endl;
+    //    cout << "IP SERVER: " << serverIP << endl;
     }
 
     close(meuSocket);

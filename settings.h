@@ -20,15 +20,24 @@
 
 typedef struct syn
 {
-    char syn = SYN;
-    char nounce[128];    /* HASH(time | idDestino | idOrigem | seq) */
+    char message = SYN;
+    char nonce[129];    /* HASH(time | idDestino | idOrigem | seq) */
+
+    syn() {
+        nonce[128] = '\0';
+    }
 } structSyn;
 
 typedef struct ack
 {
-    char ack = ACK;
-    char nounceA[128];
-    char nounceB[128];
+    char message = ACK;
+    char nonceA[129];
+    char nonceB[129];
+
+    ack() {
+        nonceA[128] = '\0';
+        nonceB[128] = '\0';
+    }
 } structAck;
 
 

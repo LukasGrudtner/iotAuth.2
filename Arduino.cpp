@@ -119,25 +119,33 @@ void Arduino::hello(States *state, int socket, struct sockaddr *server, socklen_
     cout << "SEND SYN" << endl;
     sequence = iotAuth.randomNumber(9999);
 
-    string source = "0.0.0.0";
-    string receiver = "0.0.0.0";
-    char *nounceA = iotAuth.getNounce(&source, &receiver, sequence);
+    char *nonceA = iotAuth.getNounce(clientIP, serverIP, sequence);
 
     structSyn toSend;
-    strncpy(toSend.nounce, nounceA, sizeof(toSend.nounce));
+    strncpy(toSend.nonce, nonceA, sizeof(toSend.nonce));
 
     sendto(socket, (syn*)&toSend, sizeof(syn), 0, server, size);
 
     structAck received;
     recvfrom(socket, &received, sizeof(ack), 0, server, &size);
+
+    cout << "SERVER IP: " << serverIP << endl;
+    cout << "CLIENT IP: " << clientIP << endl;
     
-    cout << "NOUNCE A: " << nounceA << endl << endl;
-    cout << "NOUNCE B: " << received.nounceB << endl << endl;
+    cout << "NONCE A: " << nonceA << endl << endl;
+    cout << "NONCE B: " << received.nonceB << endl << endl;
 
     /* Verifica se a mensagem recebida é um HELLO. */
-    if (received.ack == ACK) {
-        *state = SRSA;
-        if (VERBOSE) {hello_sucessfull_verbose();}
+    if (received.message == ACK) {
+
+        if (strcmp(received.nonceA, nonceA) == 0) {
+            *state = SRSA;
+            cout << "NONCE ACCEPTED!" << endl;
+            if (VERBOSE) {hello_sucessfull_verbose();}
+        } else {
+            if (VERBOSE) {hello_failed_verbose();}
+            *state = HELLO;
+        }
     } else {
         if (VERBOSE) {hello_failed_verbose();}
         *state = HELLO;

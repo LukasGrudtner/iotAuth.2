@@ -55,18 +55,28 @@ int main(int argc, char *argv[]){
 
     tam_cliente=sizeof(struct sockaddr_in);
 
-    // struct in_addr ipAddrClient = cliente.sin_addr;
-    // struct in_addr ipAddrServer = servidor.sin_addr;
+    /* Get IP Address Server */
+    char host_name[256];
+    gethostname(host_name, sizeof(host_name));
+    server = gethostbyname(host_name);
+    char *serverIP;
+    serverIP = inet_ntoa(*(struct in_addr *)*server->h_addr_list);
+
+    /* Get IP Address Client */
+    struct hostent *client;
+    char client_name[256];
+    gethostname(client_name, sizeof(client_name));
+    client = gethostbyname(client_name);
+    char *clientIP;
+    clientIP = inet_ntoa(*(struct in_addr *)*client->h_addr_list);
+
+    arduino.clientIP = clientIP;
+    arduino.serverIP = serverIP;
 
     while(1){
 
-    //     char ipServer[INET_ADDRSTRLEN];
-    //     char ipClient[INET_ADDRSTRLEN];
-    //     inet_ntop( AF_INET, &ipAddrClient, ipClient, INET_ADDRSTRLEN );
-    //     inet_ntop( AF_INET, &ipAddrServer, ipServer, INET_ADDRSTRLEN );
-
-    //    cout << "IP CLIENT: " << ipClient << endl;
-    //    cout << "IP SERVER: " << ipServer << endl;
+    //    cout << "IP CLIENT: " << clientIP << endl;
+    //    cout << "IP SERVER: " << serverIP << endl;
 
         arduino.stateMachine(meuSocket, (struct sockaddr*)&servidor, tam_cliente);
 
