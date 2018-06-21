@@ -39,6 +39,10 @@ class Arduino
 
         void recv_ack(States *state, int socket, struct sockaddr *server, socklen_t size);
 
+        void send_rsa(States *state, int socket, struct sockaddr *server, socklen_t size);
+
+        void recv_rsa(States *state, int socket, struct sockaddr *server, socklen_t size);
+
         void stateMachine(int socket, struct sockaddr *client, socklen_t size);
 
         /*  Waiting Done Confirmation
@@ -153,7 +157,7 @@ class Arduino
             Decifra o hash obtido do pacote utilizando a chave pública do Servidor.
             Retorna o hash em uma string.
         */
-        string decryptHash(DHKeyExchange *dhKeyExchange);
+        string decryptHash(int *encryptedHash);
 };
 
 #endif

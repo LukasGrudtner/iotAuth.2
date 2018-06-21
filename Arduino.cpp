@@ -54,21 +54,21 @@ void Arduino::stateMachine(int socket, struct sockaddr *server, socklen_t size)
             break;
         }
 
-        // /* Receive RSA */
-        // case RRSA:
-        // {
-        //     cout << "RECEIVE RSA KEY" << endl;
-        //     rrsa(&state, socket, server, size);
-        //     break;
-        // }
+        /* Receive RSA */
+        case RECV_RSA:
+        {
+            cout << "RECEIVE RSA KEY" << endl;
+            recv_rsa(&state, socket, server, size);
+            break;
+        }
 
-        // /* Send RSA */
-        // case SRSA:
-        // {
-        //     cout << "SEND RSA KEY" << endl;
-        //     srsa(&state, socket, server, size);
-        //     break;
-        // }
+        /* Send RSA */
+        case SEND_RSA:
+        {
+            cout << "SEND RSA KEY" << endl;
+            send_rsa(&state, socket, server, size);
+            break;
+        }
 
         // /* Receive Diffie-Hellman */
         // case RDH:
@@ -197,81 +197,105 @@ void Arduino::generateNonce(char *nonce)
 /*  Send RSA
     Realiza o envio da chave RSA para o Servidor.
 */
-void Arduino::srsa(States *state, int socket, struct sockaddr *server, socklen_t size)
+void Arduino::send_rsa(States *state, int socket, struct sockaddr *server, socklen_t size)
 {
-    // /******************** Init Processing Time ********************/
-    // struct timeval tv1, tv2;
-    // double t1, t2;
-    // gettimeofday(&tv1, NULL);
-    // t1 = (double)(tv1.tv_sec) + (double)(tv1.tv_usec)/ 1000000.00;
-    // double processingTime; /* ms */
+    /******************** Init Processing Time ********************/
+    struct timeval tv1, tv2;
+    double t1, t2;
+    gettimeofday(&tv1, NULL);
+    t1 = (double)(tv1.tv_sec) + (double)(tv1.tv_usec)/ 1000000.00;
+    double processingTime; /* ms */
 
-    // /******************** Generate RSA/FDR ********************/
-    // rsaStorage = new RSAStorage();
-    // rsaStorage->setKeyPair(iotAuth.generateRSAKeyPair());
-    // rsaStorage->setMyFDR(iotAuth.generateFDR());
+    /******************** Generate RSA/FDR ********************/
+    rsaStorage = new RSAStorage();
+    rsaStorage->setKeyPair(iotAuth.generateRSAKeyPair());
+    rsaStorage->setMyFDR(iotAuth.generateFDR());
 
-    // /******************** Generate Nonce ********************/
-    // char nA[129];
-    // generateNonce(nA);
+    /******************** Generate Nonce ********************/
+    generateNonce(nonceA);
 
-    // /******************** Mount Package ********************/
-    // RSAPackage rsaSent;
-    // rsaSent.setPublicKey(*rsaStorage->getMyPublicKey());
-    // rsaSent.setFDR(*rsaStorage->getMyFDR());
-    // rsaSent.setNonceA(nA);
-    // rsaSent.setNonceB(nonceB);
+    /******************** Mount Package ********************/
+    RSAPackage rsaSent;
+    rsaSent.setPublicKey(*rsaStorage->getMyPublicKey());
+    rsaSent.setFDR(*rsaStorage->getMyFDR());
+    rsaSent.setNonceA(nonceA);
+    rsaSent.setNonceB(nonceB);
 
-    // /******************** Get Hash ********************/
-    // string rsaString = rsaSent.toString();
-    // string hash = iotAuth.hash(&rsaString);
+    /******************** Get Hash ********************/
+    string rsaString = rsaSent.toString();
+    string hash = iotAuth.hash(&rsaString);
 
-    // /******************** Encrypt Hash ********************/
-    // int *encryptedHash = iotAuth.encryptRSA(&hash, rsaStorage->getMyPrivateKey(), hash.length());
+    /******************** Encrypt Hash ********************/
+    int *encryptedHash = iotAuth.encryptRSA(&hash, rsaStorage->getMyPrivateKey(), hash.length());
 
-    // /******************** End Processing Time ********************/
-    // gettimeofday(&tv2, NULL);
-    // t2 = (double)(tv2.tv_sec) + (double)(tv2.tv_usec)/ 1000000.00;
-    // processingTime = (double)(t2-t1)*1000;
+    /******************** End Processing Time ********************/
+    gettimeofday(&tv2, NULL);
+    t2 = (double)(tv2.tv_sec) + (double)(tv2.tv_usec)/ 1000000.00;
+    processingTime = (double)(t2-t1)*1000;
 
-    // /******************** Mount Exchange ********************/
-    // RSAKeyExchange rsaExchange;
-    // rsaExchange.setRSAPackage(&rsaSent);
-    // rsaExchange.setEncryptedHash(encryptedHash);
-    // rsaExchange.setProcessingTime(processingTime);
+    /******************** Mount Exchange ********************/
+    RSAKeyExchange rsaExchange;
+    rsaExchange.setRSAPackage(&rsaSent);
+    rsaExchange.setEncryptedHash(encryptedHash);
+    rsaExchange.setProcessingTime(processingTime);
 
-    // /******************** Send Exchange ********************/
-    // int sended = sendto(socket, (RSAKeyExchange*)&rsaExchange, sizeof(rsaExchange), 0, server, size);
-    // *state = RRSA;
+    /******************** Send Exchange ********************/
+    int sended = sendto(socket, (RSAKeyExchange*)&rsaExchange, sizeof(rsaExchange), 0, server, size);
+    *state = RECV_RSA;
 
-    // /******************** Verbose ********************/
-    // if (VERBOSE) {srsa_verbose(rsaStorage, &rsaSent);}
+    /******************** Verbose ********************/
+    if (VERBOSE) {srsa_verbose(rsaStorage, &rsaSent);}
 }
 
 /*  Receive RSA
     Realiza o recebimento da chave RSA vinda do Servidor.
 */
-void Arduino::rrsa(States *state, int socket, struct sockaddr *server, socklen_t size)
+void Arduino::recv_rsa(States *state, int socket, struct sockaddr *server, socklen_t size)
 {
-    RSAKeyExchange* rsaKeyExchange = new RSAKeyExchange();
+    /******************** Receive Exchange ********************/
+    RSAKeyExchange *rsaKeyExchange = new RSAKeyExchange();
     recvfrom(socket, rsaKeyExchange, sizeof(RSAKeyExchange), 0, server, &size);
 
-    // rsaStorage->setPartnerPublicKey(rsaKeyExchange->getPublicKey());
-    // // rsaStorage->setPartnerIV(rsaKeyExchange->getIV());
-    // rsaStorage->setPartnerFDR(rsaKeyExchange->getFDR());
+    /******************** Get Package ********************/
+    RSAPackage *rsaPackage = rsaKeyExchange->getRSAPackage();
 
-    // if (VERBOSE) {rrsa_verbose1(rsaKeyExchange, rsaStorage);}
+    /******************** Config RSA ********************/
+    rsaStorage->setPartnerPublicKey(rsaPackage->getPublicKey());
+    rsaStorage->setPartnerFDR(rsaPackage->getFDR());
+    strncpy(nonceB, rsaPackage->getNonceB().c_str(), sizeof(nonceB));
 
-    // /* Verifica se a resposta do FDR é válida. */
-    // if (checkAnsweredFDR(rsaKeyExchange->getAnswerFDR())) {
-    //     if (VERBOSE) {rrsa_verbose2();}
-    //     *state = SDH;
-    // } else {
-    //     if (VERBOSE) {rrsa_verbose3();}
-    //     *state = DONE;
-    // }
+    /******************** Decrypt Hash ********************/
+    string rsaString = rsaPackage->toString();
+    string decryptedHash = decryptHash(rsaKeyExchange->getEncryptedHash());
 
-    // delete rsaKeyExchange;
+    /******************** Validity Hash ********************/
+    if (iotAuth.isHashValid(&rsaString, &decryptedHash)) {
+        cout << "HASH IS VALID!" << endl;
+
+        if (rsaPackage->getNonceA() == nonceA) {
+            cout << "NONCE A IS VALID!" << endl;
+
+            if (checkAnsweredFDR(rsaPackage->getAnswerFDR())) {
+                cout << "ANSWER FDR IS VALID!" << endl;
+
+                *state = SEND_RSA_ACK;
+
+            } else {
+                cout << "ANSWER FDR IS INVALID!" << endl;
+                *state = SEND_SYN;
+            }
+
+        } else {
+            cout << "NONCE A IS INVALID!" << endl;
+            *state = SEND_SYN;
+        }
+
+    } else {
+        cout << "HASH IS INVALID!" << endl;
+        *state = SEND_SYN;
+    }
+
+    delete rsaKeyExchange;
 }
 
 void Arduino::setupDiffieHellman()
@@ -421,10 +445,8 @@ void Arduino::getDiffieHellmanPackage(DHKeyExchange *dhKeyExchange, DiffieHellma
     Decifra o hash obtido do pacote utilizando a chave pública do Cliente.
     Retorna o hash em uma string.
 */
-string Arduino::decryptHash(DHKeyExchange *dhKeyExchange)
+string Arduino::decryptHash(int *encryptedHash)
 {
-    int *encryptedHash = dhKeyExchange->getEncryptedHash();
-
     byte *decryptedHash = iotAuth.decryptRSA(encryptedHash, rsaStorage->getPartnerPublicKey(), 128);
 
     char aux;
@@ -492,8 +514,7 @@ int Arduino::calculateFDRValue(int iv, FDR* fdr)
 */
 bool Arduino::checkAnsweredFDR(int answeredFdr)
 {
-    int answer = 0;
-    // int answer = calculateFDRValue(rsaStorage->getMyIV(), rsaStorage->getMyFDR());
+    int answer = calculateFDRValue(rsaStorage->getMyPublicKey()->d, rsaStorage->getMyFDR());
     return answer == answeredFdr;
 }
 

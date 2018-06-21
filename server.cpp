@@ -124,8 +124,6 @@ void recv_syn(States *state, int socket, struct sockaddr *client, socklen_t size
     /* Verifica se a mensagem recebida é um HELLO. */
     if (received.message == SYN) {
 
-        
-
         strncpy(nonceA, received.nonce, sizeof(nonceA));
 
         *state = SEND_ACK;
@@ -152,12 +150,6 @@ void send_ack(States *state, int socket, struct sockaddr *client, socklen_t size
     *state = RECV_RSA;
 }
 
-void recv_rsa(States *state, int socket, struct sockaddr *client, socklen_t size)
-{
-    RSAKeyExchange *rsaReceived = new RSAKeyExchange();
-    recvfrom(socket, rsaReceived, sizeof(RSAKeyExchange), 0, client, &size);
-}
-
 /*  Done
     Envia um pedido de término de conexão ao Cliente, e seta o estado atual
     para WDC (Waiting Done Confirmation).
@@ -168,9 +160,8 @@ void done(States *state, int socket, struct sockaddr *client, socklen_t size)
     *state = WDC;
 }
 
-string decryptHash(RSAKeyExchange *rsaKeyExchange)
+string decryptHash(int *encryptedHash)
 {
-    int *encryptedHash = rsaKeyExchange->getEncryptedHash();
     byte *decryptedHash = iotAuth.decryptRSA(encryptedHash, rsaStorage->getPartnerPublicKey(), 128);
 
     char aux;
@@ -185,75 +176,92 @@ string decryptHash(RSAKeyExchange *rsaKeyExchange)
     return decryptedHashString;
 }
 
-
-
-/*  Receive RSA
-    Realiza o recebimento da chave RSA vinda do Cliente.
-*/
-void rrsa(States *state, int socket, struct sockaddr *client, socklen_t size)
+void recv_rsa(States *state, int socket, struct sockaddr *client, socklen_t size)
 {
-    // /******************** Receive Exchange ********************/
-    // RSAKeyExchange *rsaReceived = new RSAKeyExchange();
-    // recvfrom(socket, rsaReceived, sizeof(RSAKeyExchange), 0, client, &size);
+    /******************** Receive Exchange ********************/
+    RSAKeyExchange *rsaReceived = new RSAKeyExchange();
+    recvfrom(socket, rsaReceived, sizeof(RSAKeyExchange), 0, client, &size);
 
-    // /******************** Generate RSA ********************/
-    // RSAPackage rsaPackage = *rsaReceived->getRSAPackage();
+    /******************** Generate RSA ********************/
+    RSAPackage rsaPackage = *rsaReceived->getRSAPackage();
     
-    // rsaStorage = new RSAStorage();
-    // rsaStorage->setKeyPair(iotAuth.generateRSAKeyPair());
-    // rsaStorage->setMyFDR(iotAuth.generateFDR());
-    // rsaStorage->setPartnerPublicKey(rsaPackage.getPublicKey());
-    // rsaStorage->setPartnerFDR(rsaPackage.getFDR());
+    rsaStorage = new RSAStorage();
+    rsaStorage->setKeyPair(iotAuth.generateRSAKeyPair());
+    rsaStorage->setMyFDR(iotAuth.generateFDR());
+    rsaStorage->setPartnerPublicKey(rsaPackage.getPublicKey());
+    rsaStorage->setPartnerFDR(rsaPackage.getFDR());
 
-    // /******************** Decrypt Hash ********************/
-    // string rsaString = rsaPackage.toString();
-    // string decryptedHash = decryptHash(rsaReceived);
+    /******************** Decrypt Hash ********************/
+    string rsaString = rsaPackage.toString();
+    string decryptedHash = decryptHash(rsaReceived->getEncryptedHash());
 
-    // if (iotAuth.isHashValid(&rsaString, &decryptedHash)) {
-    //     cout << "HASH IS VALID!" << endl;
+    /******************** Save Nonce A ********************/
+    strncpy(nonceA, rsaPackage.getNonceA().c_str(), sizeof(nonceA));
 
-    //     string nB (nonceB);
-    //     if (rsaPackage.getNonceB() == nonceB) {
-    //         cout << "NONCE B IS VALID!" << endl;
-    //         *state = SRSA;
-    //     } else {
-    //         cout << "NONCE B IS INVALID!" << endl;
-    //         *state = HELLO;
-    //     }
-    // } else {
-    //     cout << "HASH IS INVALID!" << endl;
-    //     *state = HELLO;
-    // }
+    /******************** Validity Hash ********************/
+    if (iotAuth.isHashValid(&rsaString, &decryptedHash)) {
+        cout << "HASH IS VALID!" << endl;
 
-    // if (VERBOSE) {rrsa_verbose(&rsaPackage, rsaStorage);}
+        string nB (nonceB);
+        if (rsaPackage.getNonceB() == nonceB) {
+            cout << "NONCE B IS VALID!" << endl;
+            *state = SEND_RSA;
+        } else {
+            cout << "NONCE B IS INVALID!" << endl;
+            *state = RECV_SYN;
+        }
+    } else {
+        cout << "HASH IS INVALID!" << endl;
+        *state = RECV_SYN;
+    }
 
-    // delete rsaReceived;
+    /******************** Verbose ********************/
+    if (VERBOSE) {rrsa_verbose(&rsaPackage, rsaStorage);}
 }
-
-
-
 
 /*  Send RSA
     Realiza o envio da chave RSA para o Cliente.
 */
-void srsa(States *state, int socket, struct sockaddr *client, socklen_t size)
+void send_rsa(States *state, int socket, struct sockaddr *client, socklen_t size)
 {
-    // /******************** Resposta FDR ********************/
-    // // int answerFdr = calculateFDRValue(rsaStorage->getPartnerIV(), rsaStorage->getPartnerFDR());
+    /******************** Get Answer FDR ********************/
+    int answerFdr = calculateFDRValue(rsaStorage->getPartnerPublicKey()->d, rsaStorage->getPartnerFDR());
 
-    // /******************** RSA Key Exchange ********************/
-    // RSAPackage rsaSent;
-    // rsaSent.setPublicKey(*rsaStorage->getMyPublicKey());
-    // // rsaSent.setIV(rsaStorage->getMyIV());
-    // rsaSent.setFDR(*rsaStorage->getMyFDR());
-    // // rsaSent.setAnswerFDR(answerFdr);
+    /******************** Generate Nonce ********************/
+    generateNonce(nonceB);
 
-    // /******************** Envio ********************/
-    // int sended = sendto(socket, (RSAKeyExchange*)&rsaSent, sizeof(rsaSent), 0, client, size);
-    // *state = RDH;
+    /******************** Mount Package ********************/
+    RSAPackage rsaSent;
+    rsaSent.setPublicKey(*rsaStorage->getMyPublicKey());
+    rsaSent.setAnswerFDR(answerFdr);
+    rsaSent.setFDR(*rsaStorage->getMyFDR());
+    rsaSent.setNonceA(nonceA);
+    rsaSent.setNonceB(nonceB);
+
+    /******************** Get Hash ********************/
+    string packageString = rsaSent.toString();
+    string hash = iotAuth.hash(&packageString);
+
+    /******************** Encrypt Hash ********************/
+    int *encryptedHash = iotAuth.encryptRSA(&hash, rsaStorage->getMyPrivateKey(), 128);
+
+    /******************** Mount Exchange ********************/
+    RSAKeyExchange rsaExchange;
+    rsaExchange.setRSAPackage(&rsaSent);
+    rsaExchange.setEncryptedHash(encryptedHash);
+
+    /******************** Send Exchange ********************/
+    sendto(socket, (RSAKeyExchange*)&rsaExchange, sizeof(RSAKeyExchange), 0, client, size);
+    *state = RECV_RSA_ACK;
 
     // /******************** Verbose ********************/
-    // if (VERBOSE) {srsa_verbose(&rsaSent);}
+    if (VERBOSE) {srsa_verbose(&rsaSent);}
+}
+
+void recv_rsa_ack(States *state, int socket, struct sockaddr *client, socklen_t size)
+{
+    RSAKeyExchange *rsaReceived = new RSAKeyExchange();
+    recvfrom(socket, rsaReceived, sizeof(RSAKeyExchange), 0, client, &size);
 }
 
 /*  Decrypt DH Key Exchange
@@ -552,13 +560,20 @@ void stateMachine(int socket, struct sockaddr *client, socklen_t size)
             break;
         }
 
-        // /* Send RSA */
-        // case SRSA:
-        // {
-        //     cout << "SEND RSA KEY" << endl;
-        //     srsa(&state, socket, client, size);
-        //     break;
-        // }
+        /* Send RSA */
+        case SEND_RSA:
+        {
+            cout << "SEND RSA KEY" << endl;
+            send_rsa(&state, socket, client, size);
+            break;
+        }
+
+        case RECV_RSA_ACK:
+        {
+            cout << "RECEIVE RSA ACK" << endl;
+            recv_rsa_ack(&state, socket, client, size);
+            break;
+        }
 
         // /* Receive Diffie-Hellman */
         // case RDH:
