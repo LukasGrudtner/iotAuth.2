@@ -43,6 +43,10 @@ class Arduino
 
         void recv_rsa(States *state, int socket, struct sockaddr *server, socklen_t size);
 
+        void send_rsa_ack(States *state, int socket, struct sockaddr *server, socklen_t size);
+
+        void recv_dh(States *state, int socket, struct sockaddr *server, socklen_t size);
+
         void stateMachine(int socket, struct sockaddr *client, socklen_t size);
 
         /*  Waiting Done Confirmation

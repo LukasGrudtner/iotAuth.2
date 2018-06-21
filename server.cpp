@@ -254,7 +254,7 @@ void send_rsa(States *state, int socket, struct sockaddr *client, socklen_t size
     sendto(socket, (RSAKeyExchange*)&rsaExchange, sizeof(RSAKeyExchange), 0, client, size);
     *state = RECV_RSA_ACK;
 
-    // /******************** Verbose ********************/
+    /******************** Verbose ********************/
     if (VERBOSE) {srsa_verbose(&rsaSent);}
 }
 
@@ -262,6 +262,34 @@ void recv_rsa_ack(States *state, int socket, struct sockaddr *client, socklen_t 
 {
     RSAKeyExchange *rsaReceived = new RSAKeyExchange();
     recvfrom(socket, rsaReceived, sizeof(RSAKeyExchange), 0, client, &size);
+
+    /******************** Get Package ********************/
+    RSAPackage rsaPackage = *rsaReceived->getRSAPackage();
+
+    /******************** Decrypt Hash ********************/
+    string rsaString = rsaPackage.toString();
+    string decryptedHash = decryptHash(rsaReceived->getEncryptedHash());
+
+    /******************** Save Nonce A ********************/
+    strncpy(nonceA, rsaPackage.getNonceA().c_str(), sizeof(nonceA));
+
+    /******************** Validity Hash ********************/
+    if (iotAuth.isHashValid(&rsaString, &decryptedHash)) {
+        cout << "HASH IS VALID!" << endl;
+
+        string nB (nonceB);
+        if (rsaPackage.getNonceB() == nonceB) {
+            cout << "NONCE B IS VALID!" << endl;
+            *state = RECV_SYN;
+        } else {
+            cout << "NONCE B IS INVALID!" << endl;
+            *state = RECV_SYN;
+        }
+    } else {
+        cout << "HASH IS INVALID!" << endl;
+        *state = RECV_SYN;
+    }
+
 }
 
 /*  Decrypt DH Key Exchange

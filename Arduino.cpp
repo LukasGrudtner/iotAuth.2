@@ -70,13 +70,20 @@ void Arduino::stateMachine(int socket, struct sockaddr *server, socklen_t size)
             break;
         }
 
-        // /* Receive Diffie-Hellman */
-        // case RDH:
-        // {
-        //     cout << "RECEIVE DIFFIE HELLMAN KEY" << endl;
-        //     rdh(&state, socket, server, size);
-        //     break;
-        // }
+        case SEND_RSA_ACK:
+        {
+            cout << "SEND RSA ACK" << endl;
+            send_rsa_ack(&state, socket, server, size);
+            break;
+        }
+
+        /* Receive Diffie-Hellman */
+        case RECV_DH:
+        {
+            cout << "RECEIVE DIFFIE HELLMAN KEY" << endl;
+            recv_dh(&state, socket, server, size);
+            break;
+        }
 
         // /* Send Diffie-Hellman */
         // case SDH:
@@ -194,6 +201,37 @@ void Arduino::generateNonce(char *nonce)
     strncpy(nonce, hash.c_str(), 128);
 }
 
+void Arduino::send_rsa_ack(States *state, int socket, struct sockaddr *server, socklen_t size)
+{
+    /******************** Generate Nonce ********************/
+    generateNonce(nonceA);
+
+    /******************** Get Answer FDR ********************/
+    int answerFdr = calculateFDRValue(rsaStorage->getPartnerPublicKey()->d, rsaStorage->getPartnerFDR());
+
+    /******************** Mount Package ********************/
+    RSAPackage rsaSent;
+    rsaSent.setNonceA(nonceA);
+    rsaSent.setNonceB(nonceB);
+    rsaSent.setAnswerFDR(answerFdr);
+
+    /******************** Get Hash ********************/
+    string rsaString = rsaSent.toString();
+    string hash = iotAuth.hash(&rsaString);
+
+    /******************** Encrypt Hash ********************/
+    int *encryptedHash = iotAuth.encryptRSA(&hash, rsaStorage->getMyPrivateKey(), hash.length());
+
+    /******************** Mount Exchange ********************/
+    RSAKeyExchange rsaExchange;
+    rsaExchange.setRSAPackage(&rsaSent);
+    rsaExchange.setEncryptedHash(encryptedHash);
+
+    /******************** Send Exchange ********************/
+    int sended = sendto(socket, (RSAKeyExchange*)&rsaExchange, sizeof(rsaExchange), 0, server, size);
+    *state = RECV_DH;
+}
+
 /*  Send RSA
     Realiza o envio da chave RSA para o Servidor.
 */
@@ -245,6 +283,12 @@ void Arduino::send_rsa(States *state, int socket, struct sockaddr *server, sockl
 
     /******************** Verbose ********************/
     if (VERBOSE) {srsa_verbose(rsaStorage, &rsaSent);}
+}
+
+void Arduino::recv_dh(States *state, int socket, struct sockaddr *server, socklen_t size)
+{
+    int encryptedMessage[sizeof(DHKeyExchange)];
+    recvfrom(socket, encryptedMessage, sizeof(DHKeyExchange)*sizeof(int), 0, server, &size);
 }
 
 /*  Receive RSA
