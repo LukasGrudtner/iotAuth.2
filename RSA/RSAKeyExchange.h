@@ -3,6 +3,7 @@
 
 #include "../settings.h"
 #include "../fdr.h"
+#include "RSAPackage.h"
 #include <stdio.h>
 #include <string>
 
@@ -10,31 +11,18 @@ class RSAKeyExchange
 {
 
     public:
-        RSAKeyExchange();
-        /* Getters */
-        RSAKey getPublicKey();
-        int getAnswerFDR();
-        FDR getFDR();
-        char *getNonceA();
-        char *getNonceB();
+        RSAPackage *getRSAPackage();
+        int *getEncryptedHash();
+        double getProcessingTime();
 
-        /* Setters */
-        void setPublicKey(RSAKey pKey);
-        void setAnswerFDR(int aFdr);
-        void setFDR(FDR _fdr);
-        void setNonceA(char *nonce);
-        void setNonceB(char *nonce);
-
-
-        std::string toString();
+        void setRSAPackage(RSAPackage *rsaP);
+        void setEncryptedHash(int encHash[]);
+        void setProcessingTime(double processingTime);
 
     private:
-        RSAKey publicKey;
-        FDR fdr;
-        char nonceA[129];
-        char nonceB[129];
-        int answerFdr = 0;
-        char ack = '.';
+        RSAPackage rsaPackage;
+        int encryptedHash[128];
+        double tp;
 
 };
 

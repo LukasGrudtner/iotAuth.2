@@ -15,6 +15,7 @@
 
 #include "RSA/RSAStorage.h"
 #include "RSA/RSAKeyExchange.h"
+#include "RSA/RSAPackage.h"
 
 #include "verbose/verbose_client.h"
 #include <sys/time.h>
@@ -31,7 +32,7 @@ class Arduino
         
         char *clientIP;
         char *serverIP;
-        char *nonceB = new char[129];
+        char nonceB[129];
 
         void stateMachine(int socket, struct sockaddr *client, socklen_t size);
 
@@ -111,6 +112,8 @@ class Arduino
             O retorno do hash cifrado é feito por parâmetro.
         */
         int* getEncryptedHash(DiffieHellmanPackage *dhPackage);
+
+        void generateNonce(char *nonce);
 
     private:
 

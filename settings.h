@@ -2,7 +2,6 @@
 #define SETTINGS_H
 
 #include "fdr.h"
-// #include "RSA/RSAKeyExchange.h"
 
 /* Definição de alguns atributos utilizados na comunicação */
 #define VERBOSE true
@@ -72,38 +71,37 @@ typedef enum {
     HELLO, DONE, RFT, WDC, RRSA, SRSA, RDH, SDH, DT
 } States;
 
-typedef struct RSAPackage
-{
-    RSAKey publicKey;
-    FDR fdr;
-    int answerFDR = 0;
-    char nonceA[129];
-    char nonceB[129];
-    char ack = '-';
+// typedef struct RSAPackage
+// {
+//     RSAKey publicKey;
+//     FDR fdr;
+//     int answerFDR = 0;
+//     char nonceA[129];
+//     char nonceB[129];
+//     char ack = '-';
 
-    std::string toString() {
-        std::string result =    std::to_string(publicKey.d)    + " | " +
-                                std::to_string(publicKey.n)    + " | " +
-                                std::to_string(answerFDR)      + " | " +
-                                fdr.toString()                 + " | " + 
-                                nonceA                         + " | " +
-                                nonceB;
-        return result;
-    }
-} RSAPackage;
+//     std::string toString() {
+//         std::string result =    std::to_string(publicKey.d)    + " | " +
+//                                 std::to_string(publicKey.n)    + " | " +
+//                                 std::to_string(answerFDR)      + " | " +
+//                                 fdr.toString()                 + " | " + 
+//                                 nonceA                         + " | " +
+//                                 nonceB;
+//         return result;
+//     }
+// } RSAPackage;
 
-typedef struct RSAExchange 
-{
-    RSAPackage rsaPackage;
-    char hash[129];
-    double tp;
+// typedef struct RSAExchange 
+// {
+//     RSAPackage rsaPackage;
+//     int hash[128];
+//     double tp;
 
-    std::string toString() {
-        std::string hashString (hash);
-        std::string result = hashString + " | " + std::to_string(tp);
-        return result;
-    }
+//     // std::string toString() {
+//     //     std::string result = hashString + " | " + std::to_string(tp);
+//     //     return result;
+//     // }
 
-} RSAExchange;
+// } RSAExchange;
 
 #endif

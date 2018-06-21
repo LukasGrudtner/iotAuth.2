@@ -29,19 +29,19 @@ void srsa_verbose(RSAStorage *rsaStorage, RSAPackage *rsaKeyExchange)
          << rsaStorage->getMyPrivateKey()->d << ", "
          << rsaStorage->getMyPrivateKey()->n << ")}" << endl;
     cout << "My FDR: " << rsaStorage->getMyFDR()->toString() << endl;
-    cout << "Nonce A: " << rsaKeyExchange->nonceA << endl;
-    cout << "Nonce B: " << rsaKeyExchange->nonceB << endl;
+    cout << "Nonce A: " << rsaKeyExchange->getNonceA() << endl;
+    cout << "Nonce B: " << rsaKeyExchange->getNonceB() << endl;
     cout << "Sent: " << rsaKeyExchange->toString() << endl;
     cout << "**************************************\n" << endl;
 }
 
 void rrsa_verbose1(RSAKeyExchange *rsaKeyExchange, RSAStorage *rsaStorage)
 {
-    cout << "*********RSA | RECEIVE FROM SERVER**********" << endl;
-    cout << "RSA Server Public Key: (" << rsaKeyExchange->getPublicKey().d <<
-            ", " << rsaKeyExchange->getPublicKey().n << ")" << endl;
-    cout << "Received Answer: " << rsaKeyExchange->getAnswerFDR() << endl;
-    cout << "Received: " << rsaKeyExchange->toString() << endl;
+    // cout << "*********RSA | RECEIVE FROM SERVER**********" << endl;
+    // cout << "RSA Server Public Key: (" << rsaKeyExchange->getPublicKey().d <<
+    //         ", " << rsaKeyExchange->getPublicKey().n << ")" << endl;
+    // cout << "Received Answer: " << rsaKeyExchange->getAnswerFDR() << endl;
+    // cout << "Received: " << rsaKeyExchange->toString() << endl;
 }
 
 void rrsa_verbose2()

@@ -1,66 +1,33 @@
 #include "RSAKeyExchange.h"
 
-RSAKeyExchange::RSAKeyExchange() {
-    publicKey = {0,0};
-    nonceA[128] = '\0';
-    nonceB[128] = '\0';
+RSAPackage *RSAKeyExchange::getRSAPackage()
+{
+    return &rsaPackage;
 }
 
-RSAKey RSAKeyExchange::getPublicKey() {
-    return publicKey;
+int *RSAKeyExchange::getEncryptedHash()
+{
+    return encryptedHash;
 }
 
-int RSAKeyExchange::getAnswerFDR() {
-    return answerFdr;
+double RSAKeyExchange::getProcessingTime()
+{
+    return tp;
 }
 
-FDR RSAKeyExchange::getFDR() {
-    return fdr;
+void RSAKeyExchange::setRSAPackage(RSAPackage *rsaP)
+{
+    rsaPackage = *rsaP;
 }
 
-void RSAKeyExchange::setPublicKey(RSAKey pKey) {
-    publicKey = pKey;
-}
-
-void RSAKeyExchange::setAnswerFDR(int aFdr) {
-    answerFdr = aFdr;
-}
-
-void RSAKeyExchange::setFDR(FDR _fdr) {
-    fdr = _fdr;
-}
-
-std::string RSAKeyExchange::toString() {
-    std::string result =    std::to_string(getPublicKey().d)    + " | " +
-                            std::to_string(getPublicKey().n)    + " | " +
-                            std::to_string(getAnswerFDR())      + " | " +
-                            getFDR().toString()                 + " | " + 
-                            getNonceA()                         + " | " +
-                            getNonceB();
-
-    return result;
-}
-
-void RSAKeyExchange::setNonceA(char *nonce)
+void RSAKeyExchange::setEncryptedHash(int encHash[])
 {
     for (int i = 0; i < 128; i++) {
-        nonceA[i] = nonce[i];
+        encryptedHash[i] = encHash[i];
     }
 }
 
-void RSAKeyExchange::setNonceB(char *nonce)
+void RSAKeyExchange::setProcessingTime(double processingTime)
 {
-    for (int i = 0; i < 128; i++) {
-        nonceB[i] = nonce[i];
-    }
-}
-
-char *RSAKeyExchange::getNonceA()
-{
-    return nonceA;
-}
-
-char *RSAKeyExchange::getNonceB()
-{
-    return nonceB;
+    tp = processingTime;
 }

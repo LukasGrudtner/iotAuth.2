@@ -4,7 +4,6 @@
     Realiza a cifragem de plaintext com o algoritmo AES, onde o resultado é
     é retornado.
 */
-
 uint8_t* IotAuth::encryptAES(uint8_t* plaintext, uint8_t* key, uint8_t* iv, int size)
 {
     uint8_t *ciphertext = plaintext;
@@ -130,14 +129,14 @@ bool IotAuth::isHashValid(string *message, string *hash) {
     return *hash == hash2;
 }
 
-char* IotAuth::getNounce(char *source, char *receiver, int sequence)
-{
-    string message = stringTime() + *source + *receiver + to_string(sequence);
-    string hash = this->hash(&message);
+// char* IotAuth::getNounce(char *source, char *receiver, int sequence)
+// {
+//     string message = stringTime() + *source + *receiver + to_string(sequence);
+//     string hash = this->hash(&message);
 
-    char *nounce = new char[129];
-    memset(nounce, '\0', 129);
-    strncpy(nounce, hash.c_str(), 128);
+//     char *nounce = new char[129];
+//     memset(nounce, '\0', 129);
+//     strncpy(nounce, hash.c_str(), 128);
 
-    return nounce;
-}
+//     return nounce;
+// }

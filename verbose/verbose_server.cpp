@@ -21,7 +21,7 @@ void hello_failed_verbose()
         cout << "***********************************\n"   << endl;
 }
 
-void rrsa_verbose(RSAPackage *rsaKeyExchange, RSAStorage *rsaStorage)
+void rrsa_verbose(RSAPackage *rsaPackage, RSAStorage *rsaStorage)
 {
         cout << "******RSA | RECEIVE FROM CLIENT******" << endl;
         cout << "Generated RSA Key: {(" << rsaStorage->getMyPublicKey()->d      << ", "
@@ -30,17 +30,17 @@ void rrsa_verbose(RSAPackage *rsaKeyExchange, RSAStorage *rsaStorage)
                                         << rsaStorage->getMyPrivateKey()->n     << ")}" << endl;
         // cout << "My IV: "               << rsaStorage->getMyIV()                << endl;
         cout << "My FDR: "              << rsaStorage->getMyFDR()->toString()   << endl;
-        cout << "Received: "            << rsaKeyExchange->toString()           << endl;    
+        cout << "Received: "            << rsaPackage->toString()           << endl;    
         cout << "***********************************\n" << endl;
 }
 
-void srsa_verbose(RSAKeyExchange *rsaKeyExchange)
+void srsa_verbose(RSAPackage *rsaPackage)
 {
         cout << "*******RSA | SEND TO CLIENT*********" << endl;
-        cout << "Server RSA Public Key: ("      << rsaKeyExchange->getPublicKey().d
-                                        << ", " << rsaKeyExchange->getPublicKey().n << ")" << endl;
-        cout << "Answer Client's FDR: "         << rsaKeyExchange->getAnswerFDR() << endl;
-        cout << "Sent: "                        << rsaKeyExchange->toString() << endl;
+        cout << "Server RSA Public Key: ("      << rsaPackage->getPublicKey().d
+                                        << ", " << rsaPackage->getPublicKey().n << ")" << endl;
+        cout << "Answer Client's FDR: "         << rsaPackage->getAnswerFDR() << endl;
+        cout << "Sent: "                        << rsaPackage->toString() << endl;
         cout << "***********************************\n" << endl;
 }
 
