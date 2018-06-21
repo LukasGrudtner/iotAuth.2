@@ -2,6 +2,7 @@
 
 Arduino::Arduino()
 {
+    nonceA[128] = '\0';
     nonceB[128] = '\0';
     sequence = iotAuth.randomNumber(9999);
 }
@@ -11,7 +12,7 @@ Arduino::Arduino()
 */
 void Arduino::stateMachine(int socket, struct sockaddr *server, socklen_t size)
 {
-    static States state = HELLO;
+    static States state = SEND_SYN;
 
     switch (state) {
 
@@ -40,27 +41,34 @@ void Arduino::stateMachine(int socket, struct sockaddr *server, socklen_t size)
         }
 
         /* Hello */
-        case HELLO:
+        case SEND_SYN:
         {
-            hello(&state, socket, server, size);
+            send_syn(&state, socket, server, size);
             break;
         }
 
-        /* Receive RSA */
-        case RRSA:
+        /* Hello */
+        case RECV_ACK:
         {
-            cout << "RECEIVE RSA KEY" << endl;
-            rrsa(&state, socket, server, size);
+            recv_ack(&state, socket, server, size);
             break;
         }
 
-        /* Send RSA */
-        case SRSA:
-        {
-            cout << "SEND RSA KEY" << endl;
-            srsa(&state, socket, server, size);
-            break;
-        }
+        // /* Receive RSA */
+        // case RRSA:
+        // {
+        //     cout << "RECEIVE RSA KEY" << endl;
+        //     rrsa(&state, socket, server, size);
+        //     break;
+        // }
+
+        // /* Send RSA */
+        // case SRSA:
+        // {
+        //     cout << "SEND RSA KEY" << endl;
+        //     srsa(&state, socket, server, size);
+        //     break;
+        // }
 
         // /* Receive Diffie-Hellman */
         // case RDH:
@@ -95,14 +103,14 @@ void Arduino::stateMachine(int socket, struct sockaddr *server, socklen_t size)
 */
 void Arduino::wdc(States *state, int socket, struct sockaddr *server, socklen_t size)
 {
-    char message[1];
-    recvfrom(socket, message, sizeof(message), 0, server, &size);
+    // char message[1];
+    // recvfrom(socket, message, sizeof(message), 0, server, &size);
 
-    if (message[0] == DONE_ACK_CHAR) {
-        *state = HELLO;
-    } else {
-        *state = WDC;
-    }
+    // if (message[0] == DONE_ACK_CHAR) {
+    //     *state = HELLO;
+    // } else {
+    //     *state = WDC;
+    // }
 }
 
 /*  Request for Termination
@@ -111,28 +119,33 @@ void Arduino::wdc(States *state, int socket, struct sockaddr *server, socklen_t 
 */
 void Arduino::rft(States *state, int socket, struct sockaddr *server, socklen_t size)
 {
-    sendto(socket, DONE_ACK, strlen(DONE_ACK), 0, server, size);
-    *state = HELLO;
+    // sendto(socket, DONE_ACK, strlen(DONE_ACK), 0, server, size);
+    // *state = HELLO;
 
-    if (VERBOSE) {rft_verbose();}
+    // if (VERBOSE) {rft_verbose();}
 }
 
-/*  Hello
-    Envia um pedido de início de conexão (HELLO) para o Servidor
-*/
-void Arduino::hello(States *state, int socket, struct sockaddr *server, socklen_t size)
+void Arduino::send_syn(States *state, int socket, struct sockaddr *server, socklen_t size)
 {
     cout << "SEND SYN" << endl;
-    sequence = iotAuth.randomNumber(9999);
 
-    char nonceA[129];
+    /******************** Generate Nonce ********************/
     generateNonce(nonceA);
 
+    /******************** Mount SYN Package ********************/
     structSyn toSend;
     strncpy(toSend.nonce, nonceA, sizeof(toSend.nonce));
 
+    /******************** Send SYN ********************/
     sendto(socket, (syn*)&toSend, sizeof(syn), 0, server, size);
 
+    *state = RECV_ACK;
+}
+
+void Arduino::recv_ack(States *state, int socket, struct sockaddr *server, socklen_t size)
+{
+    cout << "RECV ACK" << endl;
+    /******************** Receive ACK ********************/
     structAck received;
     recvfrom(socket, &received, sizeof(ack), 0, server, &size);
 
@@ -142,25 +155,23 @@ void Arduino::hello(States *state, int socket, struct sockaddr *server, socklen_
     cout << "NONCE A: " << nonceA << endl << endl;
     cout << "NONCE B: " << received.nonceB << endl << endl;
 
-    /*  Guarda o nonce B em uma variável global da classe Arduino */
-    for (int i = 0; i < 129; i++) {
-        nonceB[i] = received.nonceB[i];
-    }
+    /******************** Save Nonce B ********************/
+    strncpy(nonceB, received.nonceB, sizeof(nonceB));
 
-    /* Verifica se a mensagem recebida é um HELLO. */
+    /******************** Validity Message ********************/
     if (received.message == ACK) {
 
         if (strcmp(received.nonceA, nonceA) == 0) {
-            *state = SRSA;
+            *state = SEND_RSA;
             cout << "NONCE ACCEPTED!" << endl;
             if (VERBOSE) {hello_sucessfull_verbose();}
         } else {
             if (VERBOSE) {hello_failed_verbose();}
-            *state = HELLO;
+            *state = SEND_SYN;
         }
     } else {
         if (VERBOSE) {hello_failed_verbose();}
-        *state = HELLO;
+        *state = SEND_SYN;
     }
 }
 
@@ -188,53 +199,53 @@ void Arduino::generateNonce(char *nonce)
 */
 void Arduino::srsa(States *state, int socket, struct sockaddr *server, socklen_t size)
 {
-    /******************** Init Processing Time ********************/
-    struct timeval tv1, tv2;
-    double t1, t2;
-    gettimeofday(&tv1, NULL);
-    t1 = (double)(tv1.tv_sec) + (double)(tv1.tv_usec)/ 1000000.00;
-    double processingTime; /* ms */
+    // /******************** Init Processing Time ********************/
+    // struct timeval tv1, tv2;
+    // double t1, t2;
+    // gettimeofday(&tv1, NULL);
+    // t1 = (double)(tv1.tv_sec) + (double)(tv1.tv_usec)/ 1000000.00;
+    // double processingTime; /* ms */
 
-    /******************** Generate RSA/FDR ********************/
-    rsaStorage = new RSAStorage();
-    rsaStorage->setKeyPair(iotAuth.generateRSAKeyPair());
-    rsaStorage->setMyFDR(iotAuth.generateFDR());
+    // /******************** Generate RSA/FDR ********************/
+    // rsaStorage = new RSAStorage();
+    // rsaStorage->setKeyPair(iotAuth.generateRSAKeyPair());
+    // rsaStorage->setMyFDR(iotAuth.generateFDR());
 
-    /******************** Generate Nonce ********************/
-    char nA[129];
-    generateNonce(nA);
+    // /******************** Generate Nonce ********************/
+    // char nA[129];
+    // generateNonce(nA);
 
-    /******************** Mount Package ********************/
-    RSAPackage rsaSent;
-    rsaSent.setPublicKey(*rsaStorage->getMyPublicKey());
-    rsaSent.setFDR(*rsaStorage->getMyFDR());
-    rsaSent.setNonceA(nA);
-    rsaSent.setNonceB(nonceB);
+    // /******************** Mount Package ********************/
+    // RSAPackage rsaSent;
+    // rsaSent.setPublicKey(*rsaStorage->getMyPublicKey());
+    // rsaSent.setFDR(*rsaStorage->getMyFDR());
+    // rsaSent.setNonceA(nA);
+    // rsaSent.setNonceB(nonceB);
 
-    /******************** Get Hash ********************/
-    string rsaString = rsaSent.toString();
-    string hash = iotAuth.hash(&rsaString);
+    // /******************** Get Hash ********************/
+    // string rsaString = rsaSent.toString();
+    // string hash = iotAuth.hash(&rsaString);
 
-    /******************** Encrypt Hash ********************/
-    int *encryptedHash = iotAuth.encryptRSA(&hash, rsaStorage->getMyPrivateKey(), hash.length());
+    // /******************** Encrypt Hash ********************/
+    // int *encryptedHash = iotAuth.encryptRSA(&hash, rsaStorage->getMyPrivateKey(), hash.length());
 
-    /******************** End Processing Time ********************/
-    gettimeofday(&tv2, NULL);
-    t2 = (double)(tv2.tv_sec) + (double)(tv2.tv_usec)/ 1000000.00;
-    processingTime = (double)(t2-t1)*1000;
+    // /******************** End Processing Time ********************/
+    // gettimeofday(&tv2, NULL);
+    // t2 = (double)(tv2.tv_sec) + (double)(tv2.tv_usec)/ 1000000.00;
+    // processingTime = (double)(t2-t1)*1000;
 
-    /******************** Mount Exchange ********************/
-    RSAKeyExchange rsaExchange;
-    rsaExchange.setRSAPackage(&rsaSent);
-    rsaExchange.setEncryptedHash(encryptedHash);
-    rsaExchange.setProcessingTime(processingTime);
+    // /******************** Mount Exchange ********************/
+    // RSAKeyExchange rsaExchange;
+    // rsaExchange.setRSAPackage(&rsaSent);
+    // rsaExchange.setEncryptedHash(encryptedHash);
+    // rsaExchange.setProcessingTime(processingTime);
 
-    /******************** Send Exchange ********************/
-    int sended = sendto(socket, (RSAKeyExchange*)&rsaExchange, sizeof(rsaExchange), 0, server, size);
-    *state = RRSA;
+    // /******************** Send Exchange ********************/
+    // int sended = sendto(socket, (RSAKeyExchange*)&rsaExchange, sizeof(rsaExchange), 0, server, size);
+    // *state = RRSA;
 
-    /******************** Verbose ********************/
-    if (VERBOSE) {srsa_verbose(rsaStorage, &rsaSent);}
+    // /******************** Verbose ********************/
+    // if (VERBOSE) {srsa_verbose(rsaStorage, &rsaSent);}
 }
 
 /*  Receive RSA
@@ -303,41 +314,41 @@ int* Arduino::getEncryptedHash(DiffieHellmanPackage *dhPackage)
 */
 void Arduino::sdh(States *state, int socket, struct sockaddr *server, socklen_t size)
 {
-    setupDiffieHellman();
-    /***************** Montagem do Pacote Diffie-Hellman ******************/
-    DiffieHellmanPackage diffieHellmanPackage;
-    mountDHPackage(&diffieHellmanPackage);
+    // setupDiffieHellman();
+    // /***************** Montagem do Pacote Diffie-Hellman ******************/
+    // DiffieHellmanPackage diffieHellmanPackage;
+    // mountDHPackage(&diffieHellmanPackage);
 
-    /***************** Serialização do Pacote Diffie-Hellman ******************/
-    byte* dhPackageBytes = new byte[sizeof(DiffieHellmanPackage)];
-    ObjectToBytes(diffieHellmanPackage, dhPackageBytes, sizeof(DiffieHellmanPackage));
+    // /***************** Serialização do Pacote Diffie-Hellman ******************/
+    // byte* dhPackageBytes = new byte[sizeof(DiffieHellmanPackage)];
+    // ObjectToBytes(diffieHellmanPackage, dhPackageBytes, sizeof(DiffieHellmanPackage));
 
-    /***************************** Geração do HASH ****************************/
-    /* Encripta o hash utilizando a chave privada do Servidor. */
-    int *encryptedHash = getEncryptedHash(&diffieHellmanPackage);
+    // /***************************** Geração do HASH ****************************/
+    // /* Encripta o hash utilizando a chave privada do Servidor. */
+    // int *encryptedHash = getEncryptedHash(&diffieHellmanPackage);
 
-    /********************** Preparação do Pacote Final ************************/
-    DHKeyExchange dhSent;
-    dhSent.setEncryptedHash(encryptedHash);
-    dhSent.setDiffieHellmanPackage(dhPackageBytes);
+    // /********************** Preparação do Pacote Final ************************/
+    // DHKeyExchange dhSent;
+    // dhSent.setEncryptedHash(encryptedHash);
+    // dhSent.setDiffieHellmanPackage(dhPackageBytes);
 
-    /********************** Serialização do Pacote Final **********************/
-    byte* dhSentBytes = new byte[sizeof(DHKeyExchange)];
-    ObjectToBytes(dhSent, dhSentBytes, sizeof(DHKeyExchange));
+    // /********************** Serialização do Pacote Final **********************/
+    // byte* dhSentBytes = new byte[sizeof(DHKeyExchange)];
+    // ObjectToBytes(dhSent, dhSentBytes, sizeof(DHKeyExchange));
 
-    /******************** Cifragem e Envio do Pacote Final ********************/
-    int* encryptedMessage = iotAuth.encryptRSA(dhSentBytes, rsaStorage->getPartnerPublicKey(), sizeof(DHKeyExchange));
+    // /******************** Cifragem e Envio do Pacote Final ********************/
+    // int* encryptedMessage = iotAuth.encryptRSA(dhSentBytes, rsaStorage->getPartnerPublicKey(), sizeof(DHKeyExchange));
 
-    sendto(socket,(int*)encryptedMessage, sizeof(DHKeyExchange)*sizeof(int), 0, server, size);
-    *state = RDH;
+    // sendto(socket,(int*)encryptedMessage, sizeof(DHKeyExchange)*sizeof(int), 0, server, size);
+    // *state = RDH;
 
-    /******************************** VERBOSE *********************************/
-    if (VERBOSE) {sdh_verbose(&diffieHellmanPackage);}
+    // /******************************** VERBOSE *********************************/
+    // if (VERBOSE) {sdh_verbose(&diffieHellmanPackage);}
 
-    delete[] dhPackageBytes;
-    delete[] encryptedHash;
-    delete[] dhSentBytes;
-    delete[] encryptedMessage;
+    // delete[] dhPackageBytes;
+    // delete[] encryptedHash;
+    // delete[] dhSentBytes;
+    // delete[] encryptedMessage;
 }
 
 /*  Receive Diffie-Hellman
@@ -345,41 +356,41 @@ void Arduino::sdh(States *state, int socket, struct sockaddr *server, socklen_t 
 */
 void Arduino::rdh(States *state, int socket, struct sockaddr *server, socklen_t size)
 {
-    /******************** Recebe os dados cifrados ********************/
-    int encryptedMessage[sizeof(DHKeyExchange)];
-    recvfrom(socket, encryptedMessage, sizeof(DHKeyExchange)*sizeof(int), 0, server, &size);
+//     /******************** Recebe os dados cifrados ********************/
+//     int encryptedMessage[sizeof(DHKeyExchange)];
+//     recvfrom(socket, encryptedMessage, sizeof(DHKeyExchange)*sizeof(int), 0, server, &size);
 
-    /******************** Realiza a decifragem ********************/
-    DHKeyExchange dhKeyExchange;
-    decryptDHKeyExchange(encryptedMessage, &dhKeyExchange);
+//     /******************** Realiza a decifragem ********************/
+//     DHKeyExchange dhKeyExchange;
+//     decryptDHKeyExchange(encryptedMessage, &dhKeyExchange);
 
-    DiffieHellmanPackage diffieHellmanPackage;
-    getDiffieHellmanPackage(&dhKeyExchange, &diffieHellmanPackage);
+//     DiffieHellmanPackage diffieHellmanPackage;
+//     getDiffieHellmanPackage(&dhKeyExchange, &diffieHellmanPackage);
 
-    string hash = decryptHash(&dhKeyExchange);
+//     string hash = decryptHash(&dhKeyExchange);
 
-    /******************** Validação do Hash ********************/
-   string dhString = diffieHellmanPackage.toString();
-   if (iotAuth.isHashValid(&dhString, &hash)) {
+//     /******************** Validação do Hash ********************/
+//    string dhString = diffieHellmanPackage.toString();
+//    if (iotAuth.isHashValid(&dhString, &hash)) {
 
-       dhStorage->setSessionKey(dhStorage->calculateSessionKey(diffieHellmanPackage.getResult()));
+//        dhStorage->setSessionKey(dhStorage->calculateSessionKey(diffieHellmanPackage.getResult()));
 
-       if (VERBOSE) {rdh_verbose1(dhStorage, &diffieHellmanPackage, &hash);}
+//        if (VERBOSE) {rdh_verbose1(dhStorage, &diffieHellmanPackage, &hash);}
 
-        if (checkAnsweredFDR(diffieHellmanPackage.getAnswerFDR())) {
-            *state = DT;
-            if (VERBOSE) {rdh_verbose2();}
-        } else {
-            *state = DONE;
-            if (VERBOSE) {rdh_verbose3();}
-        }
+//         if (checkAnsweredFDR(diffieHellmanPackage.getAnswerFDR())) {
+//             *state = DT;
+//             if (VERBOSE) {rdh_verbose2();}
+//         } else {
+//             *state = DONE;
+//             if (VERBOSE) {rdh_verbose3();}
+//         }
 
 
-   /* Se não, altera o estado para DONE e realiza o término da conexão. */
-   } else {
-       if (VERBOSE) {rdh_verbose4();}
-       *state = DONE;
-   }
+//    /* Se não, altera o estado para DONE e realiza o término da conexão. */
+//    } else {
+//        if (VERBOSE) {rdh_verbose4();}
+//        *state = DONE;
+//    }
 }
 
 /*  Decrypt DH Key Exchange

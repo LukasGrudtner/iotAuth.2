@@ -59,6 +59,8 @@ typedef struct rsa_key_pair
 /* Definição de todos os possíveis estados da FSM:
     SEND_SYN        :   Envia pedido de início de conexão.
     RECV_SYN        :   Recebe pedido de início de conexão.
+    SEND_ACK        :   Envia confirmação do início da conexão.
+    RECV_ACK        :   Recebe confirmação do início da conexão.
     SEND_RSA        :   Envia informações RSA.
     RECV_RSA        :   Recebe informações RSA.
     SEND_RSA_ACK    :   Envia confirmação RSA.
@@ -81,7 +83,9 @@ typedef struct rsa_key_pair
 */
 typedef enum {
     SEND_SYN, 
-    RECV_SYN, 
+    RECV_SYN,
+    SEND_ACK,
+    RECV_ACK,
     SEND_RSA, 
     RECV_RSA, 
     SEND_RSA_ACK, 

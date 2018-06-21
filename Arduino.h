@@ -32,7 +32,12 @@ class Arduino
         
         char *clientIP;
         char *serverIP;
+        char nonceA[129];
         char nonceB[129];
+
+        void send_syn(States *state, int socket, struct sockaddr *server, socklen_t size);
+
+        void recv_ack(States *state, int socket, struct sockaddr *server, socklen_t size);
 
         void stateMachine(int socket, struct sockaddr *client, socklen_t size);
 

@@ -85,14 +85,14 @@ bool checkRequestForTermination(char* message)
 */
 void wdc(States *state, int socket, struct sockaddr *client, socklen_t size)
 {
-    char message[512];
-    recvfrom(socket, message, sizeof(message), 0, client, &size);
+    // char message[512];
+    // recvfrom(socket, message, sizeof(message), 0, client, &size);
 
-    if (message[0] == DONE_ACK_CHAR) {
-        *state = HELLO;
-    } else {
-        *state = WDC;
-    }
+    // if (message[0] == DONE_ACK_CHAR) {
+    //     *state = HELLO;
+    // } else {
+    //     *state = WDC;
+    // }
 }
 
 /*  Request for Termination
@@ -101,10 +101,10 @@ void wdc(States *state, int socket, struct sockaddr *client, socklen_t size)
 */
 void rft(States *state, int socket, struct sockaddr *client, socklen_t size)
 {
-    sendto(socket, DONE_ACK, strlen(DONE_ACK), 0, client, size);
-    *state = HELLO;
+    // sendto(socket, DONE_ACK, strlen(DONE_ACK), 0, client, size);
+    // *state = HELLO;
 
-    if (VERBOSE) {rft_verbose();}
+    // if (VERBOSE) {rft_verbose();}
 }
 
 void generateNonce(char *nonce)
@@ -116,11 +116,7 @@ void generateNonce(char *nonce)
     strncpy(nonce, hash.c_str(), 128);
 }
 
-/*  Hello
-    Aguarda o recebimento de um pedido de início de conexão (HELLO) vindo
-    do Cliente.
-*/
-void hello(States *state, int socket, struct sockaddr *client, socklen_t size)
+void recv_syn(States *state, int socket, struct sockaddr *client, socklen_t size)
 {
     structSyn received;
     recvfrom(socket, &received, sizeof(syn), 0, client, &size);
@@ -128,32 +124,38 @@ void hello(States *state, int socket, struct sockaddr *client, socklen_t size)
     /* Verifica se a mensagem recebida é um HELLO. */
     if (received.message == SYN) {
 
-        /* Se for, envia um HELLO ACK ao Cliente. */
-        generateNonce(nonceB);
-
-        cout << "SERVER IP: " << serverIP << endl;
-        cout << "CLIENT IP: " << clientIP << endl;
-
-        cout << "NONCE A: " << received.nonce << endl << endl;
-        cout << "NONCE B: " << nonceB << endl << endl;
-
-        structAck toSend;
-        strncpy(toSend.nonceA, received.nonce, sizeof(toSend.nonceA));
-        strncpy(toSend.nonceB, nonceB, sizeof(toSend.nonceB));
         
-        int sended = sendto(socket, &toSend, sizeof(ack), 0, client, size);
 
-        /* Se a mensagem foi enviada corretamente, troca o estado para RSAX. */
-        if (sended >= 0) {
-            *state = RRSA;
-            if (VERBOSE) {hello_sucessfull_verbose();}
+        strncpy(nonceA, received.nonce, sizeof(nonceA));
 
-        /* Senão, continua no estado HELLO. */
-        } else {
-            *state = HELLO;
-            if (VERBOSE) {hello_failed_verbose();}
-        }
+        *state = SEND_ACK;
+    } else {
+        *state = RECV_SYN;
     }
+}
+
+void send_ack(States *state, int socket, struct sockaddr *client, socklen_t size)
+{
+    generateNonce(nonceB);
+    structAck toSend;
+    strncpy(toSend.nonceA, nonceA, sizeof(toSend.nonceA));
+    strncpy(toSend.nonceB, nonceB, sizeof(toSend.nonceB));
+
+    cout << "SERVER IP: " << serverIP << endl;
+    cout << "CLIENT IP: " << clientIP << endl;
+
+    cout << "NONCE A: " << nonceA << endl << endl;
+    cout << "NONCE B: " << nonceB << endl << endl;
+    
+    sendto(socket, &toSend, sizeof(ack), 0, client, size);
+
+    *state = RECV_RSA;
+}
+
+void recv_rsa(States *state, int socket, struct sockaddr *client, socklen_t size)
+{
+    RSAKeyExchange *rsaReceived = new RSAKeyExchange();
+    recvfrom(socket, rsaReceived, sizeof(RSAKeyExchange), 0, client, &size);
 }
 
 /*  Done
@@ -190,42 +192,42 @@ string decryptHash(RSAKeyExchange *rsaKeyExchange)
 */
 void rrsa(States *state, int socket, struct sockaddr *client, socklen_t size)
 {
-    /******************** Receive Exchange ********************/
-    RSAKeyExchange *rsaReceived = new RSAKeyExchange();
-    recvfrom(socket, rsaReceived, sizeof(RSAKeyExchange), 0, client, &size);
+    // /******************** Receive Exchange ********************/
+    // RSAKeyExchange *rsaReceived = new RSAKeyExchange();
+    // recvfrom(socket, rsaReceived, sizeof(RSAKeyExchange), 0, client, &size);
 
-    /******************** Generate RSA ********************/
-    RSAPackage rsaPackage = *rsaReceived->getRSAPackage();
+    // /******************** Generate RSA ********************/
+    // RSAPackage rsaPackage = *rsaReceived->getRSAPackage();
     
-    rsaStorage = new RSAStorage();
-    rsaStorage->setKeyPair(iotAuth.generateRSAKeyPair());
-    rsaStorage->setMyFDR(iotAuth.generateFDR());
-    rsaStorage->setPartnerPublicKey(rsaPackage.getPublicKey());
-    rsaStorage->setPartnerFDR(rsaPackage.getFDR());
+    // rsaStorage = new RSAStorage();
+    // rsaStorage->setKeyPair(iotAuth.generateRSAKeyPair());
+    // rsaStorage->setMyFDR(iotAuth.generateFDR());
+    // rsaStorage->setPartnerPublicKey(rsaPackage.getPublicKey());
+    // rsaStorage->setPartnerFDR(rsaPackage.getFDR());
 
-    /******************** Decrypt Hash ********************/
-    string rsaString = rsaPackage.toString();
-    string decryptedHash = decryptHash(rsaReceived);
+    // /******************** Decrypt Hash ********************/
+    // string rsaString = rsaPackage.toString();
+    // string decryptedHash = decryptHash(rsaReceived);
 
-    if (iotAuth.isHashValid(&rsaString, &decryptedHash)) {
-        cout << "HASH IS VALID!" << endl;
+    // if (iotAuth.isHashValid(&rsaString, &decryptedHash)) {
+    //     cout << "HASH IS VALID!" << endl;
 
-        string nB (nonceB);
-        if (rsaPackage.getNonceB() == nonceB) {
-            cout << "NONCE B IS VALID!" << endl;
-            *state = SRSA;
-        } else {
-            cout << "NONCE B IS INVALID!" << endl;
-            *state = HELLO;
-        }
-    } else {
-        cout << "HASH IS INVALID!" << endl;
-        *state = HELLO;
-    }
+    //     string nB (nonceB);
+    //     if (rsaPackage.getNonceB() == nonceB) {
+    //         cout << "NONCE B IS VALID!" << endl;
+    //         *state = SRSA;
+    //     } else {
+    //         cout << "NONCE B IS INVALID!" << endl;
+    //         *state = HELLO;
+    //     }
+    // } else {
+    //     cout << "HASH IS INVALID!" << endl;
+    //     *state = HELLO;
+    // }
 
-    if (VERBOSE) {rrsa_verbose(&rsaPackage, rsaStorage);}
+    // if (VERBOSE) {rrsa_verbose(&rsaPackage, rsaStorage);}
 
-    delete rsaReceived;
+    // delete rsaReceived;
 }
 
 
@@ -236,22 +238,22 @@ void rrsa(States *state, int socket, struct sockaddr *client, socklen_t size)
 */
 void srsa(States *state, int socket, struct sockaddr *client, socklen_t size)
 {
-    /******************** Resposta FDR ********************/
-    // int answerFdr = calculateFDRValue(rsaStorage->getPartnerIV(), rsaStorage->getPartnerFDR());
+    // /******************** Resposta FDR ********************/
+    // // int answerFdr = calculateFDRValue(rsaStorage->getPartnerIV(), rsaStorage->getPartnerFDR());
 
-    /******************** RSA Key Exchange ********************/
-    RSAPackage rsaSent;
-    rsaSent.setPublicKey(*rsaStorage->getMyPublicKey());
-    // rsaSent.setIV(rsaStorage->getMyIV());
-    rsaSent.setFDR(*rsaStorage->getMyFDR());
-    // rsaSent.setAnswerFDR(answerFdr);
+    // /******************** RSA Key Exchange ********************/
+    // RSAPackage rsaSent;
+    // rsaSent.setPublicKey(*rsaStorage->getMyPublicKey());
+    // // rsaSent.setIV(rsaStorage->getMyIV());
+    // rsaSent.setFDR(*rsaStorage->getMyFDR());
+    // // rsaSent.setAnswerFDR(answerFdr);
 
-    /******************** Envio ********************/
-    int sended = sendto(socket, (RSAKeyExchange*)&rsaSent, sizeof(rsaSent), 0, client, size);
-    *state = RDH;
+    // /******************** Envio ********************/
+    // int sended = sendto(socket, (RSAKeyExchange*)&rsaSent, sizeof(rsaSent), 0, client, size);
+    // *state = RDH;
 
-    /******************** Verbose ********************/
-    if (VERBOSE) {srsa_verbose(&rsaSent);}
+    // /******************** Verbose ********************/
+    // if (VERBOSE) {srsa_verbose(&rsaSent);}
 }
 
 /*  Decrypt DH Key Exchange
@@ -324,44 +326,44 @@ void setupDiffieHellman(DiffieHellmanPackage *diffieHellmanPackage)
 */
 int rdh(States *state, int socket, struct sockaddr *client, socklen_t size)
 {
-    /******************** Recebe os dados cifrados ********************/
-    int encryptedMessage[sizeof(DHKeyExchange)];
-    recvfrom(socket, encryptedMessage, sizeof(DHKeyExchange)*sizeof(int), 0, client, &size);
+    // /******************** Recebe os dados cifrados ********************/
+    // int encryptedMessage[sizeof(DHKeyExchange)];
+    // recvfrom(socket, encryptedMessage, sizeof(DHKeyExchange)*sizeof(int), 0, client, &size);
 
-    /******************** Realiza a decifragem ********************/
-    DHKeyExchange dhKeyExchange;
-    decryptDHKeyExchange(encryptedMessage, &dhKeyExchange);
+    // /******************** Realiza a decifragem ********************/
+    // DHKeyExchange dhKeyExchange;
+    // decryptDHKeyExchange(encryptedMessage, &dhKeyExchange);
 
-    DiffieHellmanPackage diffieHellmanPackage;
-    getDiffieHellmanPackage(&dhKeyExchange, &diffieHellmanPackage);
+    // DiffieHellmanPackage diffieHellmanPackage;
+    // getDiffieHellmanPackage(&dhKeyExchange, &diffieHellmanPackage);
 
-    string hash = decryptHash(&dhKeyExchange);
+    // string hash = decryptHash(&dhKeyExchange);
 
-    /******************** Validação do Hash ********************/
-    string dhString = diffieHellmanPackage.toString();
-    if (iotAuth.isHashValid(&dhString, &hash)) {
+    // /******************** Validação do Hash ********************/
+    // string dhString = diffieHellmanPackage.toString();
+    // if (iotAuth.isHashValid(&dhString, &hash)) {
 
-        setupDiffieHellman(&diffieHellmanPackage);
+    //     setupDiffieHellman(&diffieHellmanPackage);
 
-        if (VERBOSE) {rdh_verbose1(diffieHellmanStorage, &diffieHellmanPackage, &hash);}
+    //     if (VERBOSE) {rdh_verbose1(diffieHellmanStorage, &diffieHellmanPackage, &hash);}
 
-        /*  Se a resposta estiver correta, altera o estado atual para SDH
-            (Send Diffie-Hellman). */
-        if (checkAnsweredFDR(diffieHellmanPackage.getAnswerFDR())) {
-            if (VERBOSE) {rdh_verbose2();}
-            *state = SDH;
+    //     /*  Se a resposta estiver correta, altera o estado atual para SDH
+    //         (Send Diffie-Hellman). */
+    //     if (checkAnsweredFDR(diffieHellmanPackage.getAnswerFDR())) {
+    //         if (VERBOSE) {rdh_verbose2();}
+    //         *state = SDH;
 
-        /* Senão, altera o estado para DONE (Finaliza a conexão). */
-        } else {
-            if (VERBOSE) {rdh_verbose3();}
-            *state = DONE;
-        }
+    //     /* Senão, altera o estado para DONE (Finaliza a conexão). */
+    //     } else {
+    //         if (VERBOSE) {rdh_verbose3();}
+    //         *state = DONE;
+    //     }
 
-    /* Caso contrário, termina a conexão. */
-    } else {
-        if (VERBOSE) {rdh_verbose4();}
-        *state = DONE;
-    }
+    // /* Caso contrário, termina a conexão. */
+    // } else {
+    //     if (VERBOSE) {rdh_verbose4();}
+    //     *state = DONE;
+    // }
 }
 
 /*  Mount Diffie-Hellman Package
@@ -399,40 +401,40 @@ int* getEncryptedHash(DiffieHellmanPackage *dhPackage)
 */
 void sdh(States *state, int socket, struct sockaddr *client, socklen_t size)
 {
-    /***************** Montagem do Pacote Diffie-Hellman ******************/
-    DiffieHellmanPackage dhPackage;
-    mountDHPackage(&dhPackage);
+    // /***************** Montagem do Pacote Diffie-Hellman ******************/
+    // DiffieHellmanPackage dhPackage;
+    // mountDHPackage(&dhPackage);
 
-    /***************** Serialização do Pacote Diffie-Hellman ******************/
-    byte *dhPackageBytes = new byte[sizeof(DiffieHellmanPackage)];
-    ObjectToBytes(dhPackage, dhPackageBytes, sizeof(DiffieHellmanPackage));
+    // /***************** Serialização do Pacote Diffie-Hellman ******************/
+    // byte *dhPackageBytes = new byte[sizeof(DiffieHellmanPackage)];
+    // ObjectToBytes(dhPackage, dhPackageBytes, sizeof(DiffieHellmanPackage));
 
-    /***************************** Geração do HASH ****************************/
-    /* Encripta o hash utilizando a chave privada do Servidor. */
-    int *encryptedHash = getEncryptedHash(&dhPackage);
+    // /***************************** Geração do HASH ****************************/
+    // /* Encripta o hash utilizando a chave privada do Servidor. */
+    // int *encryptedHash = getEncryptedHash(&dhPackage);
 
-    /********************** Preparação do Pacote Final ************************/
-    DHKeyExchange dhSent;
-    dhSent.setEncryptedHash(encryptedHash);
-    dhSent.setDiffieHellmanPackage(dhPackageBytes);
+    // /********************** Preparação do Pacote Final ************************/
+    // DHKeyExchange dhSent;
+    // dhSent.setEncryptedHash(encryptedHash);
+    // dhSent.setDiffieHellmanPackage(dhPackageBytes);
 
-    /********************** Serialização do Pacote Final **********************/
-    byte *dhSentBytes = new byte[sizeof(DHKeyExchange)];
-    ObjectToBytes(dhSent, dhSentBytes, sizeof(DHKeyExchange));
+    // /********************** Serialização do Pacote Final **********************/
+    // byte *dhSentBytes = new byte[sizeof(DHKeyExchange)];
+    // ObjectToBytes(dhSent, dhSentBytes, sizeof(DHKeyExchange));
 
-    /******************** Cifragem e Envio do Pacote Final ********************/
-    int* encryptedMessage = iotAuth.encryptRSA(dhSentBytes, rsaStorage->getPartnerPublicKey(), sizeof(DHKeyExchange));
+    // /******************** Cifragem e Envio do Pacote Final ********************/
+    // int* encryptedMessage = iotAuth.encryptRSA(dhSentBytes, rsaStorage->getPartnerPublicKey(), sizeof(DHKeyExchange));
     
-    sendto(socket, (int*)encryptedMessage, sizeof(DHKeyExchange)*sizeof(int), 0, client, size);
-    *state = DT;
+    // sendto(socket, (int*)encryptedMessage, sizeof(DHKeyExchange)*sizeof(int), 0, client, size);
+    // *state = DT;
 
-    /******************************** VERBOSE *********************************/
-    if (VERBOSE) {sdh_verbose(&dhPackage);}
+    // /******************************** VERBOSE *********************************/
+    // if (VERBOSE) {sdh_verbose(&dhPackage);}
 
-    delete[] dhPackageBytes;
-    delete[] encryptedHash;
-    delete[] dhSentBytes;
-    delete[] encryptedMessage;
+    // delete[] dhPackageBytes;
+    // delete[] encryptedHash;
+    // delete[] dhSentBytes;
+    // delete[] encryptedMessage;
 
 }
 
@@ -441,57 +443,57 @@ void sdh(States *state, int socket, struct sockaddr *client, socklen_t size)
 */
 void dt(States *state, int socket, struct sockaddr *client, socklen_t size)
 {
-    delete rsaStorage;
-    /********************* Recebimento dos Dados Cifrados *********************/
-    char message[1333];
-    memset(message, '\0', sizeof(message));
-    recvfrom(socket, message, sizeof(message)-1, 0, client, &size);
+    // delete rsaStorage;
+    // /********************* Recebimento dos Dados Cifrados *********************/
+    // char message[1333];
+    // memset(message, '\0', sizeof(message));
+    // recvfrom(socket, message, sizeof(message)-1, 0, client, &size);
 
-    /******************* Verifica Pedido de Fim de Conexão ********************/
+    // /******************* Verifica Pedido de Fim de Conexão ********************/
 
-    if (checkRequestForTermination(message)) {
-        *state = RFT;
-    } else {
+    // if (checkRequestForTermination(message)) {
+    //     *state = RFT;
+    // } else {
 
-        /* Converte o array de chars (buffer) em uma string. */
-        string encryptedMessage (message);
+    //     /* Converte o array de chars (buffer) em uma string. */
+    //     string encryptedMessage (message);
 
-        /* Inicialização dos vetores ciphertext. */
-        char ciphertextChar[encryptedMessage.length()];
-        uint8_t ciphertext[encryptedMessage.length()];
-        memset(ciphertext, '\0', encryptedMessage.length());
+    //     /* Inicialização dos vetores ciphertext. */
+    //     char ciphertextChar[encryptedMessage.length()];
+    //     uint8_t ciphertext[encryptedMessage.length()];
+    //     memset(ciphertext, '\0', encryptedMessage.length());
 
-        /* Inicialização do vetor plaintext. */
-        uint8_t plaintext[encryptedMessage.length()];
-        memset(plaintext, '\0', encryptedMessage.length());
+    //     /* Inicialização do vetor plaintext. */
+    //     uint8_t plaintext[encryptedMessage.length()];
+    //     memset(plaintext, '\0', encryptedMessage.length());
 
-        /* Inicialização da chave e iv. */
-        // uint8_t key[] = { 0x60, 0x3d, 0xeb, 0x10, 0x15, 0xca, 0x71, 0xbe, 0x2b, 0x73, 0xae, 0xf0, 0x85, 0x7d, 0x77, 0x81,
-        //                   0x1f, 0x35, 0x2c, 0x07, 0x3b, 0x61, 0x08, 0xd7, 0x2d, 0x98, 0x10, 0xa3, 0x09, 0x14, 0xdf, 0xf4 };
-        uint8_t key[32];
-        for (int i = 0; i < 32; i++) {
-            key[i] = diffieHellmanStorage->getSessionKey();
-        }
+    //     /* Inicialização da chave e iv. */
+    //     // uint8_t key[] = { 0x60, 0x3d, 0xeb, 0x10, 0x15, 0xca, 0x71, 0xbe, 0x2b, 0x73, 0xae, 0xf0, 0x85, 0x7d, 0x77, 0x81,
+    //     //                   0x1f, 0x35, 0x2c, 0x07, 0x3b, 0x61, 0x08, 0xd7, 0x2d, 0x98, 0x10, 0xa3, 0x09, 0x14, 0xdf, 0xf4 };
+    //     uint8_t key[32];
+    //     for (int i = 0; i < 32; i++) {
+    //         key[i] = diffieHellmanStorage->getSessionKey();
+    //     }
 
-        // uint8_t iv[]  = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
-        uint8_t iv[16];
-        for (int i = 0; i < 16; i++) {
-            iv[i] = diffieHellmanStorage->getSessionKey();
-        }
+    //     // uint8_t iv[]  = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
+    //     uint8_t iv[16];
+    //     for (int i = 0; i < 16; i++) {
+    //         iv[i] = diffieHellmanStorage->getSessionKey();
+    //     }
 
-        /* Converte a mensagem recebida (HEXA) para o array de char ciphertextChar. */
-        HexStringToCharArray(&encryptedMessage, encryptedMessage.length(), ciphertextChar);
+    //     /* Converte a mensagem recebida (HEXA) para o array de char ciphertextChar. */
+    //     HexStringToCharArray(&encryptedMessage, encryptedMessage.length(), ciphertextChar);
 
-        /* Converte ciphertextChar em um array de uint8_t (ciphertext). */
-        CharToUint8_t(ciphertextChar, ciphertext, encryptedMessage.length());
+    //     /* Converte ciphertextChar em um array de uint8_t (ciphertext). */
+    //     CharToUint8_t(ciphertextChar, ciphertext, encryptedMessage.length());
 
-        /* Decifra a mensagem em um vetor de uint8_t. */
-        uint8_t *decrypted = iotAuth.decryptAES(ciphertext, key, iv, encryptedMessage.length());
-        cout << "Decrypted: " << decrypted << endl;
+    //     /* Decifra a mensagem em um vetor de uint8_t. */
+    //     uint8_t *decrypted = iotAuth.decryptAES(ciphertext, key, iv, encryptedMessage.length());
+    //     cout << "Decrypted: " << decrypted << endl;
 
-        *state = DT;
-        // delete[] decrypted;
-    }
+    //     *state = DT;
+    //     // delete[] decrypted;
+    // }
 }
 
 /*  State Machine
@@ -499,7 +501,7 @@ void dt(States *state, int socket, struct sockaddr *client, socklen_t size)
 */
 void stateMachine(int socket, struct sockaddr *client, socklen_t size)
 {
-    static States state = HELLO;
+    static States state = RECV_SYN;
 
     switch (state) {
 
@@ -528,18 +530,25 @@ void stateMachine(int socket, struct sockaddr *client, socklen_t size)
         }
 
         /* Hello */
-        case HELLO:
+        case RECV_SYN:
         {
             cout << "RECEIVE SYN" << endl;
-            hello(&state, socket, client, size);
+            recv_syn(&state, socket, client, size);
+            break;
+        }
+
+        case SEND_ACK:
+        {
+            cout << "SEND ACK" << endl;
+            send_ack(&state, socket, client, size);
             break;
         }
 
         /* Receive RSA */
-        case RRSA:
+        case RECV_RSA:
         {
             cout << "RECEIVE RSA KEY" << endl;
-            rrsa(&state, socket, client, size);
+            recv_rsa(&state, socket, client, size);
             break;
         }
 
