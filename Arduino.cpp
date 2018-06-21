@@ -57,7 +57,6 @@ void Arduino::stateMachine(int socket, struct sockaddr *server, socklen_t size)
         /* Receive RSA */
         case RECV_RSA:
         {
-            cout << "RECEIVE RSA KEY" << endl;
             recv_rsa(&state, socket, server, size);
             break;
         }
@@ -65,14 +64,12 @@ void Arduino::stateMachine(int socket, struct sockaddr *server, socklen_t size)
         /* Send RSA */
         case SEND_RSA:
         {
-            cout << "SEND RSA KEY" << endl;
             send_rsa(&state, socket, server, size);
             break;
         }
 
         case SEND_RSA_ACK:
         {
-            cout << "SEND RSA ACK" << endl;
             send_rsa_ack(&state, socket, server, size);
             break;
         }
@@ -80,7 +77,6 @@ void Arduino::stateMachine(int socket, struct sockaddr *server, socklen_t size)
         /* Receive Diffie-Hellman */
         case RECV_DH:
         {
-            cout << "RECEIVE DIFFIE HELLMAN KEY" << endl;
             recv_dh(&state, socket, server, size);
             break;
         }
@@ -134,8 +130,6 @@ void Arduino::rft(States *state, int socket, struct sockaddr *server, socklen_t 
 
 void Arduino::send_syn(States *state, int socket, struct sockaddr *server, socklen_t size)
 {
-    cout << "SEND SYN" << endl;
-
     /******************** Generate Nonce ********************/
     generateNonce(nonceA);
 
@@ -143,43 +137,49 @@ void Arduino::send_syn(States *state, int socket, struct sockaddr *server, sockl
     structSyn toSend;
     strncpy(toSend.nonce, nonceA, sizeof(toSend.nonce));
 
+    /******************** Start Network Time ********************/
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    t1 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
+
     /******************** Send SYN ********************/
     sendto(socket, (syn*)&toSend, sizeof(syn), 0, server, size);
-
     *state = RECV_ACK;
+
+    /******************** Verbose ********************/
+    if (VERBOSE) send_syn_verbose(nonceA);
 }
 
 void Arduino::recv_ack(States *state, int socket, struct sockaddr *server, socklen_t size)
 {
-    cout << "RECV ACK" << endl;
     /******************** Receive ACK ********************/
     structAck received;
     recvfrom(socket, &received, sizeof(ack), 0, server, &size);
 
-    cout << "SERVER IP: " << serverIP << endl;
-    cout << "CLIENT IP: " << clientIP << endl;
-    
-    cout << "NONCE A: " << nonceA << endl << endl;
-    cout << "NONCE B: " << received.nonceB << endl << endl;
+    /******************** Stop Network Time ********************/
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    t2 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
+    networkTime = (double)(t2-t1)*1000;
 
-    /******************** Save Nonce B ********************/
+    /******************** Start Processing Time ********************/
+    gettimeofday(&tv, NULL);
+    t1 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
+
+    /******************** Store Nonce B ********************/
     strncpy(nonceB, received.nonceB, sizeof(nonceB));
 
     /******************** Validity Message ********************/
-    if (received.message == ACK) {
+    bool isNonceTrue = (strcmp(received.nonceA, nonceA) == 0);
 
-        if (strcmp(received.nonceA, nonceA) == 0) {
-            *state = SEND_RSA;
-            cout << "NONCE ACCEPTED!" << endl;
-            if (VERBOSE) {hello_sucessfull_verbose();}
-        } else {
-            if (VERBOSE) {hello_failed_verbose();}
-            *state = SEND_SYN;
-        }
+    if (isNonceTrue) {
+        *state = SEND_RSA;
     } else {
-        if (VERBOSE) {hello_failed_verbose();}
         *state = SEND_SYN;
     }
+
+    /******************** Verbose ********************/
+    if (VERBOSE) recv_ack_verbose(nonceB, sequence, serverIP, clientIP, isNonceTrue);
 }
 
 /*  Done
@@ -203,17 +203,18 @@ void Arduino::generateNonce(char *nonce)
 
 void Arduino::send_rsa_ack(States *state, int socket, struct sockaddr *server, socklen_t size)
 {
-    /******************** Generate Nonce ********************/
-    generateNonce(nonceA);
-
     /******************** Get Answer FDR ********************/
     int answerFdr = calculateFDRValue(rsaStorage->getPartnerPublicKey()->d, rsaStorage->getPartnerFDR());
+    
+    /******************** Generate Nonce ********************/
+    generateNonce(nonceA);
 
     /******************** Mount Package ********************/
     RSAPackage rsaSent;
     rsaSent.setNonceA(nonceA);
     rsaSent.setNonceB(nonceB);
     rsaSent.setAnswerFDR(answerFdr);
+    rsaSent.setACK();
 
     /******************** Get Hash ********************/
     string rsaString = rsaSent.toString();
@@ -227,9 +228,17 @@ void Arduino::send_rsa_ack(States *state, int socket, struct sockaddr *server, s
     rsaExchange.setRSAPackage(&rsaSent);
     rsaExchange.setEncryptedHash(encryptedHash);
 
+    /******************** Start Total Time ********************/
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    t1 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
+
     /******************** Send Exchange ********************/
     int sended = sendto(socket, (RSAKeyExchange*)&rsaExchange, sizeof(rsaExchange), 0, server, size);
     *state = RECV_DH;
+
+    /******************** Verbose ********************/
+    if (VERBOSE) send_rsa_ack_verbose(sequence, nonceA);
 }
 
 /*  Send RSA
@@ -237,13 +246,6 @@ void Arduino::send_rsa_ack(States *state, int socket, struct sockaddr *server, s
 */
 void Arduino::send_rsa(States *state, int socket, struct sockaddr *server, socklen_t size)
 {
-    /******************** Init Processing Time ********************/
-    struct timeval tv1, tv2;
-    double t1, t2;
-    gettimeofday(&tv1, NULL);
-    t1 = (double)(tv1.tv_sec) + (double)(tv1.tv_usec)/ 1000000.00;
-    double processingTime; /* ms */
-
     /******************** Generate RSA/FDR ********************/
     rsaStorage = new RSAStorage();
     rsaStorage->setKeyPair(iotAuth.generateRSAKeyPair());
@@ -266,9 +268,10 @@ void Arduino::send_rsa(States *state, int socket, struct sockaddr *server, sockl
     /******************** Encrypt Hash ********************/
     int *encryptedHash = iotAuth.encryptRSA(&hash, rsaStorage->getMyPrivateKey(), hash.length());
 
-    /******************** End Processing Time ********************/
-    gettimeofday(&tv2, NULL);
-    t2 = (double)(tv2.tv_sec) + (double)(tv2.tv_usec)/ 1000000.00;
+    /******************** Stop Processing Time ********************/
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    t2 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
     processingTime = (double)(t2-t1)*1000;
 
     /******************** Mount Exchange ********************/
@@ -277,12 +280,16 @@ void Arduino::send_rsa(States *state, int socket, struct sockaddr *server, sockl
     rsaExchange.setEncryptedHash(encryptedHash);
     rsaExchange.setProcessingTime(processingTime);
 
+    /******************** Start Total Time ********************/
+    gettimeofday(&tv, NULL);
+    t1 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
+
     /******************** Send Exchange ********************/
     int sended = sendto(socket, (RSAKeyExchange*)&rsaExchange, sizeof(rsaExchange), 0, server, size);
     *state = RECV_RSA;
 
     /******************** Verbose ********************/
-    if (VERBOSE) {srsa_verbose(rsaStorage, &rsaSent);}
+    if (VERBOSE) send_rsa_verbose(rsaStorage, sequence, nonceA);
 }
 
 void Arduino::recv_dh(States *state, int socket, struct sockaddr *server, socklen_t size)
@@ -300,42 +307,42 @@ void Arduino::recv_rsa(States *state, int socket, struct sockaddr *server, sockl
     RSAKeyExchange *rsaKeyExchange = new RSAKeyExchange();
     recvfrom(socket, rsaKeyExchange, sizeof(RSAKeyExchange), 0, server, &size);
 
-    /******************** Get Package ********************/
-    RSAPackage *rsaPackage = rsaKeyExchange->getRSAPackage();
+    /******************** Stop Total Time ********************/
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    t2 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
+    totalTime = (double)(t2-t1)*1000;
 
-    /******************** Config RSA ********************/
-    rsaStorage->setPartnerPublicKey(rsaPackage->getPublicKey());
-    rsaStorage->setPartnerFDR(rsaPackage->getFDR());
-    strncpy(nonceB, rsaPackage->getNonceB().c_str(), sizeof(nonceB));
+    /******************** Proof of Time ********************/
+    double limit = processingTime + networkTime + (processingTime + networkTime)*0.1;
 
-    /******************** Decrypt Hash ********************/
-    string rsaString = rsaPackage->toString();
-    string decryptedHash = decryptHash(rsaKeyExchange->getEncryptedHash());
+    if (totalTime <= limit) {
+        /******************** Get Package ********************/
+        RSAPackage *rsaPackage = rsaKeyExchange->getRSAPackage();
 
-    /******************** Validity Hash ********************/
-    if (iotAuth.isHashValid(&rsaString, &decryptedHash)) {
-        cout << "HASH IS VALID!" << endl;
+        /******************** Config RSA ********************/
+        rsaStorage->setPartnerPublicKey(rsaPackage->getPublicKey());
+        rsaStorage->setPartnerFDR(rsaPackage->getFDR());
+        strncpy(nonceB, rsaPackage->getNonceB().c_str(), sizeof(nonceB));
 
-        if (rsaPackage->getNonceA() == nonceA) {
-            cout << "NONCE A IS VALID!" << endl;
+        /******************** Decrypt Hash ********************/
+        string rsaString = rsaPackage->toString();
+        string decryptedHash = decryptHash(rsaKeyExchange->getEncryptedHash());
 
-            if (checkAnsweredFDR(rsaPackage->getAnswerFDR())) {
-                cout << "ANSWER FDR IS VALID!" << endl;
+        bool isHashValid = iotAuth.isHashValid(&rsaString, &decryptedHash);
+        bool isNonceTrue = rsaPackage->getNonceA() == nonceA;
+        bool isAnswerCorrect = checkAnsweredFDR(rsaPackage->getAnswerFDR());
 
-                *state = SEND_RSA_ACK;
-
-            } else {
-                cout << "ANSWER FDR IS INVALID!" << endl;
-                *state = SEND_SYN;
-            }
-
+        if (isHashValid && isNonceTrue && isAnswerCorrect) {
+            *state = SEND_RSA_ACK;
         } else {
-            cout << "NONCE A IS INVALID!" << endl;
             *state = SEND_SYN;
         }
 
+        if (VERBOSE) recv_rsa_verbose(rsaStorage, nonceB, isHashValid, isNonceTrue, isAnswerCorrect);
+       
     } else {
-        cout << "HASH IS INVALID!" << endl;
+        if (VERBOSE) time_limit_burst_verbose();
         *state = SEND_SYN;
     }
 

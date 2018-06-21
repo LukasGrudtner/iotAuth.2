@@ -10,13 +10,15 @@
 
 using namespace std;
 
+void send_syn_verbose(char *nonce);
+void recv_ack_verbose(char *nonceB, int sequence, char *serverIP, char *clientIP, bool isNonceTrue);
+void send_rsa_verbose(RSAStorage *rsaStorage, int sequence, char *nonceA);
+void recv_rsa_verbose(RSAStorage *rsaStorage, char *nonceB, bool isHashValid, bool isNonceTrue, bool isAnswerCorrect);
+void send_rsa_ack_verbose(int sequence, char *nonceA);
+
+void time_limit_burst_verbose();
+
 void rft_verbose();
-void hello_sucessfull_verbose();
-void hello_failed_verbose();
-void srsa_verbose(RSAStorage *rsaStorage, RSAPackage *rsaKeyExchange);
-void rrsa_verbose1(RSAKeyExchange *rsaKeyExchange, RSAStorage *rsaStorage);
-void rrsa_verbose2();
-void rrsa_verbose3();
 void sdh_verbose(DiffieHellmanPackage *dhPackage);
 void rdh_verbose1(DHStorage *dhStorage, DiffieHellmanPackage *dhPackage, string *hash);
 void rdh_verbose2();

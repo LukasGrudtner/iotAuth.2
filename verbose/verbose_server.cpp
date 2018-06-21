@@ -1,47 +1,74 @@
 #include "verbose_server.h"
 
+void recv_syn_verbose(char *nonceA)
+{
+        cout << "Step 1.2" << endl;
+    cout << "*********** RECV SYN *****************************************************" << endl;
+    cout << "nA: " << nonceA << " (stored)" << endl;
+    cout << "**************************************************************************\n"   << endl;
+}
+
+void send_ack_verbose(char *nonceB, int sequence, char *serverIP, char *clientIP)
+{
+        cout << "Step 2.1" << endl;
+        cout << "*********** SEND ACK *****************************************************" << endl;
+        cout << "nB: " << nonceB << " (generated)" << endl;
+        cout << "Sequence: " << sequence << endl << endl;
+        cout << "Server IP: " << serverIP << endl;
+        cout << "Client IP: " << clientIP << endl;
+        cout << "**************************************************************************\n"   << endl;
+}
+
+void recv_rsa_verbose(RSAStorage *rsaStorage, char *nonceA, bool isHashValid, bool isNonceTrue)
+{
+        cout << "Step 3.2" << endl;
+        cout << "************ RECV RSA ****************************************************" << endl;
+        cout << "Client Public Key: {(" << rsaStorage->getPartnerPublicKey()->d
+                << ", " << rsaStorage->getPartnerPublicKey()->n << "), ("
+                << rsaStorage->getPartnerPublicKey()->d << ", "
+                << rsaStorage->getPartnerPublicKey()->n << ")}" << endl;
+        cout << "nA: " << nonceA << " (stored)" << endl;
+        cout << "Is Hash Valid? " << isHashValid << endl;
+        cout << "Is Nonce True? " << isNonceTrue << endl;
+        cout << "**************************************************************************\n" << endl;
+}
+
+void send_rsa_verbose(RSAStorage *rsaStorage, int sequence, char *nonceB)
+{
+        cout << "Step 4.1" << endl;
+    cout << "************ SEND RSA ****************************************************" << endl;
+    cout << "Generated RSA Key: {(" << rsaStorage->getMyPublicKey()->d
+         << ", " << rsaStorage->getMyPublicKey()->n << "), ("
+         << rsaStorage->getMyPrivateKey()->d << ", "
+         << rsaStorage->getMyPrivateKey()->n << ")}" << endl;
+    cout << "My FDR: " << rsaStorage->getMyFDR()->toString() << endl;
+    cout << "Sequence: " << sequence << endl << endl;
+    cout << "nB: " << nonceB << " (generated)" << endl;
+    cout << "**************************************************************************\n" << endl;
+}
+
+void recv_rsa_ack_verbose(char *nonceA, bool isHashValid, bool isAnswerCorrect, bool isNonceTrue)
+{
+        cout << "Step 5.2" << endl;
+        cout << "************ RECV ACK RSA ************************************************" << endl;
+        cout << "nA: " << nonceA << " (stored)" << endl;
+        cout << "Is Hash Valid? " << isHashValid << endl;
+        cout << "Is Nonce True? " << isNonceTrue << endl;
+        cout << "Is Answer Correct? " << isAnswerCorrect << endl;
+        cout << "**************************************************************************\n" << endl;
+}
+
+void time_limit_burst_verbose()
+{
+        cout << "*** TIME LIMIT BURST ***" << endl;
+}
+
+
 void rft_verbose()
 {
         cout << "\n*******DONE CLIENT AND SERVER******"   << endl;
         cout << "Done Client and Server Successful!"      << endl;
         cout << "***********************************\n"   << endl;
-}
-
-void hello_sucessfull_verbose()
-{
-        cout << "******HELLO CLIENT AND SERVER******"     << endl;
-        cout << "Hello Client and Server Successful!"     << endl;
-        cout << "***********************************\n"   << endl;
-}
-
-void hello_failed_verbose()
-{
-        cout << "\n******HELLO CLIENT AND SERVER******"   << endl;
-        cout << "Hello Client and Server failed!"         << endl;
-        cout << "***********************************\n"   << endl;
-}
-
-void rrsa_verbose(RSAPackage *rsaPackage, RSAStorage *rsaStorage)
-{
-        cout << "******RSA | RECEIVE FROM CLIENT******" << endl;
-        cout << "Generated RSA Key: {(" << rsaStorage->getMyPublicKey()->d      << ", "
-                                        << rsaStorage->getMyPublicKey()->n      << "), ";
-        cout << "("                     << rsaStorage->getMyPrivateKey()->d     << ", "
-                                        << rsaStorage->getMyPrivateKey()->n     << ")}" << endl;
-        // cout << "My IV: "               << rsaStorage->getMyIV()                << endl;
-        cout << "My FDR: "              << rsaStorage->getMyFDR()->toString()   << endl;
-        cout << "Received: "            << rsaPackage->toString()           << endl;    
-        cout << "***********************************\n" << endl;
-}
-
-void srsa_verbose(RSAPackage *rsaPackage)
-{
-        cout << "*******RSA | SEND TO CLIENT*********" << endl;
-        cout << "Server RSA Public Key: ("      << rsaPackage->getPublicKey().d
-                                        << ", " << rsaPackage->getPublicKey().n << ")" << endl;
-        cout << "Answer Client's FDR: "         << rsaPackage->getAnswerFDR() << endl;
-        cout << "Sent: "                        << rsaPackage->toString() << endl;
-        cout << "***********************************\n" << endl;
 }
 
 void rdh_verbose1(DHStorage *dhStorage, DiffieHellmanPackage *dhPackage, string *hash)

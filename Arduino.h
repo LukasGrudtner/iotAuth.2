@@ -35,6 +35,9 @@ class Arduino
         char nonceA[129];
         char nonceB[129];
 
+        double networkTime, processingTime, totalTime;
+        double t1, t2;
+
         void send_syn(States *state, int socket, struct sockaddr *server, socklen_t size);
 
         void recv_ack(States *state, int socket, struct sockaddr *server, socklen_t size);

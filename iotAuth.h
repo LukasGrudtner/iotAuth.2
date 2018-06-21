@@ -24,7 +24,6 @@ class IotAuth
         uint8_t* decryptAES(uint8_t* ciphertext, uint8_t* key, uint8_t* iv, int size);
 
         RSAKeyPair generateRSAKeyPair();
-        int generateIV();
         FDR generateFDR();
 
         int randomNumber(int upperBound);

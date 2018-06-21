@@ -106,13 +106,6 @@ int IotAuth::randomNumber(int upperBound)
     return rand() % upperBound;
 }
 
-/*  Retorna um valor aleatório para ser usado como IV. */
-int IotAuth::generateIV()
-{
-    sleep(1);
-    return randomNumber(100);
-}
-
 /* Gera um FDR aleatório. */
 FDR IotAuth::generateFDR()
 {
@@ -128,15 +121,3 @@ bool IotAuth::isHashValid(string *message, string *hash) {
     string hash2 = this->hash(message);
     return *hash == hash2;
 }
-
-// char* IotAuth::getNounce(char *source, char *receiver, int sequence)
-// {
-//     string message = stringTime() + *source + *receiver + to_string(sequence);
-//     string hash = this->hash(&message);
-
-//     char *nounce = new char[129];
-//     memset(nounce, '\0', 129);
-//     strncpy(nounce, hash.c_str(), 128);
-
-//     return nounce;
-// }
