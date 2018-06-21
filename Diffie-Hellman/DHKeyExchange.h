@@ -13,15 +13,15 @@ class DHKeyExchange
 
         /* Getters */
         int* getEncryptedHash();
-        byte* getDiffieHellmanPackage();
+        DiffieHellmanPackage getDiffieHellmanPackage();
 
         /* Setters */
         void setEncryptedHash(int encHash[]);
-        void setDiffieHellmanPackage(byte dhPackage[]);
+        void setDiffieHellmanPackage(DiffieHellmanPackage dhPackage);
 
     private:
         int encryptedHash[128];
-        byte diffieHellmanPackage[sizeof(DiffieHellmanPackage)];
+        DiffieHellmanPackage diffieHellmanPackage;
 
 };
 

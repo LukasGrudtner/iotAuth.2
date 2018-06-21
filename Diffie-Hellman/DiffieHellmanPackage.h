@@ -1,7 +1,10 @@
 #ifndef DH_PACKAGE_H
 #define DH_PACKAGE_H
 
+#include <string.h>
 #include <string>
+
+using namespace std;
 
 class DiffieHellmanPackage
 {
@@ -11,15 +14,17 @@ class DiffieHellmanPackage
         int getResult();
         int getBase();
         int getModulus();
-        int getIV();
-        int getAnswerFDR();
+
+        string getNonceA();
+        string getNonceB();
 
         /* Setters */
         void setResult(int r);
         void setBase(int base);
         void setModulus(int modulus);
-        void setIV(int _iv);
-        void setAnswerFDR(int aFdr);
+
+        void setNonceA(char *nonce);
+        void setNonceB(char *nonce);
 
         std::string toString();
 
@@ -27,8 +32,9 @@ class DiffieHellmanPackage
         int result      = 0;
         int g           = 0;    // Base
         int p           = 0;    // Modulus
-        int iv          = 0;
-        int answerFdr   = 0;
+
+        char nonceA[129];
+        char nonceB[129];
 };
 
 #endif

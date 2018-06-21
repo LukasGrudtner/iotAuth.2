@@ -21,6 +21,7 @@
 #include "Diffie-Hellman/DiffieHellmanPackage.h"
 #include "Diffie-Hellman/DHKeyExchange.h"
 #include "Diffie-Hellman/DHStorage.h"
+#include "Diffie-Hellman/DHEncPacket.h"
 
 #include "verbose/verbose_server.h"
 #include <sys/time.h>
@@ -37,7 +38,7 @@ int sequence;
 char nonceA[129];
 char nonceB[129];
 
-double networkTime, processingTime, tp, auxiliarTime, totalTime;
+double networkTime, processingTime1, processingTime2, tp, auxiliarTime, totalTime;
 double t1, t2;
 double t_aux1, t_aux2;
 
@@ -275,7 +276,7 @@ void send_rsa(States *state, int socket, struct sockaddr *client, socklen_t size
     /******************** Stop Processing Time ********************/
     gettimeofday(&tv, NULL);
     t2 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
-    processingTime = (double)(t2-t1)*1000;
+    processingTime1 = (double)(t2-t1)*1000;
 
     /******************** Stop Auxiliar Time ********************/
     gettimeofday(&tv, NULL);
@@ -289,7 +290,7 @@ void send_rsa(States *state, int socket, struct sockaddr *client, socklen_t size
     RSAKeyExchange rsaExchange;
     rsaExchange.setRSAPackage(&rsaSent);
     rsaExchange.setEncryptedHash(encryptedHash);
-    rsaExchange.setProcessingTime(processingTime);
+    rsaExchange.setProcessingTime(processingTime1);
 
     /******************** Start Total Time ********************/
     gettimeofday(&tv, NULL);
@@ -315,7 +316,7 @@ void recv_rsa_ack(States *state, int socket, struct sockaddr *client, socklen_t 
     totalTime = (double)(t2-t1)*1000;
 
     /******************** Time of Proof ********************/
-    double limit = processingTime + networkTime + (processingTime + networkTime)*0.1;
+    double limit = processingTime1 + networkTime + (processingTime1 + networkTime)*0.1;
 
     if (totalTime <= limit) {
         /******************** Get Package ********************/
@@ -332,8 +333,9 @@ void recv_rsa_ack(States *state, int socket, struct sockaddr *client, socklen_t 
         bool isNonceTrue = (rsaPackage.getNonceB() == nonceB);
         bool isAnswerCorrect = checkAnsweredFDR(rsaPackage.getAnswerFDR());
 
+        /******************** Validity ********************/
         if (isHashValid && isNonceTrue && isAnswerCorrect) {
-            *state = RECV_SYN; /* Alterar qnd o estado DH for implementado */
+            *state = SEND_DH;
         } else {
             *state = RECV_SYN;
         }
@@ -358,16 +360,6 @@ void decryptDHKeyExchange(int *encryptedMessage, DHKeyExchange *dhKeyExchange)
     BytesToObject(decryptedMessage, *dhKeyExchange, sizeof(DHKeyExchange));
 
     delete[] decryptedMessage;
-}
-
-/*  Get Diffie-Hellman Package
-    Obtém o pacote Diffie-Hellman em bytes, o transforma de volta em objeto, e retorna por parâmetro.
-*/
-void getDiffieHellmanPackage(DHKeyExchange *dhKeyExchange, DiffieHellmanPackage *diffieHellmanPackage)
-{
-    /******************** Recupera o pacote Diffie-Hellman ********************/
-    byte *dhPackageBytes = dhKeyExchange->getDiffieHellmanPackage();
-    BytesToObject(dhPackageBytes, *diffieHellmanPackage, sizeof(DiffieHellmanPackage));
 }
 
 /*  Decrypt Hash
@@ -395,22 +387,13 @@ string decryptHash(DHKeyExchange *dhKeyExchange)
     Inicializa os valores pertinentes a troca de chaves Diffie-Hellman:
     expoente, base, módulo, resultado e a chave de sessão.
 */
-void setupDiffieHellman(DiffieHellmanPackage *diffieHellmanPackage)
+void generateDiffieHellman()
 {
     diffieHellmanStorage = new DHStorage();
-    // diffieHellmanStorage->setMyIV(rsaStorage->getMyIV());
-    diffieHellmanStorage->setMyFDR(*rsaStorage->getMyFDR());
 
     diffieHellmanStorage->setExponent(iotAuth.randomNumber(3)+2);
-    diffieHellmanStorage->setBase(diffieHellmanPackage->getBase());
-    diffieHellmanStorage->setModulus(diffieHellmanPackage->getModulus());
-
-    int result = diffieHellmanPackage->getResult();
-    int sessionKey = diffieHellmanStorage->calculateSessionKey(result);
-    diffieHellmanStorage->setSessionKey(sessionKey);
-
-    diffieHellmanStorage->setPartnerIV(diffieHellmanPackage->getIV());
-    diffieHellmanStorage->setAnswerFDR(diffieHellmanPackage->getAnswerFDR());
+    diffieHellmanStorage->setBase(iotAuth.randomNumber(100)+2);
+    diffieHellmanStorage->setModulus(iotAuth.randomNumber(100)+2);
 }
 
 /*  Receive Diffie-Hellman
@@ -458,75 +441,75 @@ int rdh(States *state, int socket, struct sockaddr *client, socklen_t size)
     // }
 }
 
-/*  Mount Diffie-Hellman Package
-    Monta o pacote Diffie-Hellman com os dados, e logo após realiza sua conversão para bytes,
-    com o retorno deste array sendo por parâmetro.
-*/
-void mountDHPackage(DiffieHellmanPackage *dhPackage)
-{
-    /******************** Montagem do Pacote Diffie-Hellman ********************/
-    dhPackage->setResult(diffieHellmanStorage->calculateResult());
-    dhPackage->setBase(diffieHellmanStorage->getBase());
-    dhPackage->setModulus(diffieHellmanStorage->getModulus());
-    dhPackage->setIV(diffieHellmanStorage->getMyIV());
-
-    // int answerFDR = calculateFDRValue(rsaStorage->getPartnerIV(), rsaStorage->getPartnerFDR());
-    // dhPackage->setAnswerFDR(answerFDR);
-}
-
-/*  Get Encrypted Hash
-    Realiza a cifragem do hash obtido do pacote Diffie-Hellman com a chave privada do Servidor.
-    O retorno do hash cifrado é feito por parâmetro.
-*/
-int* getEncryptedHash(DiffieHellmanPackage *dhPackage)
-{
-    string dhString = dhPackage->toString();
-    string hash = iotAuth.hash(&dhString);
-
-    int *encryptedHash = iotAuth.encryptRSA(&hash, rsaStorage->getMyPrivateKey(), hash.length());
-
-    return encryptedHash;
-}
-
 /*  Send Diffie-Hellman
     Realiza o envio da chave Diffie-Hellman para o Cliente.
 */
-void sdh(States *state, int socket, struct sockaddr *client, socklen_t size)
+void send_dh(States *state, int socket, struct sockaddr *client, socklen_t size)
 {
-    // /***************** Montagem do Pacote Diffie-Hellman ******************/
-    // DiffieHellmanPackage dhPackage;
-    // mountDHPackage(&dhPackage);
+    /******************** Start Processing Time 2 ********************/
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    t_aux1 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
 
-    // /***************** Serialização do Pacote Diffie-Hellman ******************/
-    // byte *dhPackageBytes = new byte[sizeof(DiffieHellmanPackage)];
-    // ObjectToBytes(dhPackage, dhPackageBytes, sizeof(DiffieHellmanPackage));
+    /******************** Generate Diffie-Hellman ********************/
+    generateDiffieHellman();
 
-    // /***************************** Geração do HASH ****************************/
-    // /* Encripta o hash utilizando a chave privada do Servidor. */
-    // int *encryptedHash = getEncryptedHash(&dhPackage);
+    /******************** Generate Nonce B ********************/
+    generateNonce(nonceB);
 
-    // /********************** Preparação do Pacote Final ************************/
-    // DHKeyExchange dhSent;
-    // dhSent.setEncryptedHash(encryptedHash);
-    // dhSent.setDiffieHellmanPackage(dhPackageBytes);
+    /***************** Mount Package ******************/
+    DiffieHellmanPackage dhPackage;
+    dhPackage.setResult(diffieHellmanStorage->calculateResult());
+    dhPackage.setBase(diffieHellmanStorage->getBase());
+    dhPackage.setModulus(diffieHellmanStorage->getModulus());
+    dhPackage.setNonceA(nonceA);
+    dhPackage.setNonceB(nonceB);
 
-    // /********************** Serialização do Pacote Final **********************/
-    // byte *dhSentBytes = new byte[sizeof(DHKeyExchange)];
-    // ObjectToBytes(dhSent, dhSentBytes, sizeof(DHKeyExchange));
+    /******************** Get Hash ********************/
+    string packageString = dhPackage.toString();
+    string hash = iotAuth.hash(&packageString);
 
-    // /******************** Cifragem e Envio do Pacote Final ********************/
-    // int* encryptedMessage = iotAuth.encryptRSA(dhSentBytes, rsaStorage->getPartnerPublicKey(), sizeof(DHKeyExchange));
+    /******************** Encrypt Hash ********************/
+    int *encryptedHash = iotAuth.encryptRSA(&hash, rsaStorage->getMyPrivateKey(), hash.length());
+
+    /******************** Mount Exchange ********************/
+    DHKeyExchange dhSent;
+    dhSent.setEncryptedHash(encryptedHash);
+    dhSent.setDiffieHellmanPackage(dhPackage);
+
+    /********************** Serialization Exchange **********************/
+    byte *dhExchangeBytes = new byte[sizeof(DHKeyExchange)];
+    ObjectToBytes(dhSent, dhExchangeBytes, sizeof(DHKeyExchange));
+
+    /******************** Encryption Exchange ********************/
+    int* encryptedExchange = iotAuth.encryptRSA(dhExchangeBytes, rsaStorage->getPartnerPublicKey(), sizeof(DHKeyExchange));
     
-    // sendto(socket, (int*)encryptedMessage, sizeof(DHKeyExchange)*sizeof(int), 0, client, size);
-    // *state = DT;
+    /******************** Stop Processing Time 2 ********************/
+    gettimeofday(&tv, NULL);
+    t_aux2 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
+    processingTime2 = (double)(t2-t1)*1000;
 
-    // /******************************** VERBOSE *********************************/
-    // if (VERBOSE) {sdh_verbose(&dhPackage);}
+    /******************** Mount Enc Packet ********************/
+    DHEncPacket encPacket;
+    encPacket.setEncryptedExchange(encryptedExchange);
+    
+    encPacket.setTP(processingTime2);
 
-    // delete[] dhPackageBytes;
-    // delete[] encryptedHash;
-    // delete[] dhSentBytes;
-    // delete[] encryptedMessage;
+    /******************** Start Total Time ********************/
+    gettimeofday(&tv, NULL);
+    t1 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
+
+    /******************** Send Exchange ********************/
+    sendto(socket, (DHEncPacket*)&encPacket, sizeof(DHEncPacket), 0, client, size);
+    *state = RECV_ACK;
+
+    /******************** Verbose ********************/
+    if (VERBOSE) send_dh_verbose(&dhPackage, sequence, encPacket.getTP());
+
+    /******************** Memory Release ********************/
+    delete[] encryptedHash;
+    delete[] dhExchangeBytes;
+    delete[] encryptedExchange;
 
 }
 
@@ -654,13 +637,12 @@ void stateMachine(int socket, struct sockaddr *client, socklen_t size)
             break;
         }
 
-        // /* Receive Diffie-Hellman */
-        // case RDH:
-        // {
-        //     cout << "RECEIVE DIFFIE HELLMAN KEY" << endl;
-        //     rdh(&state, socket, client, size);
-        //     break;
-        // }
+        /* Receive Diffie-Hellman */
+        case SEND_DH:
+        {
+            send_dh(&state, socket, client, size);
+            break;
+        }
 
         // /* Send Diffie-Hellman */
         // case SDH:

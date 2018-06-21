@@ -63,6 +63,19 @@ void time_limit_burst_verbose()
         cout << "*** TIME LIMIT BURST ***" << endl;
 }
 
+void send_dh_verbose(DiffieHellmanPackage *dhPackage, int sequence, double tp)
+{
+        cout << "Step 6.1" << endl;
+        cout << "************ SEND DH *****************************************************" << endl;
+        cout << "Result: " << dhPackage->getResult() << endl;
+        cout << "g: " << dhPackage->getBase() << endl;
+        cout << "p: " << dhPackage->getModulus() << endl;
+        cout << "Sequence: " << sequence << endl;
+        cout << "nB: " << dhPackage->getNonceB() << " (generated)" << endl;
+        cout << "tp: " << tp << " ms" << endl;
+        cout << "**************************************************************************\n" << endl;
+}
+
 
 void rft_verbose()
 {
@@ -79,9 +92,7 @@ void rdh_verbose1(DHStorage *dhStorage, DiffieHellmanPackage *dhPackage, string 
         cout << "Result: "                      << dhPackage->getResult()           << endl;
         cout << "Base: "                        << dhPackage->getBase()             << endl;
         cout << "Modulus: "                     << dhPackage->getModulus()          << endl;
-        cout << "Client IV: "                   << dhStorage->getPartnerIV()        << endl;
         cout << "Session Key: "                 << dhStorage->getSessionKey()       << endl;
-        cout << "Received Answer: "             << dhStorage->getAnswerFDR()        << endl;
 }
 
 void rdh_verbose2()
@@ -106,8 +117,6 @@ void sdh_verbose(DiffieHellmanPackage *dhPackage)
 {
         cout << "*********DH | SEND TO CLIENT********"                   << endl;
         cout << "Result: "              << dhPackage->getResult()       << endl;
-        cout << "My IV: "               << dhPackage->getIV()           << endl;
-        cout << "Answer Client's FDR: " << dhPackage->getAnswerFDR()    << endl;
         cout << "Server Package: "      << dhPackage->toString()        << endl;
         cout << "***********************************\n" << endl;
 }

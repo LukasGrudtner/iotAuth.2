@@ -272,13 +272,13 @@ void Arduino::send_rsa(States *state, int socket, struct sockaddr *server, sockl
     struct timeval tv;
     gettimeofday(&tv, NULL);
     t2 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
-    processingTime = (double)(t2-t1)*1000;
+    processingTime1 = (double)(t2-t1)*1000;
 
     /******************** Mount Exchange ********************/
     RSAKeyExchange rsaExchange;
     rsaExchange.setRSAPackage(&rsaSent);
     rsaExchange.setEncryptedHash(encryptedHash);
-    rsaExchange.setProcessingTime(processingTime);
+    rsaExchange.setProcessingTime(processingTime1);
 
     /******************** Start Total Time ********************/
     gettimeofday(&tv, NULL);
@@ -290,12 +290,6 @@ void Arduino::send_rsa(States *state, int socket, struct sockaddr *server, sockl
 
     /******************** Verbose ********************/
     if (VERBOSE) send_rsa_verbose(rsaStorage, sequence, nonceA);
-}
-
-void Arduino::recv_dh(States *state, int socket, struct sockaddr *server, socklen_t size)
-{
-    int encryptedMessage[sizeof(DHKeyExchange)];
-    recvfrom(socket, encryptedMessage, sizeof(DHKeyExchange)*sizeof(int), 0, server, &size);
 }
 
 /*  Receive RSA
@@ -314,7 +308,7 @@ void Arduino::recv_rsa(States *state, int socket, struct sockaddr *server, sockl
     totalTime = (double)(t2-t1)*1000;
 
     /******************** Proof of Time ********************/
-    double limit = processingTime + networkTime + (processingTime + networkTime)*0.1;
+    double limit = processingTime1 + networkTime + (processingTime1 + networkTime)*0.1;
 
     if (totalTime <= limit) {
         /******************** Get Package ********************/
@@ -349,26 +343,14 @@ void Arduino::recv_rsa(States *state, int socket, struct sockaddr *server, sockl
     delete rsaKeyExchange;
 }
 
-void Arduino::setupDiffieHellman()
+void Arduino::storeDiffieHellman(DiffieHellmanPackage *dhPackage)
 {
     dhStorage = new DHStorage();
-    // dhStorage->setMyIV(rsaStorage->getMyIV());
-    dhStorage->setMyFDR(*rsaStorage->getMyFDR());
 
     dhStorage->setExponent(iotAuth.randomNumber(3)+2);
-    dhStorage->setBase(iotAuth.randomNumber(100));
-    dhStorage->setModulus(iotAuth.randomNumber(100));
-}
-
-void Arduino::mountDHPackage(DiffieHellmanPackage *dhPackage)
-{
-    dhPackage->setResult(dhStorage->calculateResult());
-    dhPackage->setBase(dhStorage->getBase());
-    dhPackage->setModulus(dhStorage->getModulus());
-    dhPackage->setIV(dhStorage->getMyIV());
-
-    // int answerFDR = calculateFDRValue(rsaStorage->getPartnerIV(), rsaStorage->getPartnerFDR());
-    // dhPackage->setAnswerFDR(answerFDR);
+    dhStorage->setBase(dhPackage->getBase());
+    dhStorage->setModulus(dhPackage->getModulus());
+    dhStorage->setSessionKey(dhPackage->getResult());
 }
 
 /*  Get Encrypted Hash
@@ -429,43 +411,60 @@ void Arduino::sdh(States *state, int socket, struct sockaddr *server, socklen_t 
 /*  Receive Diffie-Hellman
     Realiza o recebimento da chave Diffie-Hellman vinda do Servidor.
 */
-void Arduino::rdh(States *state, int socket, struct sockaddr *server, socklen_t size)
+void Arduino::recv_dh(States *state, int socket, struct sockaddr *server, socklen_t size)
 {
-//     /******************** Recebe os dados cifrados ********************/
-//     int encryptedMessage[sizeof(DHKeyExchange)];
-//     recvfrom(socket, encryptedMessage, sizeof(DHKeyExchange)*sizeof(int), 0, server, &size);
+    /******************** Recv Enc Packet ********************/
+    DHEncPacket encPacket;
+    recvfrom(socket, &encPacket, sizeof(DHEncPacket), 0, server, &size);
 
-//     /******************** Realiza a decifragem ********************/
-//     DHKeyExchange dhKeyExchange;
-//     decryptDHKeyExchange(encryptedMessage, &dhKeyExchange);
-
-//     DiffieHellmanPackage diffieHellmanPackage;
-//     getDiffieHellmanPackage(&dhKeyExchange, &diffieHellmanPackage);
-
-//     string hash = decryptHash(&dhKeyExchange);
-
-//     /******************** Validação do Hash ********************/
-//    string dhString = diffieHellmanPackage.toString();
-//    if (iotAuth.isHashValid(&dhString, &hash)) {
-
-//        dhStorage->setSessionKey(dhStorage->calculateSessionKey(diffieHellmanPackage.getResult()));
-
-//        if (VERBOSE) {rdh_verbose1(dhStorage, &diffieHellmanPackage, &hash);}
-
-//         if (checkAnsweredFDR(diffieHellmanPackage.getAnswerFDR())) {
-//             *state = DT;
-//             if (VERBOSE) {rdh_verbose2();}
-//         } else {
-//             *state = DONE;
-//             if (VERBOSE) {rdh_verbose3();}
-//         }
+    /******************** Stop Total Time ********************/
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    t2 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
+    totalTime = (double)(t2-t1)*1000;
 
 
-//    /* Se não, altera o estado para DONE e realiza o término da conexão. */
-//    } else {
-//        if (VERBOSE) {rdh_verbose4();}
-//        *state = DONE;
-//    }
+    /******************** Time of Proof ********************/
+    if (totalTime <= 5000) {
+
+        /******************** Start Processing Time 2 ********************/
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        t_aux1 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
+
+        /******************** Decrypt Exchange ********************/
+        DHKeyExchange dhKeyExchange;
+        int *encryptedExchange = encPacket.getEncryptedExchange();
+        byte *dhExchangeBytes = iotAuth.decryptRSA(encryptedExchange, rsaStorage->getMyPrivateKey(), sizeof(DHKeyExchange));
+        
+        BytesToObject(dhExchangeBytes, dhKeyExchange, sizeof(DHKeyExchange));
+
+        /******************** Get DH Package ********************/
+        DiffieHellmanPackage dhPackage = dhKeyExchange.getDiffieHellmanPackage();
+
+        /******************** Store Nounce B ********************/
+        strncpy(nonceB, dhPackage.getNonceB().c_str(), sizeof(nonceB));
+
+        /******************** Decrypt Hash ********************/
+        string decryptedHash = decryptHash(dhKeyExchange.getEncryptedHash());
+
+        /******************** Validity ********************/
+        string dhString = dhPackage.toString();
+        bool isHashValid = iotAuth.isHashValid(&dhString, &decryptedHash);
+        bool isNonceTrue = (dhPackage.getNonceA() == nonceA);
+
+        if (isHashValid && isNonceTrue) {
+            *state = RECV_RSA;
+        } else {
+            *state = SEND_SYN;
+        }
+
+        if (VERBOSE) recv_dh_verbose(&dhPackage, isHashValid, isNonceTrue);
+
+    } else {
+        if (VERBOSE) time_limit_burst_verbose();
+        *state = SEND_SYN;
+    }
 }
 
 /*  Decrypt DH Key Exchange
@@ -479,17 +478,6 @@ void Arduino::decryptDHKeyExchange(int *encryptedMessage, DHKeyExchange *dhKeyEx
     BytesToObject(decryptedMessage, *dhKeyExchange, sizeof(DHKeyExchange));
 
     delete[] decryptedMessage;
-}
-
-/*  Get Diffie-Hellman Package
-    Obtém o pacote Diffie-Hellman em bytes, o transforma de volta em objeto, e retorna por parâmetro.
-*/
-void Arduino::getDiffieHellmanPackage(DHKeyExchange *dhKeyExchange, DiffieHellmanPackage *diffieHellmanPackage)
-{
-    /******************** Recupera o pacote Diffie-Hellman ********************/
-    byte *dhPackageBytes = dhKeyExchange->getDiffieHellmanPackage();
-
-    BytesToObject(dhPackageBytes, *diffieHellmanPackage, sizeof(DiffieHellmanPackage));
 }
 
 /*  Decrypt Hash

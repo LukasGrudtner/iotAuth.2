@@ -64,6 +64,19 @@ void time_limit_burst_verbose()
         cout << "*** TIME LIMIT BURST ***" << endl;
 }
 
+void recv_dh_verbose(DiffieHellmanPackage *dhPackage, bool isHashValid, bool isNonceTrue)
+{
+    cout << "Step 6.2" << endl;
+    cout << "************ RECV DH *****************************************************" << endl;
+    cout << "Result: " << dhPackage->getResult() << endl;
+    cout << "g: " << dhPackage->getBase() << endl;
+    cout << "p: " << dhPackage->getModulus() << endl;
+    cout << "nB: " << dhPackage->getNonceB() << " (stored)" << endl;
+    cout << "Is Hash Valid? " << isHashValid << endl;
+    cout << "Is Nonce True? " << isNonceTrue << endl;
+    cout << "**************************************************************************\n" << endl;
+}
+
 void rft_verbose()
 {
     cout << "\n*******DONE CLIENT AND SERVER****"   << endl;
@@ -77,8 +90,6 @@ void sdh_verbose(DiffieHellmanPackage *dhPackage)
     cout << "Result: " << dhPackage->getResult() << endl;
     cout << "Base: " << dhPackage->getBase() << endl;
     cout << "Modulus: " << dhPackage->getModulus() << endl;
-    cout << "My IV: " << dhPackage->getIV() << endl;
-    cout << "Answer Server's FDR: " << dhPackage->getAnswerFDR() << endl;
     cout << "Sent: " << dhPackage->toString() << endl;
     cout << "**************************************" << endl << endl;
 }
@@ -89,7 +100,6 @@ void rdh_verbose1(DHStorage *dhStorage, DiffieHellmanPackage *dhPackage, string 
     cout << "THE HASH IS VALID!"        << endl                         << endl;
     cout << "Server Decrypted HASH: "   << *hash                        << endl << endl;
     cout << "Session Key: "             << dhStorage->getSessionKey()   << endl;
-    cout << "Received Answer: "         << dhPackage->getAnswerFDR()    << endl;
 }
 
 void rdh_verbose2()

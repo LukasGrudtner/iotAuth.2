@@ -12,6 +12,7 @@
 #include "Diffie-Hellman/DHKeyExchange.h"
 #include "Diffie-Hellman/DiffieHellmanPackage.h"
 #include "Diffie-Hellman/DHStorage.h"
+#include "Diffie-Hellman/DHEncPacket.h"
 
 #include "RSA/RSAStorage.h"
 #include "RSA/RSAKeyExchange.h"
@@ -35,8 +36,9 @@ class Arduino
         char nonceA[129];
         char nonceB[129];
 
-        double networkTime, processingTime, totalTime;
+        double networkTime, processingTime1, processingTime2, totalTime;
         double t1, t2;
+        double t_aux1, t_aux2;
 
         void send_syn(States *state, int socket, struct sockaddr *server, socklen_t size);
 
@@ -115,7 +117,7 @@ class Arduino
             Inicializa os valores pertinentes a troca de chaves Diffie-Hellman:
             expoente, base, módulo, resultado e a chave de sessão.
         */
-        void setupDiffieHellman();
+        void storeDiffieHellman(DiffieHellmanPackage *dhPackage);
 
         /*  Mount Diffie-Hellman Package
             Monta o pacote Diffie-Hellman com os dados, e logo após realiza sua conversão para bytes,

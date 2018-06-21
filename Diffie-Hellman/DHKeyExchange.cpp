@@ -3,7 +3,6 @@
 DHKeyExchange::DHKeyExchange()
 {
     memset(encryptedHash, 0, sizeof(encryptedHash));
-    memset(diffieHellmanPackage, 0, sizeof(diffieHellmanPackage));
 }
 
 int* DHKeyExchange::getEncryptedHash()
@@ -11,7 +10,7 @@ int* DHKeyExchange::getEncryptedHash()
     return encryptedHash;
 }
 
-byte* DHKeyExchange::getDiffieHellmanPackage()
+DiffieHellmanPackage DHKeyExchange::getDiffieHellmanPackage()
 {
     return diffieHellmanPackage;
 }
@@ -23,9 +22,7 @@ void DHKeyExchange::setEncryptedHash(int encHash[])
     }
 }
 
-void DHKeyExchange::setDiffieHellmanPackage(byte dhPackage[])
+void DHKeyExchange::setDiffieHellmanPackage(DiffieHellmanPackage dhPackage)
 {
-    for (int i = 0; i < sizeof(diffieHellmanPackage); i++) {
-        diffieHellmanPackage[i] = dhPackage[i];
-    }
+    diffieHellmanPackage = dhPackage;
 }
