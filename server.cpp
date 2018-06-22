@@ -315,7 +315,7 @@ void recv_rsa_ack(States *state, int socket, struct sockaddr *client, socklen_t 
     t2 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
     totalTime = (double)(t2-t1)*1000;
 
-    /******************** Time of Proof ********************/
+    /******************** Proof of Time ********************/
     double limit = processingTime1 + networkTime + (processingTime1 + networkTime)*0.1;
 
     if (totalTime <= limit) {
@@ -442,7 +442,7 @@ int recv_dh(States *state, int socket, struct sockaddr *client, socklen_t size)
             /******************** Calculate Session Key ********************/
             diffieHellmanStorage->setSessionKey(diffieHellmanStorage->calculateSessionKey(dhPackage.getResult()));
 
-            *state = RECV_ACK;
+            *state = SEND_DH_ACK;
         } else {
             *state = SEND_SYN;
         }
@@ -453,41 +453,6 @@ int recv_dh(States *state, int socket, struct sockaddr *client, socklen_t size)
         if (VERBOSE) time_limit_burst_verbose();
         *state = SEND_SYN;
     }
-
-    // /******************** Realiza a decifragem ********************/
-    // DHKeyExchange dhKeyExchange;
-    // decryptDHKeyExchange(encryptedMessage, &dhKeyExchange);
-
-    // DiffieHellmanPackage diffieHellmanPackage;
-    // getDiffieHellmanPackage(&dhKeyExchange, &diffieHellmanPackage);
-
-    // string hash = decryptHash(&dhKeyExchange);
-
-    // /******************** Validação do Hash ********************/
-    // string dhString = diffieHellmanPackage.toString();
-    // if (iotAuth.isHashValid(&dhString, &hash)) {
-
-    //     setupDiffieHellman(&diffieHellmanPackage);
-
-    //     if (VERBOSE) {rdh_verbose1(diffieHellmanStorage, &diffieHellmanPackage, &hash);}
-
-    //     /*  Se a resposta estiver correta, altera o estado atual para SDH
-    //         (Send Diffie-Hellman). */
-    //     if (checkAnsweredFDR(diffieHellmanPackage.getAnswerFDR())) {
-    //         if (VERBOSE) {rdh_verbose2();}
-    //         *state = SDH;
-
-    //     /* Senão, altera o estado para DONE (Finaliza a conexão). */
-    //     } else {
-    //         if (VERBOSE) {rdh_verbose3();}
-    //         *state = DONE;
-    //     }
-
-    // /* Caso contrário, termina a conexão. */
-    // } else {
-    //     if (VERBOSE) {rdh_verbose4();}
-    //     *state = DONE;
-    // }
 }
 
 /*  Send Diffie-Hellman
@@ -561,6 +526,30 @@ void send_dh(States *state, int socket, struct sockaddr *client, socklen_t size)
     delete[] encryptedExchange;
 
 }
+
+void send_dh_ack(States *state, int socket, struct sockaddr *client, socklen_t size)
+{
+    /******************** Mount ACK ********************/
+    DH_ACK ack;
+    ack.message = ACK;
+    strncpy(ack.nonce, nonceA, sizeof(ack.nonce));
+
+    // /******************** Serialize ACK ********************/
+    byte *ackBytes = new byte[sizeof(DH_ACK)];
+    ObjectToBytes(ack, ackBytes, sizeof(DH_ACK));
+
+    /******************** Encrypt ACK ********************/
+    int *encryptedAck = iotAuth.encryptRSA(ackBytes, rsaStorage->getMyPrivateKey(), sizeof(DH_ACK));
+
+    /******************** Send ACK ********************/
+    sendto(socket, (int*)encryptedAck, sizeof(DH_ACK)*sizeof(int), 0, client, size);
+
+    *state = RECV_ACK;
+
+    /******************** Verbose ********************/
+    if (VERBOSE) send_dh_ack_verbose(&ack);
+}
+
 
 /*  Data Transfer
     Realiza a transferência de dados cifrados para o Cliente.
@@ -697,6 +686,12 @@ void stateMachine(int socket, struct sockaddr *client, socklen_t size)
         case RECV_DH:
         {
             recv_dh(&state, socket, client, size);
+            break;
+        }
+
+        case SEND_DH_ACK:
+        {
+            send_dh_ack(&state, socket, client, size);
             break;
         }
 

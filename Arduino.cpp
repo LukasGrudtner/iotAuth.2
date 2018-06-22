@@ -88,6 +88,12 @@ void Arduino::stateMachine(int socket, struct sockaddr *server, socklen_t size)
             break;
         }
 
+        case RECV_DH_ACK:
+        {
+            recv_dh_ack(&state, socket, server, size);
+            break;
+        }
+
         // /* Data Transfer */
         // case DT:
         // {
@@ -420,7 +426,7 @@ void Arduino::send_dh(States *state, int socket, struct sockaddr *server, sockle
 
     /******************** Send Enc Packet ********************/
     sendto(socket, (DHEncPacket*)&encPacket, sizeof(DHEncPacket), 0, server, size);
-    *state = RECV_ACK;
+    *state = RECV_DH_ACK;
 
     /******************** Verbose ********************/
     if (VERBOSE) send_dh_verbose(&diffieHellmanPackage, sessionKey, sequence, encPacket.getTP());
@@ -484,6 +490,49 @@ void Arduino::recv_dh(States *state, int socket, struct sockaddr *server, sockle
         }
 
         if (VERBOSE) recv_dh_verbose(&dhPackage, isHashValid, isNonceTrue);
+
+    } else {
+        if (VERBOSE) time_limit_burst_verbose();
+        *state = SEND_SYN;
+    }
+}
+
+void Arduino::recv_dh_ack(States *state, int socket, struct sockaddr *server, socklen_t size)
+{
+    /******************** Recv ACK ********************/
+    int encryptedACK[sizeof(DH_ACK)];
+    recvfrom(socket, encryptedACK, sizeof(DH_ACK)*sizeof(int), 0, server, &size);
+
+    /******************** Stop Total Time ********************/
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    t2 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
+    totalTime = (double)(t2-t1)*1000;
+
+    /******************** Proof of Time ********************/
+    double limit = processingTime2 + networkTime + (processingTime2 + networkTime)*0.1;
+
+    if (totalTime <= limit) {
+
+        /******************** Decrypt ACK ********************/
+        byte *decryptedACKBytes = iotAuth.decryptRSA(encryptedACK, rsaStorage->getPartnerPublicKey(), sizeof(DH_ACK));
+
+        /******************** Deserialize ACK ********************/
+        DH_ACK ack;
+        // ACKO acko;
+        BytesToObject(decryptedACKBytes, ack, sizeof(DH_ACK));
+
+        /******************** Validity ********************/
+        bool isNonceTrue = (strcmp(ack.nonce, nonceA) == 0);
+
+        if (isNonceTrue) {
+            *state = RECV_ACK;
+        } else {
+            *state = SEND_SYN;
+        }
+
+        /******************** Verbose ********************/
+        if (VERBOSE) send_dh_ack_verbose(&ack, isNonceTrue);
 
     } else {
         if (VERBOSE) time_limit_burst_verbose();

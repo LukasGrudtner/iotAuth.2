@@ -49,6 +49,7 @@ class Arduino
         void recv_rsa(States *state, int socket, struct sockaddr *server, socklen_t size);
 
         void send_rsa_ack(States *state, int socket, struct sockaddr *server, socklen_t size);
+        
 
         /*  Receive Diffie-Hellman
             Realiza o recebimento da chave Diffie-Hellman vinda do Servidor.
@@ -59,6 +60,8 @@ class Arduino
             Realiza o envio da chave Diffie-Hellman para o Servidor.
         */
         void send_dh(States *state, int socket, struct sockaddr *client, socklen_t size);
+
+        void recv_dh_ack(States *state, int socket, struct sockaddr *client, socklen_t size);
 
         void stateMachine(int socket, struct sockaddr *client, socklen_t size);
 

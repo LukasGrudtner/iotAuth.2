@@ -40,6 +40,12 @@ typedef struct ack
     }
 } structAck;
 
+typedef struct DH_ACK 
+{
+    char message = ACK;
+    char nonce[129];
+} DH_ACK;
+
 /* Definição do tipo "byte" utilizado. */
 typedef unsigned char byte;
 
@@ -91,7 +97,9 @@ typedef enum {
     SEND_RSA_ACK, 
     RECV_RSA_ACK, 
     SEND_DH, 
-    RECV_DH, 
+    RECV_DH,
+    SEND_DH_ACK,
+    RECV_DH_ACK,
     SEND_DATA, 
     RECV_DATA, 
     

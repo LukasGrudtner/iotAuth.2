@@ -87,6 +87,15 @@ void recv_dh_verbose(DiffieHellmanPackage *dhPackage, int sessionKey, bool isHas
     cout << "**************************************************************************\n" << endl;
 }
 
+void send_dh_ack_verbose(DH_ACK *ack)
+{
+        cout << "Step 8.1" << endl;
+        cout << "************ SEND DH ACK *************************************************" << endl;
+        cout << "ACK" << endl;
+        cout << "nA: " << ack->nonce << endl << endl;
+        cout << "**************************************************************************\n" << endl;
+}
+
 
 void rft_verbose()
 {
