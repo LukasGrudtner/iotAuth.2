@@ -16,6 +16,7 @@ void send_rsa_verbose(RSAStorage *rsaStorage, int sequence, char *nonceA);
 void recv_rsa_verbose(RSAStorage *rsaStorage, char *nonceB, bool isHashValid, bool isNonceTrue, bool isAnswerCorrect);
 void send_rsa_ack_verbose(int sequence, char *nonceA);
 void recv_dh_verbose(DiffieHellmanPackage *dhPackage, bool isHashValid, bool isNonceTrue);
+void send_dh_verbose(DiffieHellmanPackage *dhPackage, int sessionKey, int sequence, double tp);
 
 void time_limit_burst_verbose();
 

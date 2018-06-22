@@ -81,13 +81,12 @@ void Arduino::stateMachine(int socket, struct sockaddr *server, socklen_t size)
             break;
         }
 
-        // /* Send Diffie-Hellman */
-        // case SDH:
-        // {
-        //     cout << "SEND DIFFIE HELLMAN KEY" << endl;
-        //     sdh(&state, socket, server, size);
-        //     break;
-        // }
+        /* Send Diffie-Hellman */
+        case SEND_DH:
+        {
+            send_dh(&state, socket, server, size);
+            break;
+        }
 
         // /* Data Transfer */
         // case DT:
@@ -369,43 +368,66 @@ int* Arduino::getEncryptedHash(DiffieHellmanPackage *dhPackage)
 /*  Send Diffie-Hellman
     Realiza o envio da chave Diffie-Hellman para o Servidor.
 */
-void Arduino::sdh(States *state, int socket, struct sockaddr *server, socklen_t size)
+void Arduino::send_dh(States *state, int socket, struct sockaddr *server, socklen_t size)
 {
-    // setupDiffieHellman();
-    // /***************** Montagem do Pacote Diffie-Hellman ******************/
-    // DiffieHellmanPackage diffieHellmanPackage;
-    // mountDHPackage(&diffieHellmanPackage);
+    /***************** Calculate DH ******************/
+    int sessionKey = dhStorage->calculateSessionKey(dhStorage->getSessionKey());
+    int result = dhStorage->calculateResult();
+    dhStorage->setSessionKey(sessionKey);
 
-    // /***************** Serialização do Pacote Diffie-Hellman ******************/
-    // byte* dhPackageBytes = new byte[sizeof(DiffieHellmanPackage)];
-    // ObjectToBytes(diffieHellmanPackage, dhPackageBytes, sizeof(DiffieHellmanPackage));
+    /***************** Generate Nonce A ******************/
+    generateNonce(nonceA);
 
-    // /***************************** Geração do HASH ****************************/
-    // /* Encripta o hash utilizando a chave privada do Servidor. */
-    // int *encryptedHash = getEncryptedHash(&diffieHellmanPackage);
+    /***************** Mount Package ******************/
+    DiffieHellmanPackage diffieHellmanPackage;
+    diffieHellmanPackage.setResult(result);
+    diffieHellmanPackage.setNonceA(nonceA);
+    diffieHellmanPackage.setNonceB(nonceB);
 
-    // /********************** Preparação do Pacote Final ************************/
-    // DHKeyExchange dhSent;
-    // dhSent.setEncryptedHash(encryptedHash);
-    // dhSent.setDiffieHellmanPackage(dhPackageBytes);
+    /***************** Get Hash ******************/
+    string dhString = diffieHellmanPackage.toString();
+    string hash = iotAuth.hash(&dhString);
 
-    // /********************** Serialização do Pacote Final **********************/
-    // byte* dhSentBytes = new byte[sizeof(DHKeyExchange)];
-    // ObjectToBytes(dhSent, dhSentBytes, sizeof(DHKeyExchange));
+    /***************** Encrypt Hash ******************/
+    int *encryptedHash = iotAuth.encryptRSA(&hash, rsaStorage->getMyPrivateKey(), hash.length());
 
-    // /******************** Cifragem e Envio do Pacote Final ********************/
-    // int* encryptedMessage = iotAuth.encryptRSA(dhSentBytes, rsaStorage->getPartnerPublicKey(), sizeof(DHKeyExchange));
+    /***************** Stop Processing Time 2 ******************/
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    t2 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
+    processingTime2 = (double)(t2-t1)*1000;
 
-    // sendto(socket,(int*)encryptedMessage, sizeof(DHKeyExchange)*sizeof(int), 0, server, size);
-    // *state = RDH;
+    /********************** Mount Exchange ************************/
+    DHKeyExchange dhSent;
+    dhSent.setEncryptedHash(encryptedHash);
+    dhSent.setDiffieHellmanPackage(diffieHellmanPackage);
 
-    // /******************************** VERBOSE *********************************/
-    // if (VERBOSE) {sdh_verbose(&diffieHellmanPackage);}
+    /********************** Serialize Exchange **********************/
+    byte* exchangeBytes = new byte[sizeof(DHKeyExchange)];
+    ObjectToBytes(dhSent, exchangeBytes, sizeof(DHKeyExchange));
 
-    // delete[] dhPackageBytes;
-    // delete[] encryptedHash;
-    // delete[] dhSentBytes;
-    // delete[] encryptedMessage;
+    /********************** Encrypt Exchange **********************/
+    int *encryptedExchange = iotAuth.encryptRSA(exchangeBytes, rsaStorage->getPartnerPublicKey(), sizeof(RSAKeyExchange));
+
+    /********************** Mount Enc Packet **********************/
+    DHEncPacket encPacket;
+    encPacket.setEncryptedExchange(encryptedExchange);
+    encPacket.setTP(processingTime2);
+
+    /******************** Start Total Time ********************/
+    gettimeofday(&tv, NULL);
+    t1 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
+
+    /******************** Send Enc Packet ********************/
+    sendto(socket, (DHEncPacket*)&encPacket, sizeof(DHEncPacket), 0, server, size);
+    *state = RECV_ACK;
+
+    /******************** Verbose ********************/
+    if (VERBOSE) send_dh_verbose(&diffieHellmanPackage, sessionKey, sequence, encPacket.getTP());
+
+    delete[] exchangeBytes;
+    delete[] encryptedHash;
+    delete[] encryptedExchange;
 }
 
 /*  Receive Diffie-Hellman
@@ -422,7 +444,6 @@ void Arduino::recv_dh(States *state, int socket, struct sockaddr *server, sockle
     gettimeofday(&tv, NULL);
     t2 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
     totalTime = (double)(t2-t1)*1000;
-
 
     /******************** Time of Proof ********************/
     if (totalTime <= 5000) {
@@ -442,9 +463,6 @@ void Arduino::recv_dh(States *state, int socket, struct sockaddr *server, sockle
         /******************** Get DH Package ********************/
         DiffieHellmanPackage dhPackage = dhKeyExchange.getDiffieHellmanPackage();
 
-        /******************** Store Nounce B ********************/
-        strncpy(nonceB, dhPackage.getNonceB().c_str(), sizeof(nonceB));
-
         /******************** Decrypt Hash ********************/
         string decryptedHash = decryptHash(dhKeyExchange.getEncryptedHash());
 
@@ -454,7 +472,13 @@ void Arduino::recv_dh(States *state, int socket, struct sockaddr *server, sockle
         bool isNonceTrue = (dhPackage.getNonceA() == nonceA);
 
         if (isHashValid && isNonceTrue) {
-            *state = RECV_RSA;
+            /******************** Store Nounce B ********************/
+            strncpy(nonceB, dhPackage.getNonceB().c_str(), sizeof(nonceB));
+
+            /******************** Store DH Package ********************/
+            storeDiffieHellman(&dhPackage);
+
+            *state = SEND_DH;
         } else {
             *state = SEND_SYN;
         }

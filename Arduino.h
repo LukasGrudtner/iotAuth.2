@@ -50,7 +50,15 @@ class Arduino
 
         void send_rsa_ack(States *state, int socket, struct sockaddr *server, socklen_t size);
 
+        /*  Receive Diffie-Hellman
+            Realiza o recebimento da chave Diffie-Hellman vinda do Servidor.
+        */
         void recv_dh(States *state, int socket, struct sockaddr *server, socklen_t size);
+
+        /*  Send Diffie-Hellman
+            Realiza o envio da chave Diffie-Hellman para o Servidor.
+        */
+        void send_dh(States *state, int socket, struct sockaddr *client, socklen_t size);
 
         void stateMachine(int socket, struct sockaddr *client, socklen_t size);
 
@@ -77,26 +85,6 @@ class Arduino
             para WDC (Waiting Done Confirmation).
         */
         void done(States *state, int socket, struct sockaddr *client, socklen_t size);
-
-        /*  Send RSA
-            Realiza o envio da chave RSA para o Servidor.
-        */
-        void srsa(States *state, int socket, struct sockaddr *client, socklen_t size);
-
-        /*  Receive RSA
-            Realiza o recebimento da chave RSA vinda do Servidor.
-        */
-        void rrsa(States *state, int socket, struct sockaddr *client, socklen_t size);
-
-        /*  Send Diffie-Hellman
-            Realiza o envio da chave Diffie-Hellman para o Servidor.
-        */
-        void sdh(States *state, int socket, struct sockaddr *client, socklen_t size);
-
-        /*  Receive Diffie-Hellman
-            Realiza o recebimento da chave Diffie-Hellman vinda do Servidor.
-        */
-        void rdh(States *state, int socket, struct sockaddr *client, socklen_t size);
 
         /*  Data Transfer
             Realiza a transferência de dados cifrados para o Servidor.

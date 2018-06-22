@@ -77,6 +77,17 @@ void recv_dh_verbose(DiffieHellmanPackage *dhPackage, bool isHashValid, bool isN
     cout << "**************************************************************************\n" << endl;
 }
 
+void send_dh_verbose(DiffieHellmanPackage *dhPackage, int sessionKey, int sequence, double tp)
+{
+        cout << "Step 7.1" << endl;
+        cout << "************ SEND DH *****************************************************" << endl;
+        cout << "Session Key: " << sessionKey << endl;
+        cout << "Sequence: " << sequence << endl;
+        cout << "nA: " << dhPackage->getNonceB() << " (generated)" << endl;
+        cout << "tp: " << tp << " ms" << endl;
+        cout << "**************************************************************************\n" << endl;
+}
+
 void rft_verbose()
 {
     cout << "\n*******DONE CLIENT AND SERVER****"   << endl;
