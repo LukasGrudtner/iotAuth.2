@@ -92,7 +92,7 @@ class Arduino
         /*  Data Transfer
             Realiza a transferência de dados cifrados para o Servidor.
         */
-        void dt(States *state, int socket, struct sockaddr *client, socklen_t size);
+        void data_transfer(States *state, int socket, struct sockaddr *client, socklen_t size);
 
         /*  Encrypt Message
             Encripta a mensagem utilizando a chave de sessão.

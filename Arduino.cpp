@@ -94,13 +94,12 @@ void Arduino::stateMachine(int socket, struct sockaddr *server, socklen_t size)
             break;
         }
 
-        // /* Data Transfer */
-        // case DT:
-        // {
-        //     cout << "SEND ENCRYPTED DATA" << endl;
-        //     dt(&state, socket, server, size);
-        //     break;
-        // }
+        /* Data Transfer */
+        case SEND_DATA:
+        {
+            data_transfer(&state, socket, server, size);
+            break;
+        }
     }
 }
 
@@ -519,14 +518,13 @@ void Arduino::recv_dh_ack(States *state, int socket, struct sockaddr *server, so
 
         /******************** Deserialize ACK ********************/
         DH_ACK ack;
-        // ACKO acko;
         BytesToObject(decryptedACKBytes, ack, sizeof(DH_ACK));
 
         /******************** Validity ********************/
         bool isNonceTrue = (strcmp(ack.nonce, nonceA) == 0);
 
         if (isNonceTrue) {
-            *state = RECV_ACK;
+            *state = SEND_DATA;
         } else {
             *state = SEND_SYN;
         }
@@ -576,7 +574,7 @@ string Arduino::decryptHash(int *encryptedHash)
 /*  Data Transfer
     Realiza a transferência de dados cifrados para o Servidor.
 */
-void Arduino::dt(States *state, int socket, struct sockaddr *server, socklen_t size)
+void Arduino::data_transfer(States *state, int socket, struct sockaddr *server, socklen_t size)
 {
     delete rsaStorage;
 
@@ -599,8 +597,6 @@ void Arduino::dt(States *state, int socket, struct sockaddr *server, socklen_t s
         char encryptedMessageChar[encryptedMessage.length()];
         memset(encryptedMessageChar, '\0', sizeof(encryptedMessageChar));
         strncpy(encryptedMessageChar, encryptedMessage.c_str(), sizeof(encryptedMessageChar));
-
-        // delete[] encryptedMessage;
 
         /* Envia a mensagem cifrada ao Servidor. */
         sendto(socket, encryptedMessageChar, strlen(encryptedMessageChar), 0, server, size);

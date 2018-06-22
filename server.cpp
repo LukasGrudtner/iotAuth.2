@@ -544,7 +544,7 @@ void send_dh_ack(States *state, int socket, struct sockaddr *client, socklen_t s
     /******************** Send ACK ********************/
     sendto(socket, (int*)encryptedAck, sizeof(DH_ACK)*sizeof(int), 0, client, size);
 
-    *state = RECV_ACK;
+    *state = RECV_DATA;
 
     /******************** Verbose ********************/
     if (VERBOSE) send_dh_ack_verbose(&ack);
@@ -554,59 +554,56 @@ void send_dh_ack(States *state, int socket, struct sockaddr *client, socklen_t s
 /*  Data Transfer
     Realiza a transferência de dados cifrados para o Cliente.
 */
-void dt(States *state, int socket, struct sockaddr *client, socklen_t size)
+void data_transfer(States *state, int socket, struct sockaddr *client, socklen_t size)
 {
-    // delete rsaStorage;
-    // /********************* Recebimento dos Dados Cifrados *********************/
-    // char message[1333];
-    // memset(message, '\0', sizeof(message));
-    // recvfrom(socket, message, sizeof(message)-1, 0, client, &size);
+    delete rsaStorage;
+    /********************* Recebimento dos Dados Cifrados *********************/
+    char message[1333];
+    memset(message, '\0', sizeof(message));
+    recvfrom(socket, message, sizeof(message)-1, 0, client, &size);
 
-    // /******************* Verifica Pedido de Fim de Conexão ********************/
+    /******************* Verifica Pedido de Fim de Conexão ********************/
 
-    // if (checkRequestForTermination(message)) {
-    //     *state = RFT;
-    // } else {
+    if (checkRequestForTermination(message)) {
+        *state = RFT;
+    } else {
 
-    //     /* Converte o array de chars (buffer) em uma string. */
-    //     string encryptedMessage (message);
+        /* Converte o array de chars (buffer) em uma string. */
+        string encryptedMessage (message);
 
-    //     /* Inicialização dos vetores ciphertext. */
-    //     char ciphertextChar[encryptedMessage.length()];
-    //     uint8_t ciphertext[encryptedMessage.length()];
-    //     memset(ciphertext, '\0', encryptedMessage.length());
+        /* Inicialização dos vetores ciphertext. */
+        char ciphertextChar[encryptedMessage.length()];
+        uint8_t ciphertext[encryptedMessage.length()];
+        memset(ciphertext, '\0', encryptedMessage.length());
 
-    //     /* Inicialização do vetor plaintext. */
-    //     uint8_t plaintext[encryptedMessage.length()];
-    //     memset(plaintext, '\0', encryptedMessage.length());
+        /* Inicialização do vetor plaintext. */
+        uint8_t plaintext[encryptedMessage.length()];
+        memset(plaintext, '\0', encryptedMessage.length());
 
-    //     /* Inicialização da chave e iv. */
-    //     // uint8_t key[] = { 0x60, 0x3d, 0xeb, 0x10, 0x15, 0xca, 0x71, 0xbe, 0x2b, 0x73, 0xae, 0xf0, 0x85, 0x7d, 0x77, 0x81,
-    //     //                   0x1f, 0x35, 0x2c, 0x07, 0x3b, 0x61, 0x08, 0xd7, 0x2d, 0x98, 0x10, 0xa3, 0x09, 0x14, 0xdf, 0xf4 };
-    //     uint8_t key[32];
-    //     for (int i = 0; i < 32; i++) {
-    //         key[i] = diffieHellmanStorage->getSessionKey();
-    //     }
+        /* Inicialização da chave e iv. */
+        uint8_t key[32];
+        for (int i = 0; i < 32; i++) {
+            key[i] = diffieHellmanStorage->getSessionKey();
+        }
 
-    //     // uint8_t iv[]  = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
-    //     uint8_t iv[16];
-    //     for (int i = 0; i < 16; i++) {
-    //         iv[i] = diffieHellmanStorage->getSessionKey();
-    //     }
+        uint8_t iv[16];
+        for (int i = 0; i < 16; i++) {
+            iv[i] = diffieHellmanStorage->getSessionKey();
+        }
 
-    //     /* Converte a mensagem recebida (HEXA) para o array de char ciphertextChar. */
-    //     HexStringToCharArray(&encryptedMessage, encryptedMessage.length(), ciphertextChar);
+        /* Converte a mensagem recebida (HEXA) para o array de char ciphertextChar. */
+        HexStringToCharArray(&encryptedMessage, encryptedMessage.length(), ciphertextChar);
 
-    //     /* Converte ciphertextChar em um array de uint8_t (ciphertext). */
-    //     CharToUint8_t(ciphertextChar, ciphertext, encryptedMessage.length());
+        /* Converte ciphertextChar em um array de uint8_t (ciphertext). */
+        CharToUint8_t(ciphertextChar, ciphertext, encryptedMessage.length());
 
-    //     /* Decifra a mensagem em um vetor de uint8_t. */
-    //     uint8_t *decrypted = iotAuth.decryptAES(ciphertext, key, iv, encryptedMessage.length());
-    //     cout << "Decrypted: " << decrypted << endl;
+        /* Decifra a mensagem em um vetor de uint8_t. */
+        uint8_t *decrypted = iotAuth.decryptAES(ciphertext, key, iv, encryptedMessage.length());
+        cout << "Decrypted: " << decrypted << endl;
 
-    //     *state = DT;
-    //     // delete[] decrypted;
-    // }
+        *state = RECV_DATA;
+        // delete[] decrypted;
+    }
 }
 
 /*  State Machine
@@ -695,13 +692,12 @@ void stateMachine(int socket, struct sockaddr *client, socklen_t size)
             break;
         }
 
-        // /* Data Transfer */
-        // case DT:
-        // {
-        //     cout << "RECEIVE ENCRYPTED DATA" << endl;
-        //     dt(&state, socket, client, size);
-        //     break;
-        // }
+        /* Data Transfer */
+        case RECV_DATA:
+        {
+            data_transfer(&state, socket, client, size);
+            break;
+        }
     }
 }
 
