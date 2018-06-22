@@ -38,10 +38,8 @@ void recv_rsa_verbose(RSAStorage *rsaStorage, char *nonceB, bool isHashValid, bo
 {
     cout << "Step 4.2" << endl;
         cout << "************ RECV RSA ****************************************************" << endl;
-        cout << "Ser Public Key: {(" << rsaStorage->getPartnerPublicKey()->d
-                << ", " << rsaStorage->getPartnerPublicKey()->n << "), ("
-                << rsaStorage->getPartnerPublicKey()->d << ", "
-                << rsaStorage->getPartnerPublicKey()->n << ")}" << endl;
+        cout << "Server Public Key: (" << rsaStorage->getPartnerPublicKey()->d
+                << ", " << rsaStorage->getPartnerPublicKey()->n << ")" << endl;
         cout << "nB: " << nonceB << " (stored)" << endl;
         cout << "Is Hash Valid? " << isHashValid << endl;
         cout << "Is Nonce True? " << isNonceTrue << endl;

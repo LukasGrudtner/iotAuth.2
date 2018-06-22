@@ -9,6 +9,7 @@
 #include <string>
 #include <iostream>
 #include <sstream>
+#include <sys/time.h>
 #include "AES/AES.h"
 #include <unistd.h>
 
@@ -19,6 +20,8 @@ class IotAuth
     protected:
 
     public:
+
+        IotAuth();
 
         uint8_t* encryptAES(uint8_t* plaintext, uint8_t* key, uint8_t* iv, int size);
         uint8_t* decryptAES(uint8_t* ciphertext, uint8_t* key, uint8_t* iv, int size);

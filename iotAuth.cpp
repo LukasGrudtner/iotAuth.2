@@ -1,5 +1,10 @@
 #include "iotAuth.h"
 
+IotAuth::IotAuth()
+{
+    srand(time(NULL));
+}
+
 /*  encryptAES()
     Realiza a cifragem de plaintext com o algoritmo AES, onde o resultado é
     é retornado.
@@ -35,8 +40,9 @@ uint8_t* IotAuth::decryptAES(uint8_t ciphertext[], uint8_t key[], uint8_t iv[], 
     com ambas as chaves. Essa struct é definida em "settings.h". */
 RSAKeyPair IotAuth::generateRSAKeyPair()
 {
-    sleep(1);
-    srand(time(NULL));
+    // srand(time(NULL));
+    // srand(time(NULL));
+
     int p, p2, n, phi, e, d;
 
     p = rsa.geraPrimo(100*rsa.geraNumeroRandom());
@@ -101,8 +107,13 @@ byte* IotAuth::decryptRSA(int *cipher, RSAKey *rsaKey, int size)
 /*  Gera um número aleatório menor que um dado limite superior. */
 int IotAuth::randomNumber(int upperBound)
 {
-    sleep(1);
-    srand(time(NULL));
+    // int teste = (rand() % 500)+200*1000;
+    // cout << "Sleep for " << teste/1000 << " ms. " << endl;
+    // usleep((rand() % 500)+200*1000);
+    // cout << "TESTE 1: " << rand()%100 << endl;
+    // cout << "TESTE 2: " << rand()%100 << endl;
+
+    // srand(time(NULL));
     return rand() % upperBound;
 }
 

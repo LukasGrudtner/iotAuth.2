@@ -144,6 +144,9 @@ void recv_syn(States *state, int socket, struct sockaddr *client, socklen_t size
 
 void send_ack(States *state, int socket, struct sockaddr *client, socklen_t size)
 {
+    /******************** Init Sequence ********************/
+    sequence = iotAuth.randomNumber(9999);
+
     /******************** Generate Nounce B ********************/
     generateNonce(nonceB);
 
@@ -391,8 +394,9 @@ void generateDiffieHellman()
 {
     diffieHellmanStorage = new DHStorage();
 
-    diffieHellmanStorage->setExponent(iotAuth.randomNumber(3)+2);
+    cout << "Generate Diffie Hellman" << endl;
     diffieHellmanStorage->setBase(iotAuth.randomNumber(100)+2);
+    diffieHellmanStorage->setExponent(iotAuth.randomNumber(3)+2);
     diffieHellmanStorage->setModulus(iotAuth.randomNumber(100)+2);
 }
 
@@ -739,7 +743,6 @@ int main(int argc, char *argv[]){
     // char *clientIP;
     clientIP = inet_ntoa(*(struct in_addr *)*client->h_addr_list);
 
-    sequence = iotAuth.randomNumber(9999);
     while(1){
        stateMachine(meuSocket, (struct sockaddr*)&cliente, tam_cliente);
     }

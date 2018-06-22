@@ -4,7 +4,6 @@ Arduino::Arduino()
 {
     nonceA[128] = '\0';
     nonceB[128] = '\0';
-    sequence = iotAuth.randomNumber(9999);
 }
 
 /*  State Machine
@@ -134,6 +133,9 @@ void Arduino::rft(States *state, int socket, struct sockaddr *server, socklen_t 
 
 void Arduino::send_syn(States *state, int socket, struct sockaddr *server, socklen_t size)
 {
+    /******************** Init Sequence ********************/
+    sequence = iotAuth.randomNumber(9999);
+    
     /******************** Generate Nonce ********************/
     generateNonce(nonceA);
 
