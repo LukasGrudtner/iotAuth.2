@@ -42,6 +42,12 @@ double networkTime, processingTime1, processingTime2, tp, auxiliarTime, totalTim
 double t1, t2;
 double t_aux1, t_aux2;
 
+/*  Armazena o valor do nonce B em uma variável global. */
+void storeNonceA(char *nonce)
+{
+    strncpy(nonceA, nonce, sizeof(nonceA));
+}
+
 /*  Check Request for Termination
     Verifica se a mensagem recebida é um pedido de término de conexão vinda
     do Cliente (DONE).
@@ -197,14 +203,14 @@ void recv_rsa(States *state, int socket, struct sockaddr *client, socklen_t size
     string decryptedHash = decryptHash(rsaReceived->getEncryptedHash());
 
     /******************** Store Nonce A ********************/
-    strncpy(nonceA, rsaPackage.getNonceA().c_str(), sizeof(nonceA));
+    storeNonceA(rsaPackage.getNonceA());
 
     /******************** Store TP ********************/
     tp = rsaReceived->getProcessingTime();
 
     /******************** Validity Hash ********************/
     bool isHashValid = iotAuth.isHashValid(&rsaString, &decryptedHash);
-    bool isNonceTrue = (rsaPackage.getNonceB() == nonceB);
+    bool isNonceTrue = strcmp(rsaPackage.getNonceB(), nonceB) == 0;
 
     if (isHashValid && isNonceTrue) {
         *state = SEND_RSA;
@@ -298,10 +304,10 @@ void recv_rsa_ack(States *state, int socket, struct sockaddr *client, socklen_t 
         string decryptedHash = decryptHash(rsaReceived->getEncryptedHash());
 
         /******************** Store Nonce A ********************/
-        strncpy(nonceA, rsaPackage.getNonceA().c_str(), sizeof(nonceA));
+        storeNonceA(rsaPackage.getNonceA());
 
         bool isHashValid = iotAuth.isHashValid(&rsaString, &decryptedHash);
-        bool isNonceTrue = (rsaPackage.getNonceB() == nonceB);
+        bool isNonceTrue = strcmp(rsaPackage.getNonceB(), nonceB) == 0;
         bool isAnswerCorrect = iotAuth.isAnswerCorrect(rsaStorage->getMyFDR(), rsaStorage->getMyPublicKey()->d, rsaPackage.getAnswerFDR());
 
         /******************** Validity ********************/
@@ -403,11 +409,11 @@ int recv_dh(States *state, int socket, struct sockaddr *client, socklen_t size)
         /******************** Validity ********************/
         string dhString = dhPackage.toString();
         bool isHashValid = iotAuth.isHashValid(&dhString, &decryptedHash);
-        bool isNonceTrue = (dhPackage.getNonceB() == nonceB);
+        bool isNonceTrue = strcmp(dhPackage.getNonceB(), nonceB) == 0;
 
         if (isHashValid && isNonceTrue) {
             /******************** Store Nounce A ********************/
-            strncpy(nonceA, dhPackage.getNonceA().c_str(), sizeof(nonceA));
+            storeNonceA(dhPackage.getNonceA());
 
             /******************** Calculate Session Key ********************/
             diffieHellmanStorage->setSessionKey(diffieHellmanStorage->calculateSessionKey(dhPackage.getResult()));
@@ -666,6 +672,8 @@ void stateMachine(int socket, struct sockaddr *client, socklen_t size)
         }
     }
 }
+
+
 
 int main(int argc, char *argv[]){
 

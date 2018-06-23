@@ -15,15 +15,13 @@ int RSAPackage::getAnswerFDR()
     return answerFDR;
 }
 
-string RSAPackage::getNonceA()
+char *RSAPackage::getNonceA()
 {
-    string nonce (nonceA);
-    return nonce;
+    return nonceA;
 }
 
-string RSAPackage::getNonceB()
+char *RSAPackage::getNonceB()
 {
-    string nonce (nonceB);
     return nonceB;
 }
 

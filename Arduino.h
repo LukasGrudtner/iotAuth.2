@@ -177,6 +177,11 @@ class Arduino
             Gera um novo nonce, incrementando o valor de sequência.
         */
         void generateNonce(char *nonce);
+
+
+
+        /*  Armazena o valor do nonce B em uma variável global. */
+        void storeNonceB(char *nonce);
 };
 
 #endif

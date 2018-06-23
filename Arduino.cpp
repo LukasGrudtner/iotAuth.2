@@ -55,7 +55,7 @@ void Arduino::recv_ack(States *state, int socket, struct sockaddr *server, sockl
     t1 = currentTime();
 
     /******************** Store Nonce B ********************/
-    strncpy(nonceB, received.nonceB, sizeof(nonceB));
+    storeNonceB(received.nonceB);
 
     /******************** Validity Message ********************/
     bool isNonceTrue = (strcmp(received.nonceA, nonceA) == 0);
@@ -144,7 +144,7 @@ void Arduino::recv_rsa(States *state, int socket, struct sockaddr *server, sockl
         /******************** Config RSA ********************/
         rsaStorage->setPartnerPublicKey(rsaPackage->getPublicKey());
         rsaStorage->setPartnerFDR(rsaPackage->getFDR());
-        strncpy(nonceB, rsaPackage->getNonceB().c_str(), sizeof(nonceB));
+        storeNonceB(rsaPackage->getNonceB());
 
         /******************** Decrypt Hash ********************/
         string rsaString = rsaPackage->toString();
@@ -152,7 +152,7 @@ void Arduino::recv_rsa(States *state, int socket, struct sockaddr *server, sockl
 
         /******************** Validity ********************/
         bool isHashValid = iotAuth.isHashValid(&rsaString, &decryptedHash);
-        bool isNonceTrue = rsaPackage->getNonceA() == nonceA;
+        bool isNonceTrue = strcmp(rsaPackage->getNonceA(), nonceA) == 0;
         bool isAnswerCorrect = iotAuth.isAnswerCorrect(rsaStorage->getMyFDR(), rsaStorage->getMyPublicKey()->d, rsaPackage->getAnswerFDR());
 
         if (isHashValid && isNonceTrue && isAnswerCorrect) {
@@ -250,11 +250,11 @@ void Arduino::recv_dh(States *state, int socket, struct sockaddr *server, sockle
         /******************** Validity ********************/
         string dhString = dhPackage.toString();
         bool isHashValid = iotAuth.isHashValid(&dhString, &decryptedHash);
-        bool isNonceTrue = (dhPackage.getNonceA() == nonceA);
+        bool isNonceTrue = strcmp(dhPackage.getNonceA(), nonceA) == 0;
 
         if (isHashValid && isNonceTrue) {
             /******************** Store Nounce B ********************/
-            strncpy(nonceB, dhPackage.getNonceB().c_str(), sizeof(nonceB));
+            storeNonceB(dhPackage.getNonceB());
 
             /******************** Store DH Package ********************/
             storeDiffieHellman(&dhPackage);
@@ -415,6 +415,15 @@ void Arduino::data_transfer(States *state, int socket, struct sockaddr *server, 
         memset(envia, '\0', sizeof(envia));
         fgets(envia, 665, stdin);
     }
+}
+
+
+
+
+/*  Armazena o valor do nonce B em uma variável global. */
+void Arduino::storeNonceB(char *nonce)
+{
+    strncpy(nonceB, nonce, sizeof(nonceB));
 }
 
 /***********************************************************************************************/

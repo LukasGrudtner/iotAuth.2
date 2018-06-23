@@ -15,8 +15,8 @@ class DiffieHellmanPackage
         int getBase();
         int getModulus();
 
-        string getNonceA();
-        string getNonceB();
+        char *getNonceA();
+        char *getNonceB();
 
         /* Setters */
         void setResult(int r);

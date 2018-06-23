@@ -13,8 +13,8 @@ class RSAPackage
         RSAKey getPublicKey();
         FDR getFDR();
         int getAnswerFDR();
-        string getNonceA();
-        string getNonceB();
+        char *getNonceA();
+        char *getNonceB();
         char getACK();
 
         void setPublicKey(RSAKey key);

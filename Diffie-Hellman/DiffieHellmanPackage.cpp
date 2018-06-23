@@ -16,15 +16,13 @@ int DiffieHellmanPackage::getModulus()
     return p;
 }
 
-string DiffieHellmanPackage::getNonceA()
+char *DiffieHellmanPackage::getNonceA()
 {
-    string nonce (nonceA);
-    return nonce;
+    return nonceA;
 }
 
-string DiffieHellmanPackage::getNonceB()
+char *DiffieHellmanPackage::getNonceB()
 {
-    string nonce (nonceB);
     return nonceB;
 }
 
