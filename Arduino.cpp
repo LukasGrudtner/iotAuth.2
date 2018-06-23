@@ -14,6 +14,8 @@ Arduino::Arduino()
 */
 void Arduino::send_syn(States *state, int socket, struct sockaddr *server, socklen_t size)
 {
+    start = currentTime();
+
     /******************** Init Sequence ********************/
     sequence = iotAuth.randomNumber(9999);
     
@@ -384,7 +386,7 @@ void Arduino::recv_dh_ack(States *state, int socket, struct sockaddr *server, so
         if (VERBOSE) time_limit_burst_verbose();
         *state = SEND_SYN;
     }
-    go = 0;
+    if (MEM_TEST) transfer_data = false;
 }
 
 
@@ -643,11 +645,9 @@ string Arduino::encryptMessage(char* message, int size)
 {
     /* Inicialização do vetor plaintext. */
     uint8_t plaintext[size];
-    memset(plaintext, '\0', size);
+    memset(plaintext, 0, size);
 
     /* Inicialização da chave e do IV. */
-    // uint8_t key[] = { 0x60, 0x3d, 0xeb, 0x10, 0x15, 0xca, 0x71, 0xbe, 0x2b, 0x73, 0xae, 0xf0, 0x85, 0x7d, 0x77, 0x81,
-    //                   0x1f, 0x35, 0x2c, 0x07, 0x3b, 0x61, 0x08, 0xd7, 0x2d, 0x98, 0x10, 0xa3, 0x09, 0x14, 0xdf, 0xf4 };
     uint8_t key[32];
     for (int i = 0; i < 32; i++) {
         key[i] = dhStorage->getSessionKey();
@@ -666,8 +666,6 @@ string Arduino::encryptMessage(char* message, int size)
     uint8_t *encrypted = iotAuth.encryptAES(plaintext, key, iv, size);
 
     string result = Uint8_tToHexString(encrypted, size);
-
-    // delete[] encrypted;
 
     return result;
 }

@@ -13,7 +13,6 @@
 #include "utils.h"
 #include "settings.h"
 #include "Arduino.h"
-#include <sys/time.h>
 
 using namespace std;
 
@@ -73,8 +72,11 @@ int main(int argc, char *argv[]){
     arduino.clientIP = clientIP;
     arduino.serverIP = serverIP;
 
-    while(arduino.go){
+    while(arduino.transfer_data){
         arduino.stateMachine(meuSocket, (struct sockaddr*)&servidor, tam_cliente);
     }
     close(meuSocket);
+
+    double end = currentTime();
+    cout << "Elapsed Time: " << elapsedTime(arduino.start, end) << " ms." << endl;
 }

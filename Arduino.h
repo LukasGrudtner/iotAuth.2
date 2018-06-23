@@ -32,7 +32,7 @@ class Arduino
 
         Arduino();
         
-        bool go = 1;
+        bool transfer_data = true;
         char *clientIP;     /*  Endereço IP do Cliente.                 */
         char *serverIP;     /*  Endereço IP do Servidor.                */
         char nonceA[129];   /*  Armazena o nonce gerado do Cliente.     */
@@ -41,6 +41,7 @@ class Arduino
         double networkTime, processingTime1, processingTime2, totalTime;
         double t1, t2;
         double t_aux1, t_aux2;
+        double start;
 
 
 

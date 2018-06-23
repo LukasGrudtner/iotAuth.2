@@ -3,12 +3,11 @@
 
 #include "fdr.h"
 
+#define MEM_TEST true
+
 /* Definição de alguns atributos utilizados na comunicação */
 #define VERBOSE true
-#define VERBOSE_2 false
 #define DEFAULT_PORT 8080
-#define SPACER '#'
-#define SPACER_S "#"
 
 #define DONE_MESSAGE "DONE"
 
@@ -22,10 +21,6 @@ typedef struct syn
 {
     char message = SYN;
     char nonce[129];    /* HASH(time | idDestino | idOrigem | seq) */
-
-    syn() {
-        nonce[128] = '\0';
-    }
 } structSyn;
 
 typedef struct ack
@@ -33,11 +28,6 @@ typedef struct ack
     char message = ACK;
     char nonceA[129];
     char nonceB[129];
-
-    ack() {
-        nonceA[128] = '\0';
-        nonceB[128] = '\0';
-    }
 } structAck;
 
 typedef struct DH_ACK 
