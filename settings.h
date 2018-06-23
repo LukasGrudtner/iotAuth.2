@@ -108,37 +108,4 @@ typedef enum {
     WDC
 } States;
 
-// typedef struct RSAPackage
-// {
-//     RSAKey publicKey;
-//     FDR fdr;
-//     int answerFDR = 0;
-//     char nonceA[129];
-//     char nonceB[129];
-//     char ack = '-';
-
-//     std::string toString() {
-//         std::string result =    std::to_string(publicKey.d)    + " | " +
-//                                 std::to_string(publicKey.n)    + " | " +
-//                                 std::to_string(answerFDR)      + " | " +
-//                                 fdr.toString()                 + " | " + 
-//                                 nonceA                         + " | " +
-//                                 nonceB;
-//         return result;
-//     }
-// } RSAPackage;
-
-// typedef struct RSAExchange 
-// {
-//     RSAPackage rsaPackage;
-//     int hash[128];
-//     double tp;
-
-//     // std::string toString() {
-//     //     std::string result = hashString + " | " + std::to_string(tp);
-//     //     return result;
-//     // }
-
-// } RSAExchange;
-
 #endif

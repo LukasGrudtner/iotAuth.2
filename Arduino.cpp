@@ -210,7 +210,7 @@ void Arduino::generateNonce(char *nonce)
 void Arduino::send_rsa_ack(States *state, int socket, struct sockaddr *server, socklen_t size)
 {
     /******************** Get Answer FDR ********************/
-    int answerFdr = calculateFDRValue(rsaStorage->getPartnerPublicKey()->d, rsaStorage->getPartnerFDR());
+    int answerFdr = rsaStorage->getPartnerFDR()->getValue(rsaStorage->getPartnerPublicKey()->d);
     
     /******************** Generate Nonce ********************/
     generateNonce(nonceA);
@@ -224,10 +224,7 @@ void Arduino::send_rsa_ack(States *state, int socket, struct sockaddr *server, s
 
     /******************** Get Hash ********************/
     string rsaString = rsaSent.toString();
-    string hash = iotAuth.hash(&rsaString);
-
-    /******************** Encrypt Hash ********************/
-    int *encryptedHash = iotAuth.encryptRSA(&hash, rsaStorage->getMyPrivateKey(), hash.length());
+    int *encryptedHash = iotAuth.signedHash(&rsaString, rsaStorage->getMyPrivateKey());
 
     /******************** Mount Exchange ********************/
     RSAKeyExchange rsaExchange;
@@ -269,10 +266,7 @@ void Arduino::send_rsa(States *state, int socket, struct sockaddr *server, sockl
 
     /******************** Get Hash ********************/
     string rsaString = rsaSent.toString();
-    string hash = iotAuth.hash(&rsaString);
-
-    /******************** Encrypt Hash ********************/
-    int *encryptedHash = iotAuth.encryptRSA(&hash, rsaStorage->getMyPrivateKey(), hash.length());
+    int *encryptedHash = iotAuth.signedHash(&rsaString, rsaStorage->getMyPrivateKey());
 
     /******************** Stop Processing Time ********************/
     struct timeval tv;
@@ -329,9 +323,10 @@ void Arduino::recv_rsa(States *state, int socket, struct sockaddr *server, sockl
         string rsaString = rsaPackage->toString();
         string decryptedHash = decryptHash(rsaKeyExchange->getEncryptedHash());
 
+        /******************** Validity ********************/
         bool isHashValid = iotAuth.isHashValid(&rsaString, &decryptedHash);
         bool isNonceTrue = rsaPackage->getNonceA() == nonceA;
-        bool isAnswerCorrect = checkAnsweredFDR(rsaPackage->getAnswerFDR());
+        bool isAnswerCorrect = iotAuth.isAnswerCorrect(rsaStorage->getMyFDR(), rsaStorage->getMyPublicKey()->d, rsaPackage->getAnswerFDR());
 
         if (isHashValid && isNonceTrue && isAnswerCorrect) {
             *state = SEND_RSA_ACK;
@@ -359,18 +354,17 @@ void Arduino::storeDiffieHellman(DiffieHellmanPackage *dhPackage)
     dhStorage->setSessionKey(dhPackage->getResult());
 }
 
-/*  Get Encrypted Hash
-    Realiza a cifragem do hash obtido do pacote Diffie-Hellman com a chave privada do Servidor.
-    O retorno do hash cifrado é feito por parâmetro.
-*/
-int* Arduino::getEncryptedHash(DiffieHellmanPackage *dhPackage)
-{
-    string dhString = dhPackage->toString();
-    string hash = iotAuth.hash(&dhString);
+// /*  Get Encrypted Hash
+//     Realiza a cifragem do hash obtido do pacote Diffie-Hellman com a chave privada do Servidor.
+//     O retorno do hash cifrado é feito por parâmetro.
+// */
+// int* Arduino::encryptHash(string *message)
+// {
+//     string hash = iotAuth.hash(message);
 
-    int *encryptedHash = iotAuth.encryptRSA(&hash, rsaStorage->getMyPrivateKey(), hash.length());
-    return encryptedHash;
-}
+//     int *encryptedHash = iotAuth.encryptRSA(&hash, rsaStorage->getMyPrivateKey(), hash.length());
+//     return encryptedHash;
+// }
 
 /*  Send Diffie-Hellman
     Realiza o envio da chave Diffie-Hellman para o Servidor.
@@ -391,12 +385,9 @@ void Arduino::send_dh(States *state, int socket, struct sockaddr *server, sockle
     diffieHellmanPackage.setNonceA(nonceA);
     diffieHellmanPackage.setNonceB(nonceB);
 
-    /***************** Get Hash ******************/
-    string dhString = diffieHellmanPackage.toString();
-    string hash = iotAuth.hash(&dhString);
-
     /***************** Encrypt Hash ******************/
-    int *encryptedHash = iotAuth.encryptRSA(&hash, rsaStorage->getMyPrivateKey(), hash.length());
+    string dhString = diffieHellmanPackage.toString();
+    int *encryptedHash = iotAuth.signedHash(&dhString, rsaStorage->getMyPrivateKey());
 
     /***************** Stop Processing Time 2 ******************/
     struct timeval tv;
@@ -605,27 +596,6 @@ void Arduino::data_transfer(States *state, int socket, struct sockaddr *server, 
         memset(envia, '\0', sizeof(envia));
         fgets(envia, 665, stdin);
     }
-}
-
-/*  Calculate FDR Value
-    Calcula a resposta de uma dada FDR. */
-int Arduino::calculateFDRValue(int iv, FDR* fdr)
-{
-    int result = 0;
-    if (fdr->getOperator() == '+') {
-        result = iv+fdr->getOperand();
-    }
-
-    return result;
-}
-
-/*  Check Answered FDR
-    Verifica a validade da resposta da FDR gerada pelo Servidor.
-*/
-bool Arduino::checkAnsweredFDR(int answeredFdr)
-{
-    int answer = calculateFDRValue(rsaStorage->getMyPublicKey()->d, rsaStorage->getMyFDR());
-    return answer == answeredFdr;
 }
 
 /*  Encrypt Message

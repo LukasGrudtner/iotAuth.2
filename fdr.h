@@ -11,6 +11,8 @@ class FDR
         void setOperator(char op);
         void setOperand(int operand);
 
+        int getValue(int argument);
+
         std::string toString();
 
     private:

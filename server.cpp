@@ -42,26 +42,6 @@ double networkTime, processingTime1, processingTime2, tp, auxiliarTime, totalTim
 double t1, t2;
 double t_aux1, t_aux2;
 
-/*  Calculate FDR Value
-    Calcula a resposta de uma dada FDR. */
-int calculateFDRValue(int iv, FDR* fdr)
-{
-    int result = 0;
-    if (fdr->getOperator() == '+') {
-        result = iv + fdr->getOperand();
-    }
-    return result;
-}
-
-/*  Check Answered FDR
-    Verifica a validade da resposta da FDR gerada pelo Servidor.
-*/
-bool checkAnsweredFDR(int answeredFdr)
-{
-    int answer = calculateFDRValue(rsaStorage->getMyPublicKey()->d, rsaStorage->getMyFDR());
-    return answer == answeredFdr;
-}
-
 /*  Check Request for Termination
     Verifica se a mensagem recebida é um pedido de término de conexão vinda
     do Cliente (DONE).
@@ -252,7 +232,7 @@ void send_rsa(States *state, int socket, struct sockaddr *client, socklen_t size
     t_aux1 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
 
     /******************** Get Answer FDR ********************/
-    int answerFdr = calculateFDRValue(rsaStorage->getPartnerPublicKey()->d, rsaStorage->getPartnerFDR());
+    int answerFdr = rsaStorage->getPartnerFDR()->getValue(rsaStorage->getPartnerPublicKey()->d);
 
     /******************** Generate RSA Keys and FDR ********************/
     rsaStorage->setKeyPair(iotAuth.generateRSAKeyPair());
@@ -334,7 +314,7 @@ void recv_rsa_ack(States *state, int socket, struct sockaddr *client, socklen_t 
 
         bool isHashValid = iotAuth.isHashValid(&rsaString, &decryptedHash);
         bool isNonceTrue = (rsaPackage.getNonceB() == nonceB);
-        bool isAnswerCorrect = checkAnsweredFDR(rsaPackage.getAnswerFDR());
+        bool isAnswerCorrect = iotAuth.isAnswerCorrect(rsaStorage->getMyFDR(), rsaStorage->getMyPublicKey()->d, rsaPackage.getAnswerFDR());
 
         /******************** Validity ********************/
         if (isHashValid && isNonceTrue && isAnswerCorrect) {

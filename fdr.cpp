@@ -41,3 +41,16 @@ std::string FDR::toString()
     std::string result = _operator + std::to_string(_operand);
     return result;
 }
+
+int FDR::getValue(int argument)
+{
+    switch (getOperand())
+    {
+        case '+':
+            return getOperand() + argument;
+            break;
+    
+        default:
+            break;
+    }
+}
