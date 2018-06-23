@@ -24,7 +24,7 @@
 #include "Diffie-Hellman/DHEncPacket.h"
 
 #include "verbose/verbose_server.h"
-#include <sys/time.h>
+#include "time.h"
 
 using namespace std;
 
@@ -136,9 +136,7 @@ void send_ack(States *state, int socket, struct sockaddr *client, socklen_t size
     strncpy(toSend.nonceB, nonceB, sizeof(toSend.nonceB));
     
     /******************** Start Network Time ********************/
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    t1 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
+    t1 = currentTime();
 
     /******************** Send Package ********************/
     sendto(socket, &toSend, sizeof(ack), 0, client, size);
@@ -181,14 +179,11 @@ void recv_rsa(States *state, int socket, struct sockaddr *client, socklen_t size
     recvfrom(socket, rsaReceived, sizeof(RSAKeyExchange), 0, client, &size);
 
     /******************** Stop Network Time ********************/
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    t2 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
-    networkTime = (double)(t2-t1)*1000;
+    t2 = currentTime();
+    networkTime = elapsedTime(t1, t2);
 
     /******************** Start Processing Time ********************/
-    gettimeofday(&tv, NULL);
-    t1 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
+    t1 = currentTime();
 
     /******************** Store RSA Data ********************/
     RSAPackage rsaPackage = *rsaReceived->getRSAPackage();
@@ -227,9 +222,7 @@ void recv_rsa(States *state, int socket, struct sockaddr *client, socklen_t size
 void send_rsa(States *state, int socket, struct sockaddr *client, socklen_t size)
 {
     /******************** Start Auxiliar Time ********************/
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    t_aux1 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
+    t_aux1 = currentTime();
 
     /******************** Get Answer FDR ********************/
     int answerFdr = rsaStorage->getPartnerFDR()->getValue(rsaStorage->getPartnerPublicKey()->d);
@@ -257,14 +250,12 @@ void send_rsa(States *state, int socket, struct sockaddr *client, socklen_t size
     int *encryptedHash = iotAuth.encryptRSA(&hash, rsaStorage->getMyPrivateKey(), 128);
 
     /******************** Stop Processing Time ********************/
-    gettimeofday(&tv, NULL);
-    t2 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
-    processingTime1 = (double)(t2-t1)*1000;
+    t2 = currentTime();
+    processingTime1 = elapsedTime(t1, t2);
 
     /******************** Stop Auxiliar Time ********************/
-    gettimeofday(&tv, NULL);
-    t_aux2 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
-    auxiliarTime = (double)(t_aux2-t_aux1)*1000;
+    t_aux2 = currentTime();
+    auxiliarTime = elapsedTime(t_aux1, t_aux2);
 
     /******************** Rectify Network Time ********************/
     networkTime = networkTime - auxiliarTime;
@@ -276,8 +267,7 @@ void send_rsa(States *state, int socket, struct sockaddr *client, socklen_t size
     rsaExchange.setProcessingTime(processingTime1);
 
     /******************** Start Total Time ********************/
-    gettimeofday(&tv, NULL);
-    t1 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
+    t1 = currentTime();
 
     /******************** Send Exchange ********************/
     sendto(socket, (RSAKeyExchange*)&rsaExchange, sizeof(RSAKeyExchange), 0, client, size);
@@ -293,10 +283,8 @@ void recv_rsa_ack(States *state, int socket, struct sockaddr *client, socklen_t 
     recvfrom(socket, rsaReceived, sizeof(RSAKeyExchange), 0, client, &size);
 
     /******************** Stop Total Time ********************/
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    t2 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
-    totalTime = (double)(t2-t1)*1000;
+    t2 = currentTime();
+    totalTime = elapsedTime(t1, t2);
 
     /******************** Proof of Time ********************/
     double limit = processingTime1 + networkTime + (processingTime1 + networkTime)*0.1;
@@ -390,10 +378,8 @@ int recv_dh(States *state, int socket, struct sockaddr *client, socklen_t size)
     recvfrom(socket, &encPacket, sizeof(DHEncPacket), 0, client, &size);
 
     /******************** Stop Total Time ********************/
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    t2 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
-    totalTime = (double)(t2-t1)*1000;
+    t2 = currentTime();
+    totalTime = elapsedTime(t1, t2);
 
     /******************** Time of Proof ********************/
     // double limit = networkTime + processingTime2*2;
@@ -445,9 +431,7 @@ int recv_dh(States *state, int socket, struct sockaddr *client, socklen_t size)
 void send_dh(States *state, int socket, struct sockaddr *client, socklen_t size)
 {
     /******************** Start Processing Time 2 ********************/
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    t_aux1 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
+    t_aux1 = currentTime();
 
     /******************** Generate Diffie-Hellman ********************/
     generateDiffieHellman();
@@ -483,9 +467,8 @@ void send_dh(States *state, int socket, struct sockaddr *client, socklen_t size)
     int* encryptedExchange = iotAuth.encryptRSA(dhExchangeBytes, rsaStorage->getPartnerPublicKey(), sizeof(DHKeyExchange));
     
     /******************** Stop Processing Time 2 ********************/
-    gettimeofday(&tv, NULL);
-    t_aux2 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
-    processingTime2 = (double)(t2-t1)*1000;
+    t_aux2 = currentTime();
+    processingTime2 = elapsedTime(t1, t2);
 
     /******************** Mount Enc Packet ********************/
     DHEncPacket encPacket;
@@ -494,8 +477,7 @@ void send_dh(States *state, int socket, struct sockaddr *client, socklen_t size)
     encPacket.setTP(processingTime2);
 
     /******************** Start Total Time ********************/
-    gettimeofday(&tv, NULL);
-    t1 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
+    t1 = currentTime();
 
     /******************** Send Exchange ********************/
     sendto(socket, (DHEncPacket*)&encPacket, sizeof(DHEncPacket), 0, client, size);
