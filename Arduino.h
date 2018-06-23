@@ -9,6 +9,8 @@
 #include <netinet/in.h>
 #include <netdb.h>
 
+#include "time.h"
+
 #include "Diffie-Hellman/DHKeyExchange.h"
 #include "Diffie-Hellman/DiffieHellmanPackage.h"
 #include "Diffie-Hellman/DHStorage.h"
@@ -19,7 +21,6 @@
 #include "RSA/RSAPackage.h"
 
 #include "verbose/verbose_client.h"
-#include <sys/time.h>
 
 using namespace std;
 

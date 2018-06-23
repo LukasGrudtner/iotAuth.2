@@ -6,6 +6,419 @@ Arduino::Arduino()
     nonceB[128] = '\0';
 }
 
+
+
+
+/*  Step 1
+    Envia pedido de início de conexão ao Servidor.   
+*/
+void Arduino::send_syn(States *state, int socket, struct sockaddr *server, socklen_t size)
+{
+    /******************** Init Sequence ********************/
+    sequence = iotAuth.randomNumber(9999);
+    
+    /******************** Generate Nonce ********************/
+    generateNonce(nonceA);
+
+    /******************** Mount SYN Package ********************/
+    structSyn toSend;
+    strncpy(toSend.nonce, nonceA, sizeof(toSend.nonce));
+
+    /******************** Start Network Time ********************/
+    t1 = currentTime();
+
+    /******************** Send SYN ********************/
+    sendto(socket, (syn*)&toSend, sizeof(syn), 0, server, size);
+    *state = RECV_ACK;
+
+    /******************** Verbose ********************/
+    if (VERBOSE) send_syn_verbose(nonceA);
+}
+
+
+
+
+/*  Step 2
+    Recebe confirmação do Servidor referente ao pedido de início de conexão.    
+*/
+void Arduino::recv_ack(States *state, int socket, struct sockaddr *server, socklen_t size)
+{
+    /******************** Receive ACK ********************/
+    structAck received;
+    recvfrom(socket, &received, sizeof(ack), 0, server, &size);
+
+    /******************** Stop Network Time ********************/
+    t2 = currentTime();
+    networkTime = elapsedTime(t1, t2);
+
+    /******************** Start Processing Time ********************/
+    t1 = currentTime();
+
+    /******************** Store Nonce B ********************/
+    strncpy(nonceB, received.nonceB, sizeof(nonceB));
+
+    /******************** Validity Message ********************/
+    bool isNonceTrue = (strcmp(received.nonceA, nonceA) == 0);
+
+    if (isNonceTrue) {
+        *state = SEND_RSA;
+    } else {
+        *state = SEND_SYN;
+    }
+
+    /******************** Verbose ********************/
+    if (VERBOSE) recv_ack_verbose(nonceB, sequence, serverIP, clientIP, isNonceTrue);
+}
+
+
+
+
+/*  Step 3
+    Realiza o envio dos dados RSA para o Servidor.  
+*/
+void Arduino::send_rsa(States *state, int socket, struct sockaddr *server, socklen_t size)
+{
+    /******************** Generate RSA/FDR ********************/
+    rsaStorage = new RSAStorage();
+    rsaStorage->setKeyPair(iotAuth.generateRSAKeyPair());
+    rsaStorage->setMyFDR(iotAuth.generateFDR());
+
+    /******************** Generate Nonce ********************/
+    generateNonce(nonceA);
+
+    /******************** Mount Package ********************/
+    RSAPackage rsaSent;
+    rsaSent.setPublicKey(*rsaStorage->getMyPublicKey());
+    rsaSent.setFDR(*rsaStorage->getMyFDR());
+    rsaSent.setNonceA(nonceA);
+    rsaSent.setNonceB(nonceB);
+
+    /******************** Get Hash ********************/
+    string rsaString = rsaSent.toString();
+    int *encryptedHash = iotAuth.signedHash(&rsaString, rsaStorage->getMyPrivateKey());
+
+    /******************** Stop Processing Time ********************/
+    t2 = currentTime();
+    processingTime1 = elapsedTime(t1, t2);
+
+    /******************** Mount Exchange ********************/
+    RSAKeyExchange rsaExchange;
+    rsaExchange.setRSAPackage(&rsaSent);
+    rsaExchange.setEncryptedHash(encryptedHash);
+    rsaExchange.setProcessingTime(processingTime1);
+
+    /******************** Start Total Time ********************/
+    t1 = currentTime();
+
+    /******************** Send Exchange ********************/
+    int sended = sendto(socket, (RSAKeyExchange*)&rsaExchange, sizeof(rsaExchange), 0, server, size);
+    *state = RECV_RSA;
+
+    /******************** Verbose ********************/
+    if (VERBOSE) send_rsa_verbose(rsaStorage, sequence, nonceA);
+}
+
+
+
+
+/*  Step 4
+    Recebe os dados RSA vindos do Servidor.
+*/
+void Arduino::recv_rsa(States *state, int socket, struct sockaddr *server, socklen_t size)
+{
+    /******************** Receive Exchange ********************/
+    RSAKeyExchange *rsaKeyExchange = new RSAKeyExchange();
+    recvfrom(socket, rsaKeyExchange, sizeof(RSAKeyExchange), 0, server, &size);
+
+    /******************** Stop Total Time ********************/
+    t2 = currentTime();
+    totalTime = elapsedTime(t1, t2);
+
+    /******************** Proof of Time ********************/
+    double limit = processingTime1 + networkTime + (processingTime1 + networkTime)*0.1;
+
+    if (totalTime <= 2000) {
+        /******************** Get Package ********************/
+        RSAPackage *rsaPackage = rsaKeyExchange->getRSAPackage();
+
+        /******************** Config RSA ********************/
+        rsaStorage->setPartnerPublicKey(rsaPackage->getPublicKey());
+        rsaStorage->setPartnerFDR(rsaPackage->getFDR());
+        strncpy(nonceB, rsaPackage->getNonceB().c_str(), sizeof(nonceB));
+
+        /******************** Decrypt Hash ********************/
+        string rsaString = rsaPackage->toString();
+        string decryptedHash = decryptHash(rsaKeyExchange->getEncryptedHash());
+
+        /******************** Validity ********************/
+        bool isHashValid = iotAuth.isHashValid(&rsaString, &decryptedHash);
+        bool isNonceTrue = rsaPackage->getNonceA() == nonceA;
+        bool isAnswerCorrect = iotAuth.isAnswerCorrect(rsaStorage->getMyFDR(), rsaStorage->getMyPublicKey()->d, rsaPackage->getAnswerFDR());
+
+        if (isHashValid && isNonceTrue && isAnswerCorrect) {
+            *state = SEND_RSA_ACK;
+        } else {
+            *state = SEND_SYN;
+        }
+
+        if (VERBOSE) recv_rsa_verbose(rsaStorage, nonceB, isHashValid, isNonceTrue, isAnswerCorrect);
+       
+    } else {
+        if (VERBOSE) time_limit_burst_verbose();
+        *state = SEND_SYN;
+    }
+
+    delete rsaKeyExchange;
+}
+
+
+
+
+/*  Step 5
+    Envia confirmação para o Servidor referente ao recebimento dos dados RSA.  
+*/
+void Arduino::send_rsa_ack(States *state, int socket, struct sockaddr *server, socklen_t size)
+{
+    /******************** Get Answer FDR ********************/
+    int answerFdr = rsaStorage->getPartnerFDR()->getValue(rsaStorage->getPartnerPublicKey()->d);
+    
+    /******************** Generate Nonce ********************/
+    generateNonce(nonceA);
+
+    /******************** Mount Package ********************/
+    RSAPackage rsaSent;
+    rsaSent.setNonceA(nonceA);
+    rsaSent.setNonceB(nonceB);
+    rsaSent.setAnswerFDR(answerFdr);
+    rsaSent.setACK();
+
+    /******************** Get Hash ********************/
+    string rsaString = rsaSent.toString();
+    int *encryptedHash = iotAuth.signedHash(&rsaString, rsaStorage->getMyPrivateKey());
+
+    /******************** Mount Exchange ********************/
+    RSAKeyExchange rsaExchange;
+    rsaExchange.setRSAPackage(&rsaSent);
+    rsaExchange.setEncryptedHash(encryptedHash);
+
+    /******************** Start Total Time ********************/
+    t1 = currentTime();
+
+    /******************** Send Exchange ********************/
+    int sended = sendto(socket, (RSAKeyExchange*)&rsaExchange, sizeof(rsaExchange), 0, server, size);
+    *state = RECV_DH;
+
+    /******************** Verbose ********************/
+    if (VERBOSE) send_rsa_ack_verbose(sequence, nonceA);
+}
+
+
+
+
+/*  Step 6
+    Realiza o recebimento dos dados Diffie-Hellman vinda do Servidor.
+*/
+void Arduino::recv_dh(States *state, int socket, struct sockaddr *server, socklen_t size)
+{
+    /******************** Recv Enc Packet ********************/
+    DHEncPacket encPacket;
+    recvfrom(socket, &encPacket, sizeof(DHEncPacket), 0, server, &size);
+
+    /******************** Stop Total Time ********************/
+    t2 = currentTime();
+    totalTime = elapsedTime(t1, t2);
+
+    /******************** Time of Proof ********************/
+    if (totalTime <= 2000) {
+
+        /******************** Start Processing Time 2 ********************/
+        t_aux1 = currentTime();
+
+        /******************** Decrypt Exchange ********************/
+        DHKeyExchange dhKeyExchange;
+        int *encryptedExchange = encPacket.getEncryptedExchange();
+        byte *dhExchangeBytes = iotAuth.decryptRSA(encryptedExchange, rsaStorage->getMyPrivateKey(), sizeof(DHKeyExchange));
+        
+        BytesToObject(dhExchangeBytes, dhKeyExchange, sizeof(DHKeyExchange));
+
+        /******************** Get DH Package ********************/
+        DiffieHellmanPackage dhPackage = dhKeyExchange.getDiffieHellmanPackage();
+
+        /******************** Decrypt Hash ********************/
+        string decryptedHash = decryptHash(dhKeyExchange.getEncryptedHash());
+
+        /******************** Validity ********************/
+        string dhString = dhPackage.toString();
+        bool isHashValid = iotAuth.isHashValid(&dhString, &decryptedHash);
+        bool isNonceTrue = (dhPackage.getNonceA() == nonceA);
+
+        if (isHashValid && isNonceTrue) {
+            /******************** Store Nounce B ********************/
+            strncpy(nonceB, dhPackage.getNonceB().c_str(), sizeof(nonceB));
+
+            /******************** Store DH Package ********************/
+            storeDiffieHellman(&dhPackage);
+
+            *state = SEND_DH;
+        } else {
+            *state = SEND_SYN;
+        }
+
+        if (VERBOSE) recv_dh_verbose(&dhPackage, isHashValid, isNonceTrue);
+
+    } else {
+        if (VERBOSE) time_limit_burst_verbose();
+        *state = SEND_SYN;
+    }
+}
+
+
+
+
+/*  Step 7
+    Realiza o envio dos dados Diffie-Hellman para o Servidor.
+*/
+void Arduino::send_dh(States *state, int socket, struct sockaddr *server, socklen_t size)
+{
+    /***************** Calculate DH ******************/
+    int sessionKey = dhStorage->calculateSessionKey(dhStorage->getSessionKey());
+    int result = dhStorage->calculateResult();
+    dhStorage->setSessionKey(sessionKey);
+
+    /***************** Generate Nonce A ******************/
+    generateNonce(nonceA);
+
+    /***************** Mount Package ******************/
+    DiffieHellmanPackage diffieHellmanPackage;
+    diffieHellmanPackage.setResult(result);
+    diffieHellmanPackage.setNonceA(nonceA);
+    diffieHellmanPackage.setNonceB(nonceB);
+
+    /***************** Encrypt Hash ******************/
+    string dhString = diffieHellmanPackage.toString();
+    int *encryptedHash = iotAuth.signedHash(&dhString, rsaStorage->getMyPrivateKey());
+
+    /***************** Stop Processing Time 2 ******************/
+    t2 = currentTime();
+    processingTime2 = elapsedTime(t1, t2);
+
+    /********************** Mount Exchange ************************/
+    DHKeyExchange dhSent;
+    dhSent.setEncryptedHash(encryptedHash);
+    dhSent.setDiffieHellmanPackage(diffieHellmanPackage);
+
+    /********************** Serialize Exchange **********************/
+    byte* exchangeBytes = new byte[sizeof(DHKeyExchange)];
+    ObjectToBytes(dhSent, exchangeBytes, sizeof(DHKeyExchange));
+
+    /********************** Encrypt Exchange **********************/
+    int *encryptedExchange = iotAuth.encryptRSA(exchangeBytes, rsaStorage->getPartnerPublicKey(), sizeof(RSAKeyExchange));
+
+    /********************** Mount Enc Packet **********************/
+    DHEncPacket encPacket;
+    encPacket.setEncryptedExchange(encryptedExchange);
+    encPacket.setTP(processingTime2);
+
+    /******************** Start Total Time ********************/
+    t1 = currentTime();
+
+    /******************** Send Enc Packet ********************/
+    sendto(socket, (DHEncPacket*)&encPacket, sizeof(DHEncPacket), 0, server, size);
+    *state = RECV_DH_ACK;
+
+    /******************** Verbose ********************/
+    if (VERBOSE) send_dh_verbose(&diffieHellmanPackage, sessionKey, sequence, encPacket.getTP());
+
+    delete[] exchangeBytes;
+    delete[] encryptedHash;
+    delete[] encryptedExchange;
+}
+
+
+
+
+/*  Step 8
+    Recebe a confirmação do Servidor referente aos dados Diffie-Hellman enviados.
+*/
+void Arduino::recv_dh_ack(States *state, int socket, struct sockaddr *server, socklen_t size)
+{
+    /******************** Recv ACK ********************/
+    int encryptedACK[sizeof(DH_ACK)];
+    recvfrom(socket, encryptedACK, sizeof(DH_ACK)*sizeof(int), 0, server, &size);
+
+    /******************** Stop Total Time ********************/
+    t2 = currentTime();
+    totalTime = elapsedTime(t1, t2);
+
+    /******************** Proof of Time ********************/
+    double limit = processingTime2 + networkTime + (processingTime2 + networkTime)*0.1;
+
+    if (totalTime <= limit) {
+
+        /******************** Decrypt ACK ********************/
+        byte *decryptedACKBytes = iotAuth.decryptRSA(encryptedACK, rsaStorage->getPartnerPublicKey(), sizeof(DH_ACK));
+
+        /******************** Deserialize ACK ********************/
+        DH_ACK ack;
+        BytesToObject(decryptedACKBytes, ack, sizeof(DH_ACK));
+
+        /******************** Validity ********************/
+        bool isNonceTrue = (strcmp(ack.nonce, nonceA) == 0);
+
+        if (isNonceTrue) {
+            *state = SEND_DATA;
+        } else {
+            *state = SEND_SYN;
+        }
+
+        /******************** Verbose ********************/
+        if (VERBOSE) send_dh_ack_verbose(&ack, isNonceTrue);
+
+    } else {
+        if (VERBOSE) time_limit_burst_verbose();
+        *state = SEND_SYN;
+    }
+}
+
+
+
+
+/*  Step 9
+    Realiza a transferência de dados cifrados para o Servidor.
+*/
+void Arduino::data_transfer(States *state, int socket, struct sockaddr *server, socklen_t size)
+{
+    delete rsaStorage;
+
+    char envia[666];
+    memset(envia, '\0', sizeof(envia));
+
+    if (VERBOSE) {dt_verbose1();}
+    
+    /* Captura a mensagem digitada no terminal para a criptografia. */
+    fgets(envia, 666, stdin);
+
+    /* Enquanto o usuário não digitar um 'Enter': */
+    while (strcmp(envia, "\n") != 0) {
+
+        /* Encripta a mensagem digitada pelo usuário. */
+        string encryptedMessage = encryptMessage(envia, sizeof(envia));
+        if (VERBOSE) {dt_verbose2(&encryptedMessage);}
+
+        /* Converte a string em um array de char. */
+        char encryptedMessageChar[encryptedMessage.length()];
+        memset(encryptedMessageChar, '\0', sizeof(encryptedMessageChar));
+        strncpy(encryptedMessageChar, encryptedMessage.c_str(), sizeof(encryptedMessageChar));
+
+        /* Envia a mensagem cifrada ao Servidor. */
+        sendto(socket, encryptedMessageChar, strlen(encryptedMessageChar), 0, server, size);
+        memset(envia, '\0', sizeof(envia));
+        fgets(envia, 665, stdin);
+    }
+}
+
+/***********************************************************************************************/
+
 /*  State Machine
     Realiza o controle do estado atual da FSM.
 */
@@ -131,62 +544,9 @@ void Arduino::rft(States *state, int socket, struct sockaddr *server, socklen_t 
     // if (VERBOSE) {rft_verbose();}
 }
 
-void Arduino::send_syn(States *state, int socket, struct sockaddr *server, socklen_t size)
-{
-    /******************** Init Sequence ********************/
-    sequence = iotAuth.randomNumber(9999);
-    
-    /******************** Generate Nonce ********************/
-    generateNonce(nonceA);
 
-    /******************** Mount SYN Package ********************/
-    structSyn toSend;
-    strncpy(toSend.nonce, nonceA, sizeof(toSend.nonce));
 
-    /******************** Start Network Time ********************/
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    t1 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
 
-    /******************** Send SYN ********************/
-    sendto(socket, (syn*)&toSend, sizeof(syn), 0, server, size);
-    *state = RECV_ACK;
-
-    /******************** Verbose ********************/
-    if (VERBOSE) send_syn_verbose(nonceA);
-}
-
-void Arduino::recv_ack(States *state, int socket, struct sockaddr *server, socklen_t size)
-{
-    /******************** Receive ACK ********************/
-    structAck received;
-    recvfrom(socket, &received, sizeof(ack), 0, server, &size);
-
-    /******************** Stop Network Time ********************/
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    t2 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
-    networkTime = (double)(t2-t1)*1000;
-
-    /******************** Start Processing Time ********************/
-    gettimeofday(&tv, NULL);
-    t1 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
-
-    /******************** Store Nonce B ********************/
-    strncpy(nonceB, received.nonceB, sizeof(nonceB));
-
-    /******************** Validity Message ********************/
-    bool isNonceTrue = (strcmp(received.nonceA, nonceA) == 0);
-
-    if (isNonceTrue) {
-        *state = SEND_RSA;
-    } else {
-        *state = SEND_SYN;
-    }
-
-    /******************** Verbose ********************/
-    if (VERBOSE) recv_ack_verbose(nonceB, sequence, serverIP, clientIP, isNonceTrue);
-}
 
 /*  Done
     Envia um pedido de término de conexão ao Cliente, e seta o estado atual
@@ -207,142 +567,6 @@ void Arduino::generateNonce(char *nonce)
     strncpy(nonce, hash.c_str(), 128);
 }
 
-void Arduino::send_rsa_ack(States *state, int socket, struct sockaddr *server, socklen_t size)
-{
-    /******************** Get Answer FDR ********************/
-    int answerFdr = rsaStorage->getPartnerFDR()->getValue(rsaStorage->getPartnerPublicKey()->d);
-    
-    /******************** Generate Nonce ********************/
-    generateNonce(nonceA);
-
-    /******************** Mount Package ********************/
-    RSAPackage rsaSent;
-    rsaSent.setNonceA(nonceA);
-    rsaSent.setNonceB(nonceB);
-    rsaSent.setAnswerFDR(answerFdr);
-    rsaSent.setACK();
-
-    /******************** Get Hash ********************/
-    string rsaString = rsaSent.toString();
-    int *encryptedHash = iotAuth.signedHash(&rsaString, rsaStorage->getMyPrivateKey());
-
-    /******************** Mount Exchange ********************/
-    RSAKeyExchange rsaExchange;
-    rsaExchange.setRSAPackage(&rsaSent);
-    rsaExchange.setEncryptedHash(encryptedHash);
-
-    /******************** Start Total Time ********************/
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    t1 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
-
-    /******************** Send Exchange ********************/
-    int sended = sendto(socket, (RSAKeyExchange*)&rsaExchange, sizeof(rsaExchange), 0, server, size);
-    *state = RECV_DH;
-
-    /******************** Verbose ********************/
-    if (VERBOSE) send_rsa_ack_verbose(sequence, nonceA);
-}
-
-/*  Send RSA
-    Realiza o envio da chave RSA para o Servidor.
-*/
-void Arduino::send_rsa(States *state, int socket, struct sockaddr *server, socklen_t size)
-{
-    /******************** Generate RSA/FDR ********************/
-    rsaStorage = new RSAStorage();
-    rsaStorage->setKeyPair(iotAuth.generateRSAKeyPair());
-    rsaStorage->setMyFDR(iotAuth.generateFDR());
-
-    /******************** Generate Nonce ********************/
-    generateNonce(nonceA);
-
-    /******************** Mount Package ********************/
-    RSAPackage rsaSent;
-    rsaSent.setPublicKey(*rsaStorage->getMyPublicKey());
-    rsaSent.setFDR(*rsaStorage->getMyFDR());
-    rsaSent.setNonceA(nonceA);
-    rsaSent.setNonceB(nonceB);
-
-    /******************** Get Hash ********************/
-    string rsaString = rsaSent.toString();
-    int *encryptedHash = iotAuth.signedHash(&rsaString, rsaStorage->getMyPrivateKey());
-
-    /******************** Stop Processing Time ********************/
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    t2 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
-    processingTime1 = (double)(t2-t1)*1000;
-
-    /******************** Mount Exchange ********************/
-    RSAKeyExchange rsaExchange;
-    rsaExchange.setRSAPackage(&rsaSent);
-    rsaExchange.setEncryptedHash(encryptedHash);
-    rsaExchange.setProcessingTime(processingTime1);
-
-    /******************** Start Total Time ********************/
-    gettimeofday(&tv, NULL);
-    t1 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
-
-    /******************** Send Exchange ********************/
-    int sended = sendto(socket, (RSAKeyExchange*)&rsaExchange, sizeof(rsaExchange), 0, server, size);
-    *state = RECV_RSA;
-
-    /******************** Verbose ********************/
-    if (VERBOSE) send_rsa_verbose(rsaStorage, sequence, nonceA);
-}
-
-/*  Receive RSA
-    Realiza o recebimento da chave RSA vinda do Servidor.
-*/
-void Arduino::recv_rsa(States *state, int socket, struct sockaddr *server, socklen_t size)
-{
-    /******************** Receive Exchange ********************/
-    RSAKeyExchange *rsaKeyExchange = new RSAKeyExchange();
-    recvfrom(socket, rsaKeyExchange, sizeof(RSAKeyExchange), 0, server, &size);
-
-    /******************** Stop Total Time ********************/
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    t2 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
-    totalTime = (double)(t2-t1)*1000;
-
-    /******************** Proof of Time ********************/
-    double limit = processingTime1 + networkTime + (processingTime1 + networkTime)*0.1;
-
-    if (totalTime <= limit) {
-        /******************** Get Package ********************/
-        RSAPackage *rsaPackage = rsaKeyExchange->getRSAPackage();
-
-        /******************** Config RSA ********************/
-        rsaStorage->setPartnerPublicKey(rsaPackage->getPublicKey());
-        rsaStorage->setPartnerFDR(rsaPackage->getFDR());
-        strncpy(nonceB, rsaPackage->getNonceB().c_str(), sizeof(nonceB));
-
-        /******************** Decrypt Hash ********************/
-        string rsaString = rsaPackage->toString();
-        string decryptedHash = decryptHash(rsaKeyExchange->getEncryptedHash());
-
-        /******************** Validity ********************/
-        bool isHashValid = iotAuth.isHashValid(&rsaString, &decryptedHash);
-        bool isNonceTrue = rsaPackage->getNonceA() == nonceA;
-        bool isAnswerCorrect = iotAuth.isAnswerCorrect(rsaStorage->getMyFDR(), rsaStorage->getMyPublicKey()->d, rsaPackage->getAnswerFDR());
-
-        if (isHashValid && isNonceTrue && isAnswerCorrect) {
-            *state = SEND_RSA_ACK;
-        } else {
-            *state = SEND_SYN;
-        }
-
-        if (VERBOSE) recv_rsa_verbose(rsaStorage, nonceB, isHashValid, isNonceTrue, isAnswerCorrect);
-       
-    } else {
-        if (VERBOSE) time_limit_burst_verbose();
-        *state = SEND_SYN;
-    }
-
-    delete rsaKeyExchange;
-}
 
 void Arduino::storeDiffieHellman(DiffieHellmanPackage *dhPackage)
 {
@@ -354,182 +578,9 @@ void Arduino::storeDiffieHellman(DiffieHellmanPackage *dhPackage)
     dhStorage->setSessionKey(dhPackage->getResult());
 }
 
-// /*  Get Encrypted Hash
-//     Realiza a cifragem do hash obtido do pacote Diffie-Hellman com a chave privada do Servidor.
-//     O retorno do hash cifrado é feito por parâmetro.
-// */
-// int* Arduino::encryptHash(string *message)
-// {
-//     string hash = iotAuth.hash(message);
 
-//     int *encryptedHash = iotAuth.encryptRSA(&hash, rsaStorage->getMyPrivateKey(), hash.length());
-//     return encryptedHash;
-// }
 
-/*  Send Diffie-Hellman
-    Realiza o envio da chave Diffie-Hellman para o Servidor.
-*/
-void Arduino::send_dh(States *state, int socket, struct sockaddr *server, socklen_t size)
-{
-    /***************** Calculate DH ******************/
-    int sessionKey = dhStorage->calculateSessionKey(dhStorage->getSessionKey());
-    int result = dhStorage->calculateResult();
-    dhStorage->setSessionKey(sessionKey);
 
-    /***************** Generate Nonce A ******************/
-    generateNonce(nonceA);
-
-    /***************** Mount Package ******************/
-    DiffieHellmanPackage diffieHellmanPackage;
-    diffieHellmanPackage.setResult(result);
-    diffieHellmanPackage.setNonceA(nonceA);
-    diffieHellmanPackage.setNonceB(nonceB);
-
-    /***************** Encrypt Hash ******************/
-    string dhString = diffieHellmanPackage.toString();
-    int *encryptedHash = iotAuth.signedHash(&dhString, rsaStorage->getMyPrivateKey());
-
-    /***************** Stop Processing Time 2 ******************/
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    t2 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
-    processingTime2 = (double)(t2-t1)*1000;
-
-    /********************** Mount Exchange ************************/
-    DHKeyExchange dhSent;
-    dhSent.setEncryptedHash(encryptedHash);
-    dhSent.setDiffieHellmanPackage(diffieHellmanPackage);
-
-    /********************** Serialize Exchange **********************/
-    byte* exchangeBytes = new byte[sizeof(DHKeyExchange)];
-    ObjectToBytes(dhSent, exchangeBytes, sizeof(DHKeyExchange));
-
-    /********************** Encrypt Exchange **********************/
-    int *encryptedExchange = iotAuth.encryptRSA(exchangeBytes, rsaStorage->getPartnerPublicKey(), sizeof(RSAKeyExchange));
-
-    /********************** Mount Enc Packet **********************/
-    DHEncPacket encPacket;
-    encPacket.setEncryptedExchange(encryptedExchange);
-    encPacket.setTP(processingTime2);
-
-    /******************** Start Total Time ********************/
-    gettimeofday(&tv, NULL);
-    t1 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
-
-    /******************** Send Enc Packet ********************/
-    sendto(socket, (DHEncPacket*)&encPacket, sizeof(DHEncPacket), 0, server, size);
-    *state = RECV_DH_ACK;
-
-    /******************** Verbose ********************/
-    if (VERBOSE) send_dh_verbose(&diffieHellmanPackage, sessionKey, sequence, encPacket.getTP());
-
-    delete[] exchangeBytes;
-    delete[] encryptedHash;
-    delete[] encryptedExchange;
-}
-
-/*  Receive Diffie-Hellman
-    Realiza o recebimento da chave Diffie-Hellman vinda do Servidor.
-*/
-void Arduino::recv_dh(States *state, int socket, struct sockaddr *server, socklen_t size)
-{
-    /******************** Recv Enc Packet ********************/
-    DHEncPacket encPacket;
-    recvfrom(socket, &encPacket, sizeof(DHEncPacket), 0, server, &size);
-
-    /******************** Stop Total Time ********************/
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    t2 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
-    totalTime = (double)(t2-t1)*1000;
-
-    /******************** Time of Proof ********************/
-    if (totalTime <= 5000) {
-
-        /******************** Start Processing Time 2 ********************/
-        struct timeval tv;
-        gettimeofday(&tv, NULL);
-        t_aux1 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
-
-        /******************** Decrypt Exchange ********************/
-        DHKeyExchange dhKeyExchange;
-        int *encryptedExchange = encPacket.getEncryptedExchange();
-        byte *dhExchangeBytes = iotAuth.decryptRSA(encryptedExchange, rsaStorage->getMyPrivateKey(), sizeof(DHKeyExchange));
-        
-        BytesToObject(dhExchangeBytes, dhKeyExchange, sizeof(DHKeyExchange));
-
-        /******************** Get DH Package ********************/
-        DiffieHellmanPackage dhPackage = dhKeyExchange.getDiffieHellmanPackage();
-
-        /******************** Decrypt Hash ********************/
-        string decryptedHash = decryptHash(dhKeyExchange.getEncryptedHash());
-
-        /******************** Validity ********************/
-        string dhString = dhPackage.toString();
-        bool isHashValid = iotAuth.isHashValid(&dhString, &decryptedHash);
-        bool isNonceTrue = (dhPackage.getNonceA() == nonceA);
-
-        if (isHashValid && isNonceTrue) {
-            /******************** Store Nounce B ********************/
-            strncpy(nonceB, dhPackage.getNonceB().c_str(), sizeof(nonceB));
-
-            /******************** Store DH Package ********************/
-            storeDiffieHellman(&dhPackage);
-
-            *state = SEND_DH;
-        } else {
-            *state = SEND_SYN;
-        }
-
-        if (VERBOSE) recv_dh_verbose(&dhPackage, isHashValid, isNonceTrue);
-
-    } else {
-        if (VERBOSE) time_limit_burst_verbose();
-        *state = SEND_SYN;
-    }
-}
-
-void Arduino::recv_dh_ack(States *state, int socket, struct sockaddr *server, socklen_t size)
-{
-    /******************** Recv ACK ********************/
-    int encryptedACK[sizeof(DH_ACK)];
-    recvfrom(socket, encryptedACK, sizeof(DH_ACK)*sizeof(int), 0, server, &size);
-
-    /******************** Stop Total Time ********************/
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    t2 = (double)(tv.tv_sec) + (double)(tv.tv_usec)/ 1000000.00;
-    totalTime = (double)(t2-t1)*1000;
-
-    /******************** Proof of Time ********************/
-    double limit = processingTime2 + networkTime + (processingTime2 + networkTime)*0.1;
-
-    if (totalTime <= limit) {
-
-        /******************** Decrypt ACK ********************/
-        byte *decryptedACKBytes = iotAuth.decryptRSA(encryptedACK, rsaStorage->getPartnerPublicKey(), sizeof(DH_ACK));
-
-        /******************** Deserialize ACK ********************/
-        DH_ACK ack;
-        BytesToObject(decryptedACKBytes, ack, sizeof(DH_ACK));
-
-        /******************** Validity ********************/
-        bool isNonceTrue = (strcmp(ack.nonce, nonceA) == 0);
-
-        if (isNonceTrue) {
-            *state = SEND_DATA;
-        } else {
-            *state = SEND_SYN;
-        }
-
-        /******************** Verbose ********************/
-        if (VERBOSE) send_dh_ack_verbose(&ack, isNonceTrue);
-
-    } else {
-        if (VERBOSE) time_limit_burst_verbose();
-        *state = SEND_SYN;
-    }
-}
 
 /*  Decrypt DH Key Exchange
     Decifra o pacote de troca Diffie-Hellman utilizando a chave privada do Servidor.
@@ -567,36 +618,7 @@ string Arduino::decryptHash(int *encryptedHash)
 /*  Data Transfer
     Realiza a transferência de dados cifrados para o Servidor.
 */
-void Arduino::data_transfer(States *state, int socket, struct sockaddr *server, socklen_t size)
-{
-    delete rsaStorage;
 
-    char envia[666];
-    memset(envia, '\0', sizeof(envia));
-
-    if (VERBOSE) {dt_verbose1();}
-    
-    /* Captura a mensagem digitada no terminal para a criptografia. */
-    fgets(envia, 666, stdin);
-
-    /* Enquanto o usuário não digitar um 'Enter': */
-    while (strcmp(envia, "\n") != 0) {
-
-        /* Encripta a mensagem digitada pelo usuário. */
-        string encryptedMessage = encryptMessage(envia, sizeof(envia));
-        if (VERBOSE) {dt_verbose2(&encryptedMessage);}
-
-        /* Converte a string em um array de char. */
-        char encryptedMessageChar[encryptedMessage.length()];
-        memset(encryptedMessageChar, '\0', sizeof(encryptedMessageChar));
-        strncpy(encryptedMessageChar, encryptedMessage.c_str(), sizeof(encryptedMessageChar));
-
-        /* Envia a mensagem cifrada ao Servidor. */
-        sendto(socket, encryptedMessageChar, strlen(encryptedMessageChar), 0, server, size);
-        memset(envia, '\0', sizeof(envia));
-        fgets(envia, 665, stdin);
-    }
-}
 
 /*  Encrypt Message
     Encripta a mensagem utilizando a chave de sessão.

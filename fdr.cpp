@@ -44,7 +44,7 @@ std::string FDR::toString()
 
 int FDR::getValue(int argument)
 {
-    switch (getOperand())
+    switch (getOperator())
     {
         case '+':
             return getOperand() + argument;
