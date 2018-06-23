@@ -26,11 +26,17 @@
 #include "verbose/verbose_server.h"
 #include "time.h"
 
+#include "sys/types.h"
+#include "sys/sysinfo.h"
+#include <fstream>
+
 using namespace std;
 
 RSAStorage *rsaStorage;
 DHStorage *diffieHellmanStorage;
 IotAuth iotAuth;
+
+bool go = 1;
 
 char *serverIP;
 char *clientIP;
@@ -181,8 +187,8 @@ string decryptHash(int *encryptedHash)
 void recv_rsa(States *state, int socket, struct sockaddr *client, socklen_t size)
 {
     /******************** Receive Exchange ********************/
-    RSAKeyExchange *rsaReceived = new RSAKeyExchange();
-    recvfrom(socket, rsaReceived, sizeof(RSAKeyExchange), 0, client, &size);
+    RSAKeyExchange rsaReceived;
+    recvfrom(socket, &rsaReceived, sizeof(RSAKeyExchange), 0, client, &size);
 
     /******************** Stop Network Time ********************/
     t2 = currentTime();
@@ -192,7 +198,7 @@ void recv_rsa(States *state, int socket, struct sockaddr *client, socklen_t size
     t1 = currentTime();
 
     /******************** Store RSA Data ********************/
-    RSAPackage rsaPackage = *rsaReceived->getRSAPackage();
+    RSAPackage rsaPackage = *rsaReceived.getRSAPackage();
     
     rsaStorage = new RSAStorage();
     rsaStorage->setPartnerPublicKey(rsaPackage.getPublicKey());
@@ -200,17 +206,18 @@ void recv_rsa(States *state, int socket, struct sockaddr *client, socklen_t size
 
     /******************** Decrypt Hash ********************/
     string rsaString = rsaPackage.toString();
-    string decryptedHash = decryptHash(rsaReceived->getEncryptedHash());
+    string decryptedHash = decryptHash(rsaReceived.getEncryptedHash());
+
+    /******************** Store TP ********************/
+    tp = rsaReceived.getProcessingTime();
 
     /******************** Store Nonce A ********************/
     storeNonceA(rsaPackage.getNonceA());
 
-    /******************** Store TP ********************/
-    tp = rsaReceived->getProcessingTime();
-
     /******************** Validity Hash ********************/
     bool isHashValid = iotAuth.isHashValid(&rsaString, &decryptedHash);
     bool isNonceTrue = strcmp(rsaPackage.getNonceB(), nonceB) == 0;
+
 
     if (isHashValid && isNonceTrue) {
         *state = SEND_RSA;
@@ -279,6 +286,9 @@ void send_rsa(States *state, int socket, struct sockaddr *client, socklen_t size
     sendto(socket, (RSAKeyExchange*)&rsaExchange, sizeof(RSAKeyExchange), 0, client, size);
     *state = RECV_RSA_ACK;
 
+    /******************** Memory Release ********************/
+    delete[] encryptedHash;
+
     /******************** Verbose ********************/
     if (VERBOSE) {send_rsa_verbose(rsaStorage, sequence, nonceB);}
 }
@@ -302,6 +312,9 @@ void recv_rsa_ack(States *state, int socket, struct sockaddr *client, socklen_t 
         /******************** Decrypt Hash ********************/
         string rsaString = rsaPackage.toString();
         string decryptedHash = decryptHash(rsaReceived->getEncryptedHash());
+
+        /******************** Memory Release ********************/
+        delete rsaReceived;
 
         /******************** Store Nonce A ********************/
         storeNonceA(rsaPackage.getNonceA());
@@ -399,6 +412,7 @@ int recv_dh(States *state, int socket, struct sockaddr *client, socklen_t size)
         byte *dhExchangeBytes = iotAuth.decryptRSA(encryptedExchange, rsaStorage->getMyPrivateKey(), sizeof(DHKeyExchange));
         
         BytesToObject(dhExchangeBytes, dhKeyExchange, sizeof(DHKeyExchange));
+        delete[] dhExchangeBytes;
 
         /******************** Get DH Package ********************/
         DiffieHellmanPackage dhPackage = dhKeyExchange.getDiffieHellmanPackage();
@@ -429,6 +443,7 @@ int recv_dh(States *state, int socket, struct sockaddr *client, socklen_t size)
         if (VERBOSE) time_limit_burst_verbose();
         *state = SEND_SYN;
     }
+
 }
 
 /*  Send Diffie-Hellman
@@ -516,7 +531,11 @@ void send_dh_ack(States *state, int socket, struct sockaddr *client, socklen_t s
     /******************** Send ACK ********************/
     sendto(socket, (int*)encryptedAck, sizeof(DH_ACK)*sizeof(int), 0, client, size);
 
+    delete[] encryptedAck;
+    delete[] ackBytes;
+
     *state = RECV_DATA;
+    go = 0;
 
     /******************** Verbose ********************/
     if (VERBOSE) send_dh_ack_verbose(&ack);
@@ -673,11 +692,58 @@ void stateMachine(int socket, struct sockaddr *client, socklen_t size)
     }
 }
 
+int parseLine(char* line){
+    // This assumes that a digit will be found and the line ends in " Kb".
+    int i = strlen(line);
+    const char* p = line;
+    while (*p <'0' || *p > '9') p++;
+    line[i-3] = '\0';
+    i = atoi(p);
+    return i;
+}
+
+int getValue(){ //Note: this value is in KB!
+    FILE* file = fopen("/proc/self/status", "r");
+    int result = -1;
+    char line[128];
+
+    while (fgets(line, 128, file) != NULL){
+        if (strncmp(line, "VmRSS:", 6) == 0){
+            result = parseLine(line);
+            break;
+        }
+    }
+    fclose(file);
+    return result;
+}
+
+void process_mem_usage(double& vm_usage, double& resident_set)
+{
+    vm_usage     = 0.0;
+    resident_set = 0.0;
+
+    // the two fields we want
+    unsigned long vsize;
+    long rss;
+    {
+        std::string ignore;
+        std::ifstream ifs("/proc/self/stat", std::ios_base::in);
+        ifs >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore
+                >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore
+                >> ignore >> ignore >> vsize >> rss;
+    }
+
+    long page_size_kb = sysconf(_SC_PAGE_SIZE) / 1024; // in case x86-64 is configured to use 2MB pages
+    vm_usage = vsize / 1024.0;
+    resident_set = rss * page_size_kb;
+}
+
 
 
 int main(int argc, char *argv[]){
 
     struct sockaddr_in cliente, servidor;
+    cout << getValue() << " KB" << endl;
     int meuSocket,enviei=0;
     socklen_t tam_cliente;
     // MTU padrão pela IETF
@@ -713,9 +779,11 @@ int main(int argc, char *argv[]){
     // char *clientIP;
     clientIP = inet_ntoa(*(struct in_addr *)*client->h_addr_list);
 
-    while(1){
+    while(go){
        stateMachine(meuSocket, (struct sockaddr*)&cliente, tam_cliente);
     }
 
     close(meuSocket);
+
+    delete diffieHellmanStorage;
 }

@@ -32,6 +32,7 @@ class Arduino
 
         Arduino();
         
+        bool go = 1;
         char *clientIP;     /*  Endereço IP do Cliente.                 */
         char *serverIP;     /*  Endereço IP do Servidor.                */
         char nonceA[129];   /*  Armazena o nonce gerado do Cliente.     */

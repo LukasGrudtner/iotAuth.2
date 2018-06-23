@@ -73,13 +73,8 @@ int main(int argc, char *argv[]){
     arduino.clientIP = clientIP;
     arduino.serverIP = serverIP;
 
-    while(1){
-
-    //    cout << "IP CLIENT: " << clientIP << endl;
-    //    cout << "IP SERVER: " << serverIP << endl;
-
+    while(arduino.go){
         arduino.stateMachine(meuSocket, (struct sockaddr*)&servidor, tam_cliente);
-
     }
     close(meuSocket);
 }

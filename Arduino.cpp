@@ -114,6 +114,8 @@ void Arduino::send_rsa(States *state, int socket, struct sockaddr *server, sockl
     int sended = sendto(socket, (RSAKeyExchange*)&rsaExchange, sizeof(rsaExchange), 0, server, size);
     *state = RECV_RSA;
 
+    delete[] encryptedHash;
+
     /******************** Verbose ********************/
     if (VERBOSE) send_rsa_verbose(rsaStorage, sequence, nonceA);
 }
@@ -208,6 +210,8 @@ void Arduino::send_rsa_ack(States *state, int socket, struct sockaddr *server, s
     int sended = sendto(socket, (RSAKeyExchange*)&rsaExchange, sizeof(rsaExchange), 0, server, size);
     *state = RECV_DH;
 
+    delete[] encryptedHash;
+
     /******************** Verbose ********************/
     if (VERBOSE) send_rsa_ack_verbose(sequence, nonceA);
 }
@@ -240,6 +244,7 @@ void Arduino::recv_dh(States *state, int socket, struct sockaddr *server, sockle
         byte *dhExchangeBytes = iotAuth.decryptRSA(encryptedExchange, rsaStorage->getMyPrivateKey(), sizeof(DHKeyExchange));
         
         BytesToObject(dhExchangeBytes, dhKeyExchange, sizeof(DHKeyExchange));
+        delete[] dhExchangeBytes;
 
         /******************** Get DH Package ********************/
         DiffieHellmanPackage dhPackage = dhKeyExchange.getDiffieHellmanPackage();
@@ -361,6 +366,7 @@ void Arduino::recv_dh_ack(States *state, int socket, struct sockaddr *server, so
         /******************** Deserialize ACK ********************/
         DH_ACK ack;
         BytesToObject(decryptedACKBytes, ack, sizeof(DH_ACK));
+        delete[] decryptedACKBytes;
 
         /******************** Validity ********************/
         bool isNonceTrue = (strcmp(ack.nonce, nonceA) == 0);
@@ -378,6 +384,7 @@ void Arduino::recv_dh_ack(States *state, int socket, struct sockaddr *server, so
         if (VERBOSE) time_limit_burst_verbose();
         *state = SEND_SYN;
     }
+    go = 0;
 }
 
 
