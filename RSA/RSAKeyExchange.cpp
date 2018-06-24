@@ -15,19 +15,19 @@ double RSAKeyExchange::getProcessingTime()
     return tp;
 }
 
-void RSAKeyExchange::setRSAPackage(RSAPackage *rsaP)
+void RSAKeyExchange::setRSAPackage(RSAPackage *rsaPackage)
 {
-    rsaPackage = *rsaP;
+    this->rsaPackage = *rsaPackage;
 }
 
-void RSAKeyExchange::setEncryptedHash(int encHash[])
+void RSAKeyExchange::setEncryptedHash(int encryptedHash[])
 {
     for (int i = 0; i < 128; i++) {
-        encryptedHash[i] = encHash[i];
+        this->encryptedHash[i] = encryptedHash[i];
     }
 }
 
-void RSAKeyExchange::setProcessingTime(double processingTime)
+void RSAKeyExchange::setProcessingTime(double tp)
 {
-    tp = processingTime;
+    this->tp = tp;
 }

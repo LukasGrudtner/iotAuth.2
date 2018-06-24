@@ -13,8 +13,8 @@ class DHEncPacket
         int *getEncryptedExchange();
         double getTP();
 
-        void setEncryptedExchange(int encExchange[]);
-        void setTP(double _tp);
+        void setEncryptedExchange(int encryptedExchange[]);
+        void setTP(double tp);
 
     private:
         int encryptedExchange[sizeof(DHKeyExchange)];

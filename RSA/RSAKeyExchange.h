@@ -15,9 +15,9 @@ class RSAKeyExchange
         int *getEncryptedHash();
         double getProcessingTime();
 
-        void setRSAPackage(RSAPackage *rsaP);
-        void setEncryptedHash(int encHash[]);
-        void setProcessingTime(double processingTime);
+        void setRSAPackage(RSAPackage *rsaPackage);
+        void setEncryptedHash(int encryptedHash[]);
+        void setProcessingTime(double tp);
 
     private:
         RSAPackage rsaPackage;

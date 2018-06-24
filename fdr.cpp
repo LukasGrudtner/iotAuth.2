@@ -6,7 +6,7 @@
 */
 char FDR::getOperator()
 {
-    return _operator;
+    return operating;
 }
 
 /*  getOperand()
@@ -14,15 +14,15 @@ char FDR::getOperator()
 */
 int FDR::getOperand()
 {
-    return _operand;
+    return operand;
 }
 
 /*  setOperator()
     Seta o atributo 'operador' do objeto com o valor recebido por parâmetro.
 */
-void FDR::setOperator(char op)
+void FDR::setOperator(char operating)
 {
-    _operator = op;
+    this->operating = operating;
 }
 
 /*  setOperand()
@@ -30,7 +30,7 @@ void FDR::setOperator(char op)
 */
 void FDR::setOperand(int operand)
 {
-    _operand = operand;
+    this->operand = operand;
 }
 
 /*  toString()
@@ -38,7 +38,7 @@ void FDR::setOperand(int operand)
 */
 std::string FDR::toString()
 {
-    std::string result = _operator + std::to_string(_operand);
+    std::string result = operating + std::to_string(operand);
     return result;
 }
 

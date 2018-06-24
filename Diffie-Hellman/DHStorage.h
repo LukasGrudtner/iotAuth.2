@@ -14,10 +14,10 @@ class DHStorage
         int calculateResult();
         int calculateSessionKey(int result);
 
-        void setSessionKey(int _sessionKey);
-        void setBase(int _base);
-        void setModulus(int _modulus);
-        void setExponent(int _exponent);
+        void setSessionKey(int sessionKey);
+        void setBase(int base);
+        void setModulus(int modulus);
+        void setExponent(int exponent);
 
     private:
         int exponent;   /* a */

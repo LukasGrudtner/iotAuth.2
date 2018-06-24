@@ -18,8 +18,8 @@ class RSAPackage
         char getACK();
 
         void setPublicKey(RSAKey key);
-        void setFDR(FDR f);
-        void setAnswerFDR(int aFdr);
+        void setFDR(FDR fdr);
+        void setAnswerFDR(int answerFDR);
         void setNonceA(char *nonce);
         void setNonceB(char *nonce);
         void setACK();

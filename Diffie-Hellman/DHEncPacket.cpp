@@ -16,14 +16,14 @@ double DHEncPacket::getTP()
     return tp;
 }
 
-void DHEncPacket::setEncryptedExchange(int encExchange[])
+void DHEncPacket::setEncryptedExchange(int encryptedExchange[])
 {
     for (int i = 0; i < sizeof(DHKeyExchange); i++) {
-        encryptedExchange[i] = encExchange[i];
+        this->encryptedExchange[i] = encryptedExchange[i];
     }
 }
 
-void DHEncPacket::setTP(double _tp)
+void DHEncPacket::setTP(double tp)
 {
-    tp = _tp;
+    this->tp = tp;
 }

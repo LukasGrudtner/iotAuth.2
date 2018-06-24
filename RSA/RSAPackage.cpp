@@ -35,14 +35,14 @@ void RSAPackage::setPublicKey(RSAKey key)
     publicKey = key;
 }
 
-void RSAPackage::setFDR(FDR f)
+void RSAPackage::setFDR(FDR fdr)
 {
-    fdr = f;
+    this->fdr = fdr;
 }
 
-void RSAPackage::setAnswerFDR(int aFdr)
+void RSAPackage::setAnswerFDR(int answerFDR)
 {
-    answerFDR = aFdr;
+    this->answerFDR = answerFDR;
 }
 
 void RSAPackage::setNonceA(char *nonce)

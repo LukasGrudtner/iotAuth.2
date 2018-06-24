@@ -27,22 +27,22 @@ int DHStorage::calculateSessionKey(int result)
     return aux % modulus;
 }
 
-void DHStorage::setSessionKey(int _sessionKey)
+void DHStorage::setSessionKey(int sessionKey)
 {
-    sessionKey = _sessionKey;
+    this->sessionKey = sessionKey;
 }
 
-void DHStorage::setBase(int _base)
+void DHStorage::setBase(int base)
 {
-    base = _base;
+    this->base = base;
 }
 
-void DHStorage::setModulus(int _modulus)
+void DHStorage::setModulus(int modulus)
 {
-    modulus = _modulus;
+    this->modulus = modulus;
 }
 
-void DHStorage::setExponent(int _exponent)
+void DHStorage::setExponent(int exponent)
 {
-    exponent = _exponent;
+    this->exponent = exponent;
 }

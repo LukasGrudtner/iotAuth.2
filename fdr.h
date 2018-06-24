@@ -8,7 +8,7 @@ class FDR
     public:
         char getOperator();
         int getOperand();
-        void setOperator(char op);
+        void setOperator(char operating);
         void setOperand(int operand);
 
         int getValue(int argument);
@@ -16,8 +16,8 @@ class FDR
         std::string toString();
 
     private:
-        char _operator = '+';
-        int _operand = 0;
+        char operating = '+';
+        int operand = 0;
 };
 
 #endif

@@ -16,8 +16,8 @@ class DHKeyExchange
         DiffieHellmanPackage getDiffieHellmanPackage();
 
         /* Setters */
-        void setEncryptedHash(int encHash[]);
-        void setDiffieHellmanPackage(DiffieHellmanPackage dhPackage);
+        void setEncryptedHash(int encryptedHash[]);
+        void setDiffieHellmanPackage(DiffieHellmanPackage diffieHellmanPackage);
 
     private:
         int encryptedHash[128];

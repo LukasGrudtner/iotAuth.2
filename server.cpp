@@ -244,7 +244,7 @@ void send_rsa(States *state, int socket, struct sockaddr *client, socklen_t size
     string hash = iotAuth.hash(&packageString);
 
     /******************** Encrypt Hash ********************/
-    int *encryptedHash = iotAuth.encryptRSA(&hash, rsaStorage->getMyPrivateKey(), 128);
+    int* const encryptedHash = iotAuth.encryptRSA(&hash, rsaStorage->getMyPrivateKey(), 128);
 
     /******************** Stop Processing Time ********************/
     t2 = currentTime();
@@ -284,7 +284,7 @@ void send_rsa(States *state, int socket, struct sockaddr *client, socklen_t size
 */
 void recv_rsa_ack(States *state, int socket, struct sockaddr *client, socklen_t size)
 {
-    RSAKeyExchange *rsaReceived = new RSAKeyExchange();
+    RSAKeyExchange* const rsaReceived = new RSAKeyExchange();
     recvfrom(socket, rsaReceived, sizeof(RSAKeyExchange), 0, client, &size);
 
     /******************** Stop Total Time ********************/
@@ -357,7 +357,7 @@ void send_dh(States *state, int socket, struct sockaddr *client, socklen_t size)
     string hash = iotAuth.hash(&packageString);
 
     /******************** Encrypt Hash ********************/
-    int *encryptedHash = iotAuth.encryptRSA(&hash, rsaStorage->getMyPrivateKey(), hash.length());
+    int* const encryptedHash = iotAuth.encryptRSA(&hash, rsaStorage->getMyPrivateKey(), hash.length());
 
     /******************** Mount Exchange ********************/
     DHKeyExchange dhSent;
@@ -365,11 +365,11 @@ void send_dh(States *state, int socket, struct sockaddr *client, socklen_t size)
     dhSent.setDiffieHellmanPackage(dhPackage);
 
     /********************** Serialization Exchange **********************/
-    byte *dhExchangeBytes = new byte[sizeof(DHKeyExchange)];
+    byte* const dhExchangeBytes = new byte[sizeof(DHKeyExchange)];
     ObjectToBytes(dhSent, dhExchangeBytes, sizeof(DHKeyExchange));
 
     /******************** Encryption Exchange ********************/
-    int* encryptedExchange = iotAuth.encryptRSA(dhExchangeBytes, rsaStorage->getPartnerPublicKey(), sizeof(DHKeyExchange));
+    int* const encryptedExchange = iotAuth.encryptRSA(dhExchangeBytes, rsaStorage->getPartnerPublicKey(), sizeof(DHKeyExchange));
     delete[] dhExchangeBytes;
     
     /******************** Stop Processing Time 2 ********************/
@@ -420,8 +420,8 @@ int recv_dh(States *state, int socket, struct sockaddr *client, socklen_t size)
 
         /******************** Decrypt Exchange ********************/
         DHKeyExchange dhKeyExchange;
-        int *encryptedExchange = encPacket.getEncryptedExchange();
-        byte *dhExchangeBytes = iotAuth.decryptRSA(encryptedExchange, rsaStorage->getMyPrivateKey(), sizeof(DHKeyExchange));
+        int* const encryptedExchange = encPacket.getEncryptedExchange();
+        byte* const dhExchangeBytes = iotAuth.decryptRSA(encryptedExchange, rsaStorage->getMyPrivateKey(), sizeof(DHKeyExchange));
         
         BytesToObject(dhExchangeBytes, dhKeyExchange, sizeof(DHKeyExchange));
         delete[] dhExchangeBytes;
@@ -434,8 +434,8 @@ int recv_dh(States *state, int socket, struct sockaddr *client, socklen_t size)
 
         /******************** Validity ********************/
         string dhString = dhPackage.toString();
-        bool isHashValid = iotAuth.isHashValid(&dhString, &decryptedHash);
-        bool isNonceTrue = strcmp(dhPackage.getNonceB(), nonceB) == 0;
+        const bool isHashValid = iotAuth.isHashValid(&dhString, &decryptedHash);
+        const bool isNonceTrue = strcmp(dhPackage.getNonceB(), nonceB) == 0;
 
         if (isHashValid && isNonceTrue) {
             /******************** Store Nounce A ********************/
@@ -472,11 +472,11 @@ void send_dh_ack(States *state, int socket, struct sockaddr *client, socklen_t s
     strncpy(ack.nonce, nonceA, sizeof(ack.nonce));
 
     // /******************** Serialize ACK ********************/
-    byte *ackBytes = new byte[sizeof(DH_ACK)];
+    byte* const ackBytes = new byte[sizeof(DH_ACK)];
     ObjectToBytes(ack, ackBytes, sizeof(DH_ACK));
 
     /******************** Encrypt ACK ********************/
-    int *encryptedAck = iotAuth.encryptRSA(ackBytes, rsaStorage->getMyPrivateKey(), sizeof(DH_ACK));
+    int* const encryptedAck = iotAuth.encryptRSA(ackBytes, rsaStorage->getMyPrivateKey(), sizeof(DH_ACK));
     delete[] ackBytes;
 
     /******************** Send ACK ********************/

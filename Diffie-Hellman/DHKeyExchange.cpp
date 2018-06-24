@@ -15,14 +15,14 @@ DiffieHellmanPackage DHKeyExchange::getDiffieHellmanPackage()
     return diffieHellmanPackage;
 }
 
-void DHKeyExchange::setEncryptedHash(int encHash[])
+void DHKeyExchange::setEncryptedHash(int encryptedHash[])
 {
     for (int i = 0; i < 128; i++) {
-        encryptedHash[i] = encHash[i];
+        this->encryptedHash[i] = encryptedHash[i];
     }
 }
 
-void DHKeyExchange::setDiffieHellmanPackage(DiffieHellmanPackage dhPackage)
+void DHKeyExchange::setDiffieHellmanPackage(DiffieHellmanPackage diffieHellmanPackage)
 {
-    diffieHellmanPackage = dhPackage;
+    this->diffieHellmanPackage = diffieHellmanPackage;
 }

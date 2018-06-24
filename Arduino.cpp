@@ -60,7 +60,7 @@ void Arduino::recv_ack(States *state, int socket, struct sockaddr *server, sockl
     storeNonceB(received.nonceB);
 
     /******************** Validity Message ********************/
-    bool isNonceTrue = (strcmp(received.nonceA, nonceA) == 0);
+    const bool isNonceTrue = (strcmp(received.nonceA, nonceA) == 0);
 
     if (isNonceTrue) {
         *state = SEND_RSA;
@@ -97,7 +97,7 @@ void Arduino::send_rsa(States *state, int socket, struct sockaddr *server, sockl
 
     /******************** Get Hash ********************/
     string rsaString = rsaSent.toString();
-    int *encryptedHash = iotAuth.signedHash(&rsaString, rsaStorage->getMyPrivateKey());
+    int* const encryptedHash = iotAuth.signedHash(&rsaString, rsaStorage->getMyPrivateKey());
 
     /******************** Stop Processing Time ********************/
     t2 = currentTime();
@@ -113,7 +113,7 @@ void Arduino::send_rsa(States *state, int socket, struct sockaddr *server, sockl
     t1 = currentTime();
 
     /******************** Send Exchange ********************/
-    int sended = sendto(socket, (RSAKeyExchange*)&rsaExchange, sizeof(rsaExchange), 0, server, size);
+    sendto(socket, (RSAKeyExchange*)&rsaExchange, sizeof(rsaExchange), 0, server, size);
     *state = RECV_RSA;
 
     delete[] encryptedHash;
@@ -131,7 +131,7 @@ void Arduino::send_rsa(States *state, int socket, struct sockaddr *server, sockl
 void Arduino::recv_rsa(States *state, int socket, struct sockaddr *server, socklen_t size)
 {
     /******************** Receive Exchange ********************/
-    RSAKeyExchange *rsaKeyExchange = new RSAKeyExchange();
+    RSAKeyExchange* const rsaKeyExchange = new RSAKeyExchange();
     recvfrom(socket, rsaKeyExchange, sizeof(RSAKeyExchange), 0, server, &size);
 
     /******************** Stop Total Time ********************/
@@ -139,11 +139,11 @@ void Arduino::recv_rsa(States *state, int socket, struct sockaddr *server, sockl
     totalTime = elapsedTime(t1, t2);
 
     /******************** Proof of Time ********************/
-    double limit = processingTime1 + networkTime + (processingTime1 + networkTime)*0.1;
+    const double limit = processingTime1 + networkTime + (processingTime1 + networkTime)*0.1;
 
     if (totalTime <= 2000) {
         /******************** Get Package ********************/
-        RSAPackage *rsaPackage = rsaKeyExchange->getRSAPackage();
+        RSAPackage* const rsaPackage = rsaKeyExchange->getRSAPackage();
 
         /******************** Config RSA ********************/
         rsaStorage->setPartnerPublicKey(rsaPackage->getPublicKey());
@@ -155,9 +155,9 @@ void Arduino::recv_rsa(States *state, int socket, struct sockaddr *server, sockl
         string decryptedHash = decryptHash(rsaKeyExchange->getEncryptedHash());
 
         /******************** Validity ********************/
-        bool isHashValid = iotAuth.isHashValid(&rsaString, &decryptedHash);
-        bool isNonceTrue = strcmp(rsaPackage->getNonceA(), nonceA) == 0;
-        bool isAnswerCorrect = iotAuth.isAnswerCorrect(rsaStorage->getMyFDR(), rsaStorage->getMyPublicKey()->d, rsaPackage->getAnswerFDR());
+        const bool isHashValid = iotAuth.isHashValid(&rsaString, &decryptedHash);
+        const bool isNonceTrue = strcmp(rsaPackage->getNonceA(), nonceA) == 0;
+        const bool isAnswerCorrect = iotAuth.isAnswerCorrect(rsaStorage->getMyFDR(), rsaStorage->getMyPublicKey()->d, rsaPackage->getAnswerFDR());
 
         if (isHashValid && isNonceTrue && isAnswerCorrect) {
             *state = SEND_RSA_ACK;
@@ -184,7 +184,7 @@ void Arduino::recv_rsa(States *state, int socket, struct sockaddr *server, sockl
 void Arduino::send_rsa_ack(States *state, int socket, struct sockaddr *server, socklen_t size)
 {
     /******************** Get Answer FDR ********************/
-    int answerFdr = rsaStorage->getPartnerFDR()->getValue(rsaStorage->getPartnerPublicKey()->d);
+    const int answerFdr = rsaStorage->getPartnerFDR()->getValue(rsaStorage->getPartnerPublicKey()->d);
     
     /******************** Generate Nonce ********************/
     generateNonce(nonceA);
@@ -198,7 +198,7 @@ void Arduino::send_rsa_ack(States *state, int socket, struct sockaddr *server, s
 
     /******************** Get Hash ********************/
     string rsaString = rsaSent.toString();
-    int *encryptedHash = iotAuth.signedHash(&rsaString, rsaStorage->getMyPrivateKey());
+    int* const encryptedHash = iotAuth.signedHash(&rsaString, rsaStorage->getMyPrivateKey());
 
     /******************** Mount Exchange ********************/
     RSAKeyExchange rsaExchange;
@@ -209,7 +209,7 @@ void Arduino::send_rsa_ack(States *state, int socket, struct sockaddr *server, s
     t1 = currentTime();
 
     /******************** Send Exchange ********************/
-    int sended = sendto(socket, (RSAKeyExchange*)&rsaExchange, sizeof(rsaExchange), 0, server, size);
+    sendto(socket, (RSAKeyExchange*)&rsaExchange, sizeof(rsaExchange), 0, server, size);
     *state = RECV_DH;
 
     delete[] encryptedHash;
@@ -242,8 +242,8 @@ void Arduino::recv_dh(States *state, int socket, struct sockaddr *server, sockle
 
         /******************** Decrypt Exchange ********************/
         DHKeyExchange dhKeyExchange;
-        int *encryptedExchange = encPacket.getEncryptedExchange();
-        byte *dhExchangeBytes = iotAuth.decryptRSA(encryptedExchange, rsaStorage->getMyPrivateKey(), sizeof(DHKeyExchange));
+        int* const encryptedExchange = encPacket.getEncryptedExchange();
+        byte* const dhExchangeBytes = iotAuth.decryptRSA(encryptedExchange, rsaStorage->getMyPrivateKey(), sizeof(DHKeyExchange));
         
         BytesToObject(dhExchangeBytes, dhKeyExchange, sizeof(DHKeyExchange));
         delete[] dhExchangeBytes;
@@ -256,8 +256,8 @@ void Arduino::recv_dh(States *state, int socket, struct sockaddr *server, sockle
 
         /******************** Validity ********************/
         string dhString = dhPackage.toString();
-        bool isHashValid = iotAuth.isHashValid(&dhString, &decryptedHash);
-        bool isNonceTrue = strcmp(dhPackage.getNonceA(), nonceA) == 0;
+        const bool isHashValid = iotAuth.isHashValid(&dhString, &decryptedHash);
+        const bool isNonceTrue = strcmp(dhPackage.getNonceA(), nonceA) == 0;
 
         if (isHashValid && isNonceTrue) {
             /******************** Store Nounce B ********************/
@@ -288,8 +288,8 @@ void Arduino::recv_dh(States *state, int socket, struct sockaddr *server, sockle
 void Arduino::send_dh(States *state, int socket, struct sockaddr *server, socklen_t size)
 {
     /***************** Calculate DH ******************/
-    int sessionKey = dhStorage->calculateSessionKey(dhStorage->getSessionKey());
-    int result = dhStorage->calculateResult();
+    const int sessionKey = dhStorage->calculateSessionKey(dhStorage->getSessionKey());
+    const int result = dhStorage->calculateResult();
     dhStorage->setSessionKey(sessionKey);
 
     /***************** Generate Nonce A ******************/
@@ -303,7 +303,7 @@ void Arduino::send_dh(States *state, int socket, struct sockaddr *server, sockle
 
     /***************** Encrypt Hash ******************/
     string dhString = diffieHellmanPackage.toString();
-    int *encryptedHash = iotAuth.signedHash(&dhString, rsaStorage->getMyPrivateKey());
+    int* const encryptedHash = iotAuth.signedHash(&dhString, rsaStorage->getMyPrivateKey());
 
     /***************** Stop Processing Time 2 ******************/
     t2 = currentTime();
@@ -315,11 +315,11 @@ void Arduino::send_dh(States *state, int socket, struct sockaddr *server, sockle
     dhSent.setDiffieHellmanPackage(diffieHellmanPackage);
 
     /********************** Serialize Exchange **********************/
-    byte* exchangeBytes = new byte[sizeof(DHKeyExchange)];
+    byte* const exchangeBytes = new byte[sizeof(DHKeyExchange)];
     ObjectToBytes(dhSent, exchangeBytes, sizeof(DHKeyExchange));
 
     /********************** Encrypt Exchange **********************/
-    int *encryptedExchange = iotAuth.encryptRSA(exchangeBytes, rsaStorage->getPartnerPublicKey(), sizeof(RSAKeyExchange));
+    int* const encryptedExchange = iotAuth.encryptRSA(exchangeBytes, rsaStorage->getPartnerPublicKey(), sizeof(RSAKeyExchange));
 
     /********************** Mount Enc Packet **********************/
     DHEncPacket encPacket;
@@ -358,12 +358,12 @@ void Arduino::recv_dh_ack(States *state, int socket, struct sockaddr *server, so
     totalTime = elapsedTime(t1, t2);
 
     /******************** Proof of Time ********************/
-    double limit = processingTime2 + networkTime + (processingTime2 + networkTime)*0.1;
+    const double limit = processingTime2 + networkTime + (processingTime2 + networkTime)*0.1;
 
     if (totalTime <= limit) {
 
         /******************** Decrypt ACK ********************/
-        byte *decryptedACKBytes = iotAuth.decryptRSA(encryptedACK, rsaStorage->getPartnerPublicKey(), sizeof(DH_ACK));
+        byte* const decryptedACKBytes = iotAuth.decryptRSA(encryptedACK, rsaStorage->getPartnerPublicKey(), sizeof(DH_ACK));
 
         /******************** Deserialize ACK ********************/
         DH_ACK ack;
@@ -371,7 +371,7 @@ void Arduino::recv_dh_ack(States *state, int socket, struct sockaddr *server, so
         delete[] decryptedACKBytes;
 
         /******************** Validity ********************/
-        bool isNonceTrue = (strcmp(ack.nonce, nonceA) == 0);
+        const bool isNonceTrue = (strcmp(ack.nonce, nonceA) == 0);
 
         if (isNonceTrue) {
             *state = SEND_DATA;
@@ -606,7 +606,7 @@ void Arduino::storeDiffieHellman(DiffieHellmanPackage *dhPackage)
 */
 void Arduino::decryptDHKeyExchange(int *encryptedMessage, DHKeyExchange *dhKeyExchange)
 {
-    byte* decryptedMessage = iotAuth.decryptRSA(encryptedMessage, rsaStorage->getMyPrivateKey(), sizeof(DHKeyExchange));
+    byte* const decryptedMessage = iotAuth.decryptRSA(encryptedMessage, rsaStorage->getMyPrivateKey(), sizeof(DHKeyExchange));
     
     BytesToObject(decryptedMessage, *dhKeyExchange, sizeof(DHKeyExchange));
 
@@ -619,7 +619,7 @@ void Arduino::decryptDHKeyExchange(int *encryptedMessage, DHKeyExchange *dhKeyEx
 */
 string Arduino::decryptHash(int *encryptedHash)
 {
-    byte *decryptedHash = iotAuth.decryptRSA(encryptedHash, rsaStorage->getPartnerPublicKey(), 128);
+    byte* const decryptedHash = iotAuth.decryptRSA(encryptedHash, rsaStorage->getPartnerPublicKey(), 128);
 
     char aux;
     string decryptedHashString = "";
@@ -663,9 +663,9 @@ string Arduino::encryptMessage(char* message, int size)
     CharToUint8_t(message, plaintext, size);
 
     /* Encripta a mensagem utilizando a chave e o iv declarados anteriormente. */
-    uint8_t *encrypted = iotAuth.encryptAES(plaintext, key, iv, size);
+    uint8_t* const encrypted = iotAuth.encryptAES(plaintext, key, iv, size);
 
-    string result = Uint8_tToHexString(encrypted, size);
+    const string result = Uint8_tToHexString(encrypted, size);
 
     return result;
 }
