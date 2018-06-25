@@ -47,29 +47,35 @@ void Arduino::recv_ack(States *state, int socket, struct sockaddr *server, sockl
 {
     /******************** Receive ACK ********************/
     structAck received;
-    recvfrom(socket, &received, sizeof(ack), 0, server, &size);
+    int recv = recvfrom(socket, &received, sizeof(ack), 0, server, &size);
 
-    /******************** Stop Network Time ********************/
-    t2 = currentTime();
-    networkTime = elapsedTime(t1, t2);
+    if (recv > 0) {
 
-    /******************** Start Processing Time ********************/
-    t1 = currentTime();
+        /******************** Stop Network Time ********************/
+        t2 = currentTime();
+        networkTime = elapsedTime(t1, t2);
 
-    /******************** Store Nonce B ********************/
-    storeNonceB(received.nonceB);
+        /******************** Start Processing Time ********************/
+        t1 = currentTime();
 
-    /******************** Validity Message ********************/
-    const bool isNonceTrue = (strcmp(received.nonceA, nonceA) == 0);
+        /******************** Store Nonce B ********************/
+        storeNonceB(received.nonceB);
 
-    if (isNonceTrue) {
-        *state = SEND_RSA;
+        /******************** Validity Message ********************/
+        const bool isNonceTrue = (strcmp(received.nonceA, nonceA) == 0);
+
+        if (isNonceTrue) {
+            *state = SEND_RSA;
+        } else {
+            *state = SEND_SYN;
+        }
+
+        /******************** Verbose ********************/
+        if (VERBOSE) recv_ack_verbose(nonceB, sequence, serverIP, clientIP, isNonceTrue);
     } else {
-        *state = SEND_SYN;
+        loop = false;
+        if (VERBOSE) response_timeout_verbose();
     }
-
-    /******************** Verbose ********************/
-    if (VERBOSE) recv_ack_verbose(nonceB, sequence, serverIP, clientIP, isNonceTrue);
 }
 
 
@@ -132,44 +138,49 @@ void Arduino::recv_rsa(States *state, int socket, struct sockaddr *server, sockl
 {
     /******************** Receive Exchange ********************/
     RSAKeyExchange* const rsaKeyExchange = new RSAKeyExchange();
-    recvfrom(socket, rsaKeyExchange, sizeof(RSAKeyExchange), 0, server, &size);
+    int recv = recvfrom(socket, rsaKeyExchange, sizeof(RSAKeyExchange), 0, server, &size);
 
-    /******************** Stop Total Time ********************/
-    t2 = currentTime();
-    totalTime = elapsedTime(t1, t2);
+    if (recv > 0) {
+        /******************** Stop Total Time ********************/
+        t2 = currentTime();
+        totalTime = elapsedTime(t1, t2);
 
-    /******************** Proof of Time ********************/
-    const double limit = processingTime1 + networkTime + (processingTime1 + networkTime)*0.1;
+        /******************** Proof of Time ********************/
+        const double limit = processingTime1 + networkTime + (processingTime1 + networkTime)*0.1;
 
-    if (totalTime <= 2000) {
-        /******************** Get Package ********************/
-        RSAPackage* const rsaPackage = rsaKeyExchange->getRSAPackage();
+        if (totalTime <= 2000) {
+            /******************** Get Package ********************/
+            RSAPackage* const rsaPackage = rsaKeyExchange->getRSAPackage();
 
-        /******************** Config RSA ********************/
-        rsaStorage->setPartnerPublicKey(rsaPackage->getPublicKey());
-        rsaStorage->setPartnerFDR(rsaPackage->getFDR());
-        storeNonceB(rsaPackage->getNonceB());
+            /******************** Config RSA ********************/
+            rsaStorage->setPartnerPublicKey(rsaPackage->getPublicKey());
+            rsaStorage->setPartnerFDR(rsaPackage->getFDR());
+            storeNonceB(rsaPackage->getNonceB());
 
-        /******************** Decrypt Hash ********************/
-        string rsaString = rsaPackage->toString();
-        string decryptedHash = decryptHash(rsaKeyExchange->getEncryptedHash());
+            /******************** Decrypt Hash ********************/
+            string rsaString = rsaPackage->toString();
+            string decryptedHash = decryptHash(rsaKeyExchange->getEncryptedHash());
 
-        /******************** Validity ********************/
-        const bool isHashValid = iotAuth.isHashValid(&rsaString, &decryptedHash);
-        const bool isNonceTrue = strcmp(rsaPackage->getNonceA(), nonceA) == 0;
-        const bool isAnswerCorrect = iotAuth.isAnswerCorrect(rsaStorage->getMyFDR(), rsaStorage->getMyPublicKey()->d, rsaPackage->getAnswerFDR());
+            /******************** Validity ********************/
+            const bool isHashValid = iotAuth.isHashValid(&rsaString, &decryptedHash);
+            const bool isNonceTrue = strcmp(rsaPackage->getNonceA(), nonceA) == 0;
+            const bool isAnswerCorrect = iotAuth.isAnswerCorrect(rsaStorage->getMyFDR(), rsaStorage->getMyPublicKey()->d, rsaPackage->getAnswerFDR());
 
-        if (isHashValid && isNonceTrue && isAnswerCorrect) {
-            *state = SEND_RSA_ACK;
+            if (isHashValid && isNonceTrue && isAnswerCorrect) {
+                *state = SEND_RSA_ACK;
+            } else {
+                *state = SEND_SYN;
+            }
+
+            if (VERBOSE) recv_rsa_verbose(rsaStorage, nonceB, isHashValid, isNonceTrue, isAnswerCorrect);
+        
         } else {
+            if (VERBOSE) time_limit_burst_verbose();
             *state = SEND_SYN;
         }
-
-        if (VERBOSE) recv_rsa_verbose(rsaStorage, nonceB, isHashValid, isNonceTrue, isAnswerCorrect);
-       
     } else {
-        if (VERBOSE) time_limit_burst_verbose();
-        *state = SEND_SYN;
+        loop = false;
+        if (VERBOSE) response_timeout_verbose();
     }
 
     delete rsaKeyExchange;
@@ -228,61 +239,67 @@ void Arduino::recv_dh(States *state, int socket, struct sockaddr *server, sockle
 {
     /******************** Recv Enc Packet ********************/
     DHEncPacket encPacket;
-    recvfrom(socket, &encPacket, sizeof(DHEncPacket), 0, server, &size);
+    int recv = recvfrom(socket, &encPacket, sizeof(DHEncPacket), 0, server, &size);
 
-    /******************** Stop Total Time ********************/
-    t2 = currentTime();
-    totalTime = elapsedTime(t1, t2);
+    if (recv > 0) {
 
-    byte* message = new byte[sizeof(DHEncPacket)];
-    ObjectToBytes(encPacket, message, sizeof(DONE_MESSAGE));
+        /******************** Stop Total Time ********************/
+        t2 = currentTime();
+        totalTime = elapsedTime(t1, t2);
 
-    if (checkRequestForTermination(message)) {
-        *state = RFT;
-    } else {
-        /******************** Time of Proof ********************/
-        if (totalTime <= 2000) {
+        byte* message = new byte[sizeof(DHEncPacket)];
+        ObjectToBytes(encPacket, message, sizeof(DONE_MESSAGE));
 
-            /******************** Start Processing Time 2 ********************/
-            t_aux1 = currentTime();
-
-            /******************** Decrypt Exchange ********************/
-            DHKeyExchange dhKeyExchange;
-            int* const encryptedExchange = encPacket.getEncryptedExchange();
-            byte* const dhExchangeBytes = iotAuth.decryptRSA(encryptedExchange, rsaStorage->getMyPrivateKey(), sizeof(DHKeyExchange));
-            
-            BytesToObject(dhExchangeBytes, dhKeyExchange, sizeof(DHKeyExchange));
-            delete[] dhExchangeBytes;
-
-            /******************** Get DH Package ********************/
-            DiffieHellmanPackage dhPackage = dhKeyExchange.getDiffieHellmanPackage();
-
-            /******************** Decrypt Hash ********************/
-            string decryptedHash = decryptHash(dhKeyExchange.getEncryptedHash());
-
-            /******************** Validity ********************/
-            string dhString = dhPackage.toString();
-            const bool isHashValid = iotAuth.isHashValid(&dhString, &decryptedHash);
-            const bool isNonceTrue = strcmp(dhPackage.getNonceA(), nonceA) == 0;
-
-            if (isHashValid && isNonceTrue) {
-                /******************** Store Nounce B ********************/
-                storeNonceB(dhPackage.getNonceB());
-
-                /******************** Store DH Package ********************/
-                storeDiffieHellman(&dhPackage);
-
-                *state = SEND_DH;
-            } else {
-                *state = SEND_SYN;
-            }
-
-            if (VERBOSE) recv_dh_verbose(&dhPackage, isHashValid, isNonceTrue);
-
+        if (checkRequestForTermination(message)) {
+            *state = RFT;
         } else {
-            if (VERBOSE) time_limit_burst_verbose();
-            *state = DONE;
+            /******************** Time of Proof ********************/
+            if (totalTime <= 2000) {
+
+                /******************** Start Processing Time 2 ********************/
+                t_aux1 = currentTime();
+
+                /******************** Decrypt Exchange ********************/
+                DHKeyExchange dhKeyExchange;
+                int* const encryptedExchange = encPacket.getEncryptedExchange();
+                byte* const dhExchangeBytes = iotAuth.decryptRSA(encryptedExchange, rsaStorage->getMyPrivateKey(), sizeof(DHKeyExchange));
+                
+                BytesToObject(dhExchangeBytes, dhKeyExchange, sizeof(DHKeyExchange));
+                delete[] dhExchangeBytes;
+
+                /******************** Get DH Package ********************/
+                DiffieHellmanPackage dhPackage = dhKeyExchange.getDiffieHellmanPackage();
+
+                /******************** Decrypt Hash ********************/
+                string decryptedHash = decryptHash(dhKeyExchange.getEncryptedHash());
+
+                /******************** Validity ********************/
+                string dhString = dhPackage.toString();
+                const bool isHashValid = iotAuth.isHashValid(&dhString, &decryptedHash);
+                const bool isNonceTrue = strcmp(dhPackage.getNonceA(), nonceA) == 0;
+
+                if (isHashValid && isNonceTrue) {
+                    /******************** Store Nounce B ********************/
+                    storeNonceB(dhPackage.getNonceB());
+
+                    /******************** Store DH Package ********************/
+                    storeDiffieHellman(&dhPackage);
+
+                    *state = SEND_DH;
+                } else {
+                    *state = SEND_SYN;
+                }
+
+                if (VERBOSE) recv_dh_verbose(&dhPackage, isHashValid, isNonceTrue);
+
+            } else {
+                if (VERBOSE) time_limit_burst_verbose();
+                *state = DONE;
+            }
         }
+    } else {
+        loop = false;
+        if (VERBOSE) response_timeout_verbose();
     }
 }
 
@@ -358,42 +375,48 @@ void Arduino::recv_dh_ack(States *state, int socket, struct sockaddr *server, so
 {
     /******************** Recv ACK ********************/
     int encryptedACK[sizeof(DH_ACK)];
-    recvfrom(socket, encryptedACK, sizeof(DH_ACK)*sizeof(int), 0, server, &size);
+    int recv = recvfrom(socket, encryptedACK, sizeof(DH_ACK)*sizeof(int), 0, server, &size);
 
-    /******************** Stop Total Time ********************/
-    t2 = currentTime();
-    totalTime = elapsedTime(t1, t2);
+    if (recv > 0) {
 
-    /******************** Proof of Time ********************/
-    const double limit = processingTime2 + networkTime + (processingTime2 + networkTime)*0.1;
+        /******************** Stop Total Time ********************/
+        t2 = currentTime();
+        totalTime = elapsedTime(t1, t2);
 
-    if (totalTime <= limit) {
+        /******************** Proof of Time ********************/
+        const double limit = processingTime2 + networkTime + (processingTime2 + networkTime)*0.1;
 
-        /******************** Decrypt ACK ********************/
-        byte* const decryptedACKBytes = iotAuth.decryptRSA(encryptedACK, rsaStorage->getPartnerPublicKey(), sizeof(DH_ACK));
+        if (totalTime <= limit) {
 
-        /******************** Deserialize ACK ********************/
-        DH_ACK ack;
-        BytesToObject(decryptedACKBytes, ack, sizeof(DH_ACK));
-        delete[] decryptedACKBytes;
+            /******************** Decrypt ACK ********************/
+            byte* const decryptedACKBytes = iotAuth.decryptRSA(encryptedACK, rsaStorage->getPartnerPublicKey(), sizeof(DH_ACK));
 
-        /******************** Validity ********************/
-        const bool isNonceTrue = (strcmp(ack.nonce, nonceA) == 0);
+            /******************** Deserialize ACK ********************/
+            DH_ACK ack;
+            BytesToObject(decryptedACKBytes, ack, sizeof(DH_ACK));
+            delete[] decryptedACKBytes;
 
-        if (isNonceTrue) {
-            *state = SEND_DATA;
+            /******************** Validity ********************/
+            const bool isNonceTrue = (strcmp(ack.nonce, nonceA) == 0);
+
+            if (isNonceTrue) {
+                *state = SEND_DATA;
+            } else {
+                *state = SEND_SYN;
+            }
+
+            /******************** Verbose ********************/
+            if (VERBOSE) send_dh_ack_verbose(&ack, isNonceTrue);
+
         } else {
+            if (VERBOSE) time_limit_burst_verbose();
             *state = SEND_SYN;
         }
-
-        /******************** Verbose ********************/
-        if (VERBOSE) send_dh_ack_verbose(&ack, isNonceTrue);
-
+        if (MEM_TEST) loop = false;
     } else {
-        if (VERBOSE) time_limit_burst_verbose();
-        *state = SEND_SYN;
+        loop = false;
+        if (VERBOSE) response_timeout_verbose();
     }
-    if (MEM_TEST) transfer_data = false;
 }
 
 

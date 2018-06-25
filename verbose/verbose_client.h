@@ -33,4 +33,6 @@ void rdh_verbose4();
 void dt_verbose1();
 void dt_verbose2(string *sent);
 
+void response_timeout_verbose();
+
 #endif

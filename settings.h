@@ -17,6 +17,10 @@
 #define ACK true
 #define SYN false
 
+/* Maximum time wait for response */
+#define TIMEOUT_SEC 5
+#define TIMEOUT_MIC 0
+
 typedef struct syn
 {
     bool message = SYN;

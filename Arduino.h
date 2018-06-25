@@ -20,6 +20,8 @@
 #include "RSA/RSAKeyExchange.h"
 #include "RSA/RSAPackage.h"
 
+#include <unistd.h>
+
 #include "verbose/verbose_client.h"
 
 using namespace std;
@@ -32,7 +34,7 @@ class Arduino
 
         Arduino();
         
-        bool transfer_data = true;
+        bool loop = true;
         char *clientIP;     /*  Endereço IP do Cliente.                 */
         char *serverIP;     /*  Endereço IP do Servidor.                */
         char nonceA[129];   /*  Armazena o nonce gerado do Cliente.     */

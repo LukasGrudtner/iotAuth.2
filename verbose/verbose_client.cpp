@@ -132,3 +132,10 @@ void dt_verbose2(string *sent)
 {
     cout << "Sent" << endl << *sent << endl << endl;
 }
+
+void response_timeout_verbose()
+{
+        cout << "***********************************************************************" << endl;
+        cout << "Exhausted response time." << endl;
+        cout << "***********************************************************************\n" << endl; 
+}

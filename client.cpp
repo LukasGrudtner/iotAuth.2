@@ -54,6 +54,12 @@ int main(int argc, char *argv[]){
 
     tam_cliente=sizeof(struct sockaddr_in);
 
+    /* Set maximum wait time for response */
+    struct timeval tv;
+    tv.tv_sec = TIMEOUT_SEC;
+    tv.tv_usec = TIMEOUT_MIC;
+    setsockopt(meuSocket, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv);
+
     /* Get IP Address Server */
     char host_name[256];
     gethostname(host_name, sizeof(host_name));
@@ -72,7 +78,7 @@ int main(int argc, char *argv[]){
     arduino.clientIP = clientIP;
     arduino.serverIP = serverIP;
 
-    while(arduino.transfer_data){
+    while(arduino.loop){
         arduino.stateMachine(meuSocket, (struct sockaddr*)&servidor, tam_cliente);
     }
     close(meuSocket);
