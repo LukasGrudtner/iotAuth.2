@@ -373,6 +373,7 @@ void send_dh(States *state, int socket, struct sockaddr *client, socklen_t size)
 
     /******************** Generate IV ********************/
     int iv = iotAuth.randomNumber(90);
+    diffieHellmanStorage->setIV(iv);
 
     /***************** Mount Package ******************/
     DiffieHellmanPackage dhPackage;
@@ -640,7 +641,7 @@ void data_transfer(States *state, int socket, struct sockaddr *client, socklen_t
 
         uint8_t iv[16];
         for (int i = 0; i < 16; i++) {
-            iv[i] = diffieHellmanStorage->getSessionKey();
+            iv[i] = diffieHellmanStorage->getIV();
         }
 
         /* Converte a mensagem recebida (HEXA) para o array de char ciphertextChar. */

@@ -693,7 +693,7 @@ string Arduino::encryptMessage(char* message, int size)
 
     uint8_t iv[16];
     for (int i = 0; i < 16; i++) {
-        iv[i] = dhStorage->getSessionKey();
+        iv[i] = dhStorage->getIV();
     }
 
     /* Converte o array de char (message) para uint8_t. */
