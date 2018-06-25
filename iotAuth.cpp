@@ -94,7 +94,7 @@ byte* IotAuth::decryptRSA(int *cipher, RSAKey *rsaKey, int size)
     byte* plain = new byte[size];
     memset(plain, 0, sizeof(plain));
     rsa.decodifica(plain, cipher, rsaKey->d, rsaKey->n, size);
-
+    
     return plain;
 }
 

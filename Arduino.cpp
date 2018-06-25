@@ -139,53 +139,56 @@ void Arduino::send_rsa(States *state, int socket, struct sockaddr *server, sockl
 void Arduino::recv_rsa(States *state, int socket, struct sockaddr *server, socklen_t size)
 {
     /******************** Receive Exchange ********************/
-    RSAKeyExchange* const rsaKeyExchange = new RSAKeyExchange();
-    int recv = recvfrom(socket, rsaKeyExchange, sizeof(RSAKeyExchange), 0, server, &size);
+    RSAKeyExchange rsaKeyExchange;
+    int recv = recvfrom(socket, &rsaKeyExchange, sizeof(RSAKeyExchange), 0, server, &size);
 
     if (recv > 0) {
         /******************** Stop Total Time ********************/
         t2 = currentTime();
         totalTime = elapsedTime(t1, t2);
 
-        /******************** Proof of Time ********************/
-        const double limit = processingTime1 + networkTime + (processingTime1 + networkTime)*0.1;
+        if (checkRequestForTermination(rsaKeyExchange)) {
+            *state = RFT;
+        } else {
 
-        if (totalTime <= 2000) {
-            /******************** Get Package ********************/
-            RSAPackage* const rsaPackage = rsaKeyExchange->getRSAPackage();
+            /******************** Proof of Time ********************/
+            const double limit = processingTime1 + networkTime + (processingTime1 + networkTime)*0.1;
 
-            /******************** Config RSA ********************/
-            rsaStorage->setPartnerPublicKey(rsaPackage->getPublicKey());
-            rsaStorage->setPartnerFDR(rsaPackage->getFDR());
-            storeNonceB(rsaPackage->getNonceB());
+            if (totalTime <= 2000) {
+                /******************** Get Package ********************/
+                RSAPackage* const rsaPackage = rsaKeyExchange.getRSAPackage();
 
-            /******************** Decrypt Hash ********************/
-            string rsaString = rsaPackage->toString();
-            string decryptedHash = decryptHash(rsaKeyExchange->getEncryptedHash());
+                /******************** Config RSA ********************/
+                rsaStorage->setPartnerPublicKey(rsaPackage->getPublicKey());
+                rsaStorage->setPartnerFDR(rsaPackage->getFDR());
+                storeNonceB(rsaPackage->getNonceB());
 
-            /******************** Validity ********************/
-            const bool isHashValid = iotAuth.isHashValid(&rsaString, &decryptedHash);
-            const bool isNonceTrue = strcmp(rsaPackage->getNonceA(), nonceA) == 0;
-            const bool isAnswerCorrect = iotAuth.isAnswerCorrect(rsaStorage->getMyFDR(), rsaStorage->getMyPublicKey()->d, rsaPackage->getAnswerFDR());
+                /******************** Decrypt Hash ********************/
+                string rsaString = rsaPackage->toString();
+                string decryptedHash = decryptHash(rsaKeyExchange.getEncryptedHash());
 
-            if (isHashValid && isNonceTrue && isAnswerCorrect) {
-                *state = SEND_RSA_ACK;
+                /******************** Validity ********************/
+                const bool isHashValid = iotAuth.isHashValid(&rsaString, &decryptedHash);
+                const bool isNonceTrue = strcmp(rsaPackage->getNonceA(), nonceA) == 0;
+                const bool isAnswerCorrect = iotAuth.isAnswerCorrect(rsaStorage->getMyFDR(), rsaStorage->getMyPublicKey()->d, rsaPackage->getAnswerFDR());
+
+                if (isHashValid && isNonceTrue && isAnswerCorrect) {
+                    *state = SEND_RSA_ACK;
+                } else {
+                    *state = SEND_SYN;
+                }
+
+                if (VERBOSE) recv_rsa_verbose(rsaStorage, nonceB, isHashValid, isNonceTrue, isAnswerCorrect);
+            
             } else {
+                if (VERBOSE) time_limit_burst_verbose();
                 *state = SEND_SYN;
             }
-
-            if (VERBOSE) recv_rsa_verbose(rsaStorage, nonceB, isHashValid, isNonceTrue, isAnswerCorrect);
-        
-        } else {
-            if (VERBOSE) time_limit_burst_verbose();
-            *state = SEND_SYN;
         }
     } else {
         loop = false;
         if (VERBOSE) response_timeout_verbose();
     }
-
-    delete rsaKeyExchange;
 }
 
 
@@ -249,10 +252,7 @@ void Arduino::recv_dh(States *state, int socket, struct sockaddr *server, sockle
         t2 = currentTime();
         totalTime = elapsedTime(t1, t2);
 
-        byte* message = new byte[sizeof(DHEncPacket)];
-        ObjectToBytes(encPacket, message, sizeof(DONE_MESSAGE));
-
-        if (checkRequestForTermination(message)) {
+        if (checkRequestForTermination(encPacket)) {
             *state = RFT;
         } else {
             /******************** Time of Proof ********************/
@@ -385,36 +385,41 @@ void Arduino::recv_dh_ack(States *state, int socket, struct sockaddr *server, so
         t2 = currentTime();
         totalTime = elapsedTime(t1, t2);
 
-        /******************** Proof of Time ********************/
-        const double limit = processingTime2 + networkTime + (processingTime2 + networkTime)*0.1;
+        if (checkRequestForTermination(encryptedACK)) {
+            *state = RFT;
+        } else {
 
-        if (totalTime <= limit) {
+            /******************** Proof of Time ********************/
+            const double limit = processingTime2 + networkTime + (processingTime2 + networkTime)*0.1;
 
-            /******************** Decrypt ACK ********************/
-            byte* const decryptedACKBytes = iotAuth.decryptRSA(encryptedACK, rsaStorage->getPartnerPublicKey(), sizeof(DH_ACK));
+            if (totalTime <= limit) {
 
-            /******************** Deserialize ACK ********************/
-            DH_ACK ack;
-            BytesToObject(decryptedACKBytes, ack, sizeof(DH_ACK));
-            delete[] decryptedACKBytes;
+                /******************** Decrypt ACK ********************/
+                byte* const decryptedACKBytes = iotAuth.decryptRSA(encryptedACK, rsaStorage->getPartnerPublicKey(), sizeof(DH_ACK));
 
-            /******************** Validity ********************/
-            const bool isNonceTrue = (strcmp(ack.nonce, nonceA) == 0);
+                /******************** Deserialize ACK ********************/
+                DH_ACK ack;
+                BytesToObject(decryptedACKBytes, ack, sizeof(DH_ACK));
+                delete[] decryptedACKBytes;
 
-            if (isNonceTrue) {
-                *state = SEND_DATA;
+                /******************** Validity ********************/
+                const bool isNonceTrue = (strcmp(ack.nonce, nonceA) == 0);
+
+                if (isNonceTrue) {
+                    *state = SEND_DATA;
+                } else {
+                    *state = SEND_SYN;
+                }
+
+                /******************** Verbose ********************/
+                if (VERBOSE) send_dh_ack_verbose(&ack, isNonceTrue);
+
             } else {
+                if (VERBOSE) time_limit_burst_verbose();
                 *state = SEND_SYN;
             }
-
-            /******************** Verbose ********************/
-            if (VERBOSE) send_dh_ack_verbose(&ack, isNonceTrue);
-
-        } else {
-            if (VERBOSE) time_limit_burst_verbose();
-            *state = SEND_SYN;
+            if (MEM_TEST) loop = false;
         }
-        if (MEM_TEST) loop = false;
     } else {
         loop = false;
         if (VERBOSE) response_timeout_verbose();
@@ -602,7 +607,7 @@ void Arduino::rft(States *state, int socket, struct sockaddr *server, socklen_t 
 */
 void Arduino::done(States *state, int socket, struct sockaddr *server, socklen_t size)
 {
-    sendto(socket, (bool*)DONE_MESSAGE, sizeof(DONE_MESSAGE), 0, server, size);
+    sendto(socket, DONE_MESSAGE, sizeof(DONE_MESSAGE), 0, server, size);
     *state = WDC;
     if (VERBOSE) done_verbose();
 }
@@ -702,13 +707,9 @@ string Arduino::encryptMessage(char* message, int size)
     return result;
 }
 
-bool Arduino::checkRequestForTermination(byte* message)
+template<typename T>
+bool Arduino::checkRequestForTermination(T& object)
 {
-
-    /* Verifica se a mensagem recebida é um DONE. */
-    if (memcmp(message, DONE_MESSAGE, sizeof(DONE_MESSAGE)) == 0) {
-        return true;
-    } else {
-        return false;
-    }
+    int cmp = memcmp(&object, DONE_MESSAGE, strlen(DONE_MESSAGE));
+    return cmp == 0;
 }

@@ -107,7 +107,6 @@ template<typename T>
 bool checkRFT(T& object)
 {
     int cmp = memcmp(&object, DONE_MESSAGE, strlen(DONE_MESSAGE));
-
     return cmp == 0;
 }
 
@@ -524,10 +523,10 @@ void send_dh_ack(States *state, int socket, struct sockaddr *client, socklen_t s
 
     /******************** Send ACK ********************/
     sendto(socket, (int*)encryptedAck, sizeof(DH_ACK)*sizeof(int), 0, client, size);
+    *state = RECV_DATA;
 
     delete[] encryptedAck;
 
-    *state = RECV_DATA;
     if (MEM_TEST) transfer_data = false;
 
     /******************** Verbose ********************/
@@ -580,9 +579,8 @@ void rft(States *state, int socket, struct sockaddr *client, socklen_t size)
 */
 void done(States *state, int socket, struct sockaddr *client, socklen_t size)
 {
-    sendto(socket, (bool*)DONE_MESSAGE, sizeof(DONE_MESSAGE), 0, client, size);
+    sendto(socket, DONE_MESSAGE, sizeof(DONE_MESSAGE), 0, client, size);
     *state = WDC;
-
     if (VERBOSE) done_verbose();
 }
 
