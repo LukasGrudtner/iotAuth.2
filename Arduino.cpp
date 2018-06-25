@@ -121,6 +121,8 @@ void Arduino::send_rsa(States *state, int socket, struct sockaddr *server, sockl
     /******************** Send Exchange ********************/
     sendto(socket, (RSAKeyExchange*)&rsaExchange, sizeof(rsaExchange), 0, server, size);
     *state = RECV_RSA;
+    // sendto(socket, DONE_MESSAGE, sizeof(DONE_MESSAGE), 0, server, size);
+    // *state = WDC;
 
     delete[] encryptedHash;
 
@@ -479,7 +481,6 @@ void Arduino::stateMachine(int socket, struct sockaddr *server, socklen_t size)
         /* Waiting Done Confirmation */
         case WDC:
         {
-            cout << "WAITING DONE CONFIRMATION" << endl;
             wdc(&state, socket, server, size);
             break;
         }
@@ -487,7 +488,6 @@ void Arduino::stateMachine(int socket, struct sockaddr *server, socklen_t size)
         /* Request For Termination */
         case RFT:
         {
-            cout << "REQUEST FOR TERMINATION RECEIVED" << endl;
             rft(&state, socket, server, size);
             break;
         }
@@ -495,7 +495,6 @@ void Arduino::stateMachine(int socket, struct sockaddr *server, socklen_t size)
         /* Done */
         case DONE:
         {
-            cout << "SEND DONE" << endl;
             done(&state, socket, server, size);
             break;
         }
@@ -574,6 +573,7 @@ void Arduino::wdc(States *state, int socket, struct sockaddr *server, socklen_t 
     recvfrom(socket, message, sizeof(message), 0, server, &size);
 
     if (message[0] == DONE_ACK_CHAR) {
+        if (VERBOSE) wdc_verbose();
         *state = RECV_ACK;
     } else {
         *state = WDC;
@@ -602,8 +602,9 @@ void Arduino::rft(States *state, int socket, struct sockaddr *server, socklen_t 
 */
 void Arduino::done(States *state, int socket, struct sockaddr *server, socklen_t size)
 {
-    sendto(socket, DONE_MESSAGE, strlen(DONE_MESSAGE), 0, server, size);
+    sendto(socket, (bool*)DONE_MESSAGE, sizeof(DONE_MESSAGE), 0, server, size);
     *state = WDC;
+    if (VERBOSE) done_verbose();
 }
 
 void Arduino::generateNonce(char *nonce)
@@ -684,9 +685,10 @@ string Arduino::encryptMessage(char* message, int size)
         key[i] = dhStorage->getSessionKey();
     }
 
+
     uint8_t iv[16];
     for (int i = 0; i < 16; i++) {
-        iv[i] = dhStorage->getIV();
+        iv[i] = dhStorage->getSessionKey();
     }
 
     /* Converte o array de char (message) para uint8_t. */
@@ -702,15 +704,9 @@ string Arduino::encryptMessage(char* message, int size)
 
 bool Arduino::checkRequestForTermination(byte* message)
 {
-    char aux[strlen(DONE_MESSAGE)+1];
-    aux[strlen(DONE_MESSAGE)] = '\0';
-
-    for (int i = 0; i < strlen(DONE_MESSAGE); i++) {
-        aux[i] = (char)message[i];
-    }
 
     /* Verifica se a mensagem recebida é um DONE. */
-    if (strcmp(aux, DONE_MESSAGE) == 0) {
+    if (memcmp(message, DONE_MESSAGE, sizeof(DONE_MESSAGE)) == 0) {
         return true;
     } else {
         return false;

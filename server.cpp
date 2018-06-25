@@ -100,49 +100,16 @@ void generateDiffieHellman()
     diffieHellmanStorage->setModulus(iotAuth.randomNumber(100)+2);
 }
 
-/*  Check Request for Termination
-    Verifica se a mensagem recebida é um pedido de término de conexão vinda
-    do Cliente (DONE).
-*/
-bool checkRequestForTermination(byte* message)
+
+
+
+template<typename T>
+bool checkRFT(T& object)
 {
-    char aux[strlen(DONE_MESSAGE)+1];
-    aux[strlen(DONE_MESSAGE)] = '\0';
+    int cmp = memcmp(&object, DONE_MESSAGE, strlen(DONE_MESSAGE));
 
-    for (int i = 0; i < strlen(DONE_MESSAGE); i++) {
-        aux[i] = message[i];
-    }
-
-    /* Verifica se a mensagem recebida é um DONE. */
-    if (strcmp(aux, DONE_MESSAGE) == 0) {
-        return true;
-    } else {
-        return false;
-    }
+    return cmp == 0;
 }
-
-/*  Check Request for Termination
-    Verifica se a mensagem recebida é um pedido de término de conexão vinda
-    do Cliente (DONE).
-*/
-bool checkRequestForTermination(char* message)
-{
-    char aux[strlen(DONE_MESSAGE)+1];
-    aux[strlen(DONE_MESSAGE)] = '\0';
-
-    for (int i = 0; i < strlen(DONE_MESSAGE); i++) {
-        aux[i] = message[i];
-    }
-
-    /* Verifica se a mensagem recebida é um DONE. */
-    if (strcmp(aux, DONE_MESSAGE) == 0) {
-        return true;
-    } else {
-        return false;
-    }
-}
-
-
 
 
 /*  Step 1
@@ -160,14 +127,13 @@ void recv_syn(States *state, int socket, struct sockaddr *client, socklen_t size
 
         /******************** Store Nonce A ********************/
         storeNonceA(received.nonce);
-
         *state = SEND_ACK;
+
+        /******************** Verbose ********************/
+        if (VERBOSE) recv_syn_verbose(nonceA);
     } else {
         *state = RECV_SYN;
     }
-
-    /******************** Verbose ********************/
-    if (VERBOSE) recv_syn_verbose(nonceA);
 }
 
 
@@ -214,43 +180,49 @@ void recv_rsa(States *state, int socket, struct sockaddr *client, socklen_t size
 
     if (recv > 0) {
 
-        /******************** Stop Network Time ********************/
-        t2 = currentTime();
-        networkTime = elapsedTime(t1, t2);
-
-        /******************** Start Processing Time ********************/
-        t1 = currentTime();
-
-        /******************** Store RSA Data ********************/
-        RSAPackage rsaPackage = *rsaReceived.getRSAPackage();
-
-        rsaStorage = new RSAStorage();
-        rsaStorage->setPartnerPublicKey(rsaPackage.getPublicKey());
-        rsaStorage->setPartnerFDR(rsaPackage.getFDR());
-
-        /******************** Decrypt Hash ********************/
-        string rsaString = rsaPackage.toString();
-        string decryptedHash = decryptHash(rsaReceived.getEncryptedHash());
-
-        /******************** Store TP ********************/
-        tp = rsaReceived.getProcessingTime();
-
-        /******************** Store Nonce A ********************/
-        storeNonceA(rsaPackage.getNonceA());
-
-        /******************** Validity Hash ********************/
-        bool isHashValid = iotAuth.isHashValid(&rsaString, &decryptedHash);
-        bool isNonceTrue = strcmp(rsaPackage.getNonceB(), nonceB) == 0;
-
-
-        if (isHashValid && isNonceTrue) {
-            *state = SEND_RSA;
+        if (checkRFT(rsaReceived)) {
+            *state = RFT;
+            cout << "entrou no if " << endl;
         } else {
-            *state = RECV_SYN;
-        }
+            /******************** Stop Network Time ********************/
+            t2 = currentTime();
+            networkTime = elapsedTime(t1, t2);
 
-        /******************** Verbose ********************/
-        if (VERBOSE) {recv_rsa_verbose(rsaStorage, nonceA, isHashValid, isNonceTrue);}
+            /******************** Start Processing Time ********************/
+            t1 = currentTime();
+
+            /******************** Store RSA Data ********************/
+            RSAPackage rsaPackage = *rsaReceived.getRSAPackage();
+
+            rsaStorage = new RSAStorage();
+            rsaStorage->setPartnerPublicKey(rsaPackage.getPublicKey());
+            rsaStorage->setPartnerFDR(rsaPackage.getFDR());
+
+            /******************** Decrypt Hash ********************/
+            string rsaString = rsaPackage.toString();
+            string decryptedHash = decryptHash(rsaReceived.getEncryptedHash());
+
+            /******************** Store TP ********************/
+            tp = rsaReceived.getProcessingTime();
+
+            /******************** Store Nonce A ********************/
+            storeNonceA(rsaPackage.getNonceA());
+
+            /******************** Validity Hash ********************/
+            bool isHashValid = iotAuth.isHashValid(&rsaString, &decryptedHash);
+            bool isNonceTrue = strcmp(rsaPackage.getNonceB(), nonceB) == 0;
+
+
+            if (isHashValid && isNonceTrue) {
+                *state = SEND_RSA;
+            } else {
+                *state = RECV_SYN;
+            }
+
+            /******************** Verbose ********************/
+            if (VERBOSE) recv_rsa_verbose(rsaStorage, nonceA, isHashValid, isNonceTrue);
+        }
+    
     } else {
         *state = SEND_SYN;
         if (VERBOSE) response_timeout_verbose();
@@ -331,15 +303,12 @@ void send_rsa(States *state, int socket, struct sockaddr *client, socklen_t size
 */
 void recv_rsa_ack(States *state, int socket, struct sockaddr *client, socklen_t size)
 {
-    RSAKeyExchange* const rsaReceived = new RSAKeyExchange();
-    int recv = recvfrom(socket, rsaReceived, sizeof(RSAKeyExchange), 0, client, &size);
+    RSAKeyExchange rsaReceived;
+    int recv = recvfrom(socket, &rsaReceived, sizeof(RSAKeyExchange), 0, client, &size);
 
     if (recv > 0) {
 
-        byte* const message = new byte[sizeof(DONE_MESSAGE)];
-        ObjectToBytes(rsaReceived, message, sizeof(DONE_MESSAGE));
-
-        if (checkRequestForTermination(message)) {
+        if (checkRFT(rsaReceived)) {
             *state = RFT;
         } else {
 
@@ -349,18 +318,15 @@ void recv_rsa_ack(States *state, int socket, struct sockaddr *client, socklen_t 
 
             /******************** Proof of Time ********************/
             // double limit = processingTime1 + networkTime + (processingTime1 + networkTime)*0.1;
-            double limit = 0;
+            double limit = 1000;
 
             if (totalTime <= limit) {
                 /******************** Get Package ********************/
-                RSAPackage rsaPackage = *rsaReceived->getRSAPackage();
+                RSAPackage rsaPackage = *rsaReceived.getRSAPackage();
 
                 /******************** Decrypt Hash ********************/
                 string rsaString = rsaPackage.toString();
-                string decryptedHash = decryptHash(rsaReceived->getEncryptedHash());
-
-                /******************** Memory Release ********************/
-                delete rsaReceived;
+                string decryptedHash = decryptHash(rsaReceived.getEncryptedHash());
 
                 /******************** Store Nonce A ********************/
                 storeNonceA(rsaPackage.getNonceA());
@@ -407,7 +373,7 @@ void send_dh(States *state, int socket, struct sockaddr *client, socklen_t size)
     generateNonce(nonceB);
 
     /******************** Generate IV ********************/
-    int iv = iotAuth.randomNumber(9999);
+    int iv = iotAuth.randomNumber(90);
 
     /***************** Mount Package ******************/
     DiffieHellmanPackage dhPackage;
@@ -476,10 +442,7 @@ int recv_dh(States *state, int socket, struct sockaddr *client, socklen_t size)
 
     if (recv > 0) {
 
-        byte* const message = new byte[sizeof(DONE_MESSAGE)];
-        ObjectToBytes(encPacket, message, sizeof(DONE_MESSAGE));
-
-        if (checkRequestForTermination(message)) {
+        if (checkRFT(encPacket)) {
             *state = RFT;
         } else {
 
@@ -617,7 +580,7 @@ void rft(States *state, int socket, struct sockaddr *client, socklen_t size)
 */
 void done(States *state, int socket, struct sockaddr *client, socklen_t size)
 {
-    sendto(socket, DONE_MESSAGE, strlen(DONE_MESSAGE), 0, client, size);
+    sendto(socket, (bool*)DONE_MESSAGE, sizeof(DONE_MESSAGE), 0, client, size);
     *state = WDC;
 
     if (VERBOSE) done_verbose();
@@ -655,7 +618,7 @@ void data_transfer(States *state, int socket, struct sockaddr *client, socklen_t
 
     /******************* Verifica Pedido de Fim de Conexão ********************/
 
-    if (checkRequestForTermination(message)) {
+    if (checkRFT(message)) {
         *state = RFT;
     } else {
 
@@ -679,7 +642,7 @@ void data_transfer(States *state, int socket, struct sockaddr *client, socklen_t
 
         uint8_t iv[16];
         for (int i = 0; i < 16; i++) {
-            iv[i] = diffieHellmanStorage->getIV();
+            iv[i] = diffieHellmanStorage->getSessionKey();
         }
 
         /* Converte a mensagem recebida (HEXA) para o array de char ciphertextChar. */
@@ -703,6 +666,7 @@ void data_transfer(States *state, int socket, struct sockaddr *client, socklen_t
 void stateMachine(int socket, struct sockaddr *client, socklen_t size)
 {
     static States state = RECV_SYN;
+
 
     switch (state) {
 

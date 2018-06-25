@@ -15,6 +15,36 @@
 
 using namespace std;
 
+/*  Função auxiliar utilizada pela função 'Object to Bytes'.
+    Converte um objeto T em um array de bytes.
+*/
+template<typename T>
+array< byte, sizeof(T)> to_bytes(const T& object)
+{
+    std::array< byte, sizeof(T) > bytes ;
+
+    const byte* begin = reinterpret_cast< const byte* >( std::addressof(object) ) ;
+    const byte* end = begin + sizeof(T) ;
+    std::copy( begin, end, std::begin(bytes) ) ;
+
+    return bytes ;
+}
+
+/*  Função auxiliar utilizada pela função 'Bytes to Object'.
+    Converte um array de bytes em um objeto T.
+*/
+template<typename T>
+T& from_bytes(const array<byte, sizeof(T)> &bytes, T& object)
+{
+    // http://en.cppreference.com/w/cpp/types/is_trivially_copyable
+    static_assert( std::is_trivially_copyable<T>::value, "not a TriviallyCopyable type" ) ;
+
+    byte* begin_object = reinterpret_cast< byte* >( std::addressof(object) ) ;
+    std::copy( std::begin(bytes), std::end(bytes), begin_object ) ;
+
+    return object ;
+}
+
 /*  Object to Bytes
     Converte um objeto qualquer para um array de bytes.
 */
@@ -79,35 +109,7 @@ void ByteToChar(byte* bytes, char* chars, unsigned int count);
 */
 std::vector<unsigned char> hex_to_bytes(std::string const& hex);
 
-/*  Função auxiliar utilizada pela função 'Object to Bytes'.
-    Converte um objeto T em um array de bytes.
-*/
-template<typename T>
-array< byte, sizeof(T)> to_bytes(const T& object)
-{
-    std::array< byte, sizeof(T) > bytes ;
 
-    const byte* begin = reinterpret_cast< const byte* >( std::addressof(object) ) ;
-    const byte* end = begin + sizeof(T) ;
-    std::copy( begin, end, std::begin(bytes) ) ;
-
-    return bytes ;
-}
-
-/*  Função auxiliar utilizada pela função 'Bytes to Object'.
-    Converte um array de bytes em um objeto T.
-*/
-template<typename T>
-T& from_bytes(const array<byte, sizeof(T)> &bytes, T& object)
-{
-    // http://en.cppreference.com/w/cpp/types/is_trivially_copyable
-    static_assert( std::is_trivially_copyable<T>::value, "not a TriviallyCopyable type" ) ;
-
-    byte* begin_object = reinterpret_cast< byte* >( std::addressof(object) ) ;
-    std::copy( std::begin(bytes), std::end(bytes), begin_object ) ;
-
-    return object ;
-}
 
 std::string stringTime();
 

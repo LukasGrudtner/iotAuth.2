@@ -3,12 +3,13 @@
 
 #include "fdr.h"
 
-#define MEM_TEST true
+#define MEM_TEST false
 
 /* Definição de alguns atributos utilizados na comunicação */
 #define VERBOSE true
 #define DEFAULT_PORT 8080
 
+#define DONE_M "AB"
 #define DONE_MESSAGE "DONE"
 
 #define DONE_ACK "!"
@@ -18,7 +19,7 @@
 #define SYN false
 
 /* Maximum time wait for response */
-#define TIMEOUT_SEC 5
+#define TIMEOUT_SEC 5000
 #define TIMEOUT_MIC 0
 
 typedef struct syn
