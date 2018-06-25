@@ -181,7 +181,6 @@ void recv_rsa(States *state, int socket, struct sockaddr *client, socklen_t size
 
         if (checkRFT(rsaReceived)) {
             *state = RFT;
-            cout << "entrou no if " << endl;
         } else {
             /******************** Stop Network Time ********************/
             t2 = currentTime();

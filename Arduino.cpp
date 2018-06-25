@@ -73,7 +73,7 @@ void Arduino::recv_ack(States *state, int socket, struct sockaddr *server, sockl
         /******************** Verbose ********************/
         if (VERBOSE) recv_ack_verbose(nonceB, sequence, serverIP, clientIP, isNonceTrue);
     } else {
-        loop = false;
+        *state = FINISH;
         if (VERBOSE) response_timeout_verbose();
     }
 }
@@ -186,7 +186,7 @@ void Arduino::recv_rsa(States *state, int socket, struct sockaddr *server, sockl
             }
         }
     } else {
-        loop = false;
+        *state = FINISH;
         if (VERBOSE) response_timeout_verbose();
     }
 }
@@ -300,7 +300,7 @@ void Arduino::recv_dh(States *state, int socket, struct sockaddr *server, sockle
             }
         }
     } else {
-        loop = false;
+        *state = FINISH;
         if (VERBOSE) response_timeout_verbose();
     }
 }
@@ -418,10 +418,10 @@ void Arduino::recv_dh_ack(States *state, int socket, struct sockaddr *server, so
                 if (VERBOSE) time_limit_burst_verbose();
                 *state = SEND_SYN;
             }
-            if (MEM_TEST) loop = false;
+            if (MEM_TEST) *state = FINISH;
         }
     } else {
-        loop = false;
+        *state = FINISH;
         if (VERBOSE) response_timeout_verbose();
     }
 }
@@ -461,6 +461,11 @@ void Arduino::data_transfer(States *state, int socket, struct sockaddr *server, 
         memset(envia, '\0', sizeof(envia));
         fgets(envia, 665, stdin);
     }
+}
+
+void Arduino::finish(States *state, int socket, struct sockaddr *client, socklen_t size)
+{
+    loop = false;
 }
 
 
@@ -562,6 +567,12 @@ void Arduino::stateMachine(int socket, struct sockaddr *server, socklen_t size)
         case SEND_DATA:
         {
             data_transfer(&state, socket, server, size);
+            break;
+        }
+
+        case FINISH:
+        {
+            finish(&state, socket, server, size);
             break;
         }
     }

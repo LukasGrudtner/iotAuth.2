@@ -19,7 +19,7 @@
 #define SYN false
 
 /* Maximum time wait for response */
-#define TIMEOUT_SEC 5000
+#define TIMEOUT_SEC 15
 #define TIMEOUT_MIC 0
 
 typedef struct syn
@@ -97,7 +97,7 @@ typedef enum {
     RECV_DH_ACK,
     SEND_DATA, 
     RECV_DATA, 
-    
+    FINISH,
     DONE, 
     RFT, 
     WDC
