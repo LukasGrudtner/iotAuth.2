@@ -5,19 +5,19 @@
 
 class FDR
 {
-    public:
-        char getOperator();
-        int getOperand();
-        void setOperator(char operating);
-        void setOperand(int operand);
+  public:
+    char getOperator();
+    int getOperand();
+    void setOperator(char operating);
+    void setOperand(int operand);
 
-        int getValue(int argument);
+    int getValue(int argument);
 
-        std::string toString();
+    std::string toString();
 
-    private:
-        char operating = '+';
-        int operand = 0;
+  private:
+    char operating = '+';
+    int operand = 0;
 };
 
 #endif

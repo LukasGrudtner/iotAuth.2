@@ -292,7 +292,8 @@ void recv_rsa_ack(States *state, int socket, struct sockaddr *client, socklen_t 
     totalTime = elapsedTime(t1, t2);
 
     /******************** Proof of Time ********************/
-    double limit = processingTime1 + networkTime + (processingTime1 + networkTime)*0.1;
+    // double limit = processingTime1 + networkTime + (processingTime1 + networkTime)*0.1;
+    double limit = 4000;
 
     if (totalTime <= limit) {
         /******************** Get Package ********************/

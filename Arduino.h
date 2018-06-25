@@ -48,7 +48,7 @@ class Arduino
         /*  Step 1
             Envia pedido de início de conexão ao Servidor.   
         */
-        void send_syn(States *state, int socket, struct sockaddr *server, socklen_t size);
+        void send_syn(States *state, int socket, struct sockaddr *server, const socklen_t size);
 
 
 

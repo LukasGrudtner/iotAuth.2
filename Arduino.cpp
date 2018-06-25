@@ -12,7 +12,7 @@ Arduino::Arduino()
 /*  Step 1
     Envia pedido de início de conexão ao Servidor.   
 */
-void Arduino::send_syn(States *state, int socket, struct sockaddr *server, socklen_t size)
+void Arduino::send_syn(States *state, int socket, struct sockaddr *server, const socklen_t size)
 {
     start = currentTime();
 
