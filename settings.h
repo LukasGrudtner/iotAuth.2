@@ -14,25 +14,25 @@
 #define DONE_ACK "!"
 #define DONE_ACK_CHAR '!'
 
-#define ACK '!'
-#define SYN '#'
+#define ACK true
+#define SYN false
 
 typedef struct syn
 {
-    char message = SYN;
+    bool message = SYN;
     char nonce[129];    /* HASH(time | idDestino | idOrigem | seq) */
 } structSyn;
 
 typedef struct ack
 {
-    char message = ACK;
+    bool message = ACK;
     char nonceA[129];
     char nonceB[129];
 } structAck;
 
 typedef struct DH_ACK 
 {
-    char message = ACK;
+    bool message = ACK;
     char nonce[129];
 } DH_ACK;
 

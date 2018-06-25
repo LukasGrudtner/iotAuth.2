@@ -130,6 +130,7 @@ class Arduino
         */
         void done(States *state, int socket, struct sockaddr *client, socklen_t size);
 
+        bool checkRequestForTermination(byte* message);
 
         
 

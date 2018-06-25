@@ -234,48 +234,55 @@ void Arduino::recv_dh(States *state, int socket, struct sockaddr *server, sockle
     t2 = currentTime();
     totalTime = elapsedTime(t1, t2);
 
-    /******************** Time of Proof ********************/
-    if (totalTime <= 2000) {
+    byte* message = new byte[sizeof(DHEncPacket)];
+    ObjectToBytes(encPacket, message, sizeof(DONE_MESSAGE));
 
-        /******************** Start Processing Time 2 ********************/
-        t_aux1 = currentTime();
-
-        /******************** Decrypt Exchange ********************/
-        DHKeyExchange dhKeyExchange;
-        int* const encryptedExchange = encPacket.getEncryptedExchange();
-        byte* const dhExchangeBytes = iotAuth.decryptRSA(encryptedExchange, rsaStorage->getMyPrivateKey(), sizeof(DHKeyExchange));
-        
-        BytesToObject(dhExchangeBytes, dhKeyExchange, sizeof(DHKeyExchange));
-        delete[] dhExchangeBytes;
-
-        /******************** Get DH Package ********************/
-        DiffieHellmanPackage dhPackage = dhKeyExchange.getDiffieHellmanPackage();
-
-        /******************** Decrypt Hash ********************/
-        string decryptedHash = decryptHash(dhKeyExchange.getEncryptedHash());
-
-        /******************** Validity ********************/
-        string dhString = dhPackage.toString();
-        const bool isHashValid = iotAuth.isHashValid(&dhString, &decryptedHash);
-        const bool isNonceTrue = strcmp(dhPackage.getNonceA(), nonceA) == 0;
-
-        if (isHashValid && isNonceTrue) {
-            /******************** Store Nounce B ********************/
-            storeNonceB(dhPackage.getNonceB());
-
-            /******************** Store DH Package ********************/
-            storeDiffieHellman(&dhPackage);
-
-            *state = SEND_DH;
-        } else {
-            *state = SEND_SYN;
-        }
-
-        if (VERBOSE) recv_dh_verbose(&dhPackage, isHashValid, isNonceTrue);
-
+    if (checkRequestForTermination(message)) {
+        *state = RFT;
     } else {
-        if (VERBOSE) time_limit_burst_verbose();
-        *state = SEND_SYN;
+        /******************** Time of Proof ********************/
+        if (totalTime <= 2000) {
+
+            /******************** Start Processing Time 2 ********************/
+            t_aux1 = currentTime();
+
+            /******************** Decrypt Exchange ********************/
+            DHKeyExchange dhKeyExchange;
+            int* const encryptedExchange = encPacket.getEncryptedExchange();
+            byte* const dhExchangeBytes = iotAuth.decryptRSA(encryptedExchange, rsaStorage->getMyPrivateKey(), sizeof(DHKeyExchange));
+            
+            BytesToObject(dhExchangeBytes, dhKeyExchange, sizeof(DHKeyExchange));
+            delete[] dhExchangeBytes;
+
+            /******************** Get DH Package ********************/
+            DiffieHellmanPackage dhPackage = dhKeyExchange.getDiffieHellmanPackage();
+
+            /******************** Decrypt Hash ********************/
+            string decryptedHash = decryptHash(dhKeyExchange.getEncryptedHash());
+
+            /******************** Validity ********************/
+            string dhString = dhPackage.toString();
+            const bool isHashValid = iotAuth.isHashValid(&dhString, &decryptedHash);
+            const bool isNonceTrue = strcmp(dhPackage.getNonceA(), nonceA) == 0;
+
+            if (isHashValid && isNonceTrue) {
+                /******************** Store Nounce B ********************/
+                storeNonceB(dhPackage.getNonceB());
+
+                /******************** Store DH Package ********************/
+                storeDiffieHellman(&dhPackage);
+
+                *state = SEND_DH;
+            } else {
+                *state = SEND_SYN;
+            }
+
+            if (VERBOSE) recv_dh_verbose(&dhPackage, isHashValid, isNonceTrue);
+
+        } else {
+            if (VERBOSE) time_limit_burst_verbose();
+            *state = DONE;
+        }
     }
 }
 
@@ -540,14 +547,14 @@ void Arduino::stateMachine(int socket, struct sockaddr *server, socklen_t size)
 */
 void Arduino::wdc(States *state, int socket, struct sockaddr *server, socklen_t size)
 {
-    // char message[1];
-    // recvfrom(socket, message, sizeof(message), 0, server, &size);
+    char message[2];
+    recvfrom(socket, message, sizeof(message), 0, server, &size);
 
-    // if (message[0] == DONE_ACK_CHAR) {
-    //     *state = HELLO;
-    // } else {
-    //     *state = WDC;
-    // }
+    if (message[0] == DONE_ACK_CHAR) {
+        *state = RECV_ACK;
+    } else {
+        *state = WDC;
+    }
 }
 
 /*  Request for Termination
@@ -556,10 +563,10 @@ void Arduino::wdc(States *state, int socket, struct sockaddr *server, socklen_t 
 */
 void Arduino::rft(States *state, int socket, struct sockaddr *server, socklen_t size)
 {
-    // sendto(socket, DONE_ACK, strlen(DONE_ACK), 0, server, size);
-    // *state = HELLO;
+    sendto(socket, DONE_ACK, strlen(DONE_ACK), 0, server, size);
+    *state = RECV_ACK;
 
-    // if (VERBOSE) {rft_verbose();}
+    if (VERBOSE) {rft_verbose();}
 }
 
 
@@ -654,7 +661,6 @@ string Arduino::encryptMessage(char* message, int size)
         key[i] = dhStorage->getSessionKey();
     }
 
-    // uint8_t iv[]  = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
     uint8_t iv[16];
     for (int i = 0; i < 16; i++) {
         iv[i] = dhStorage->getIV();
@@ -669,4 +675,21 @@ string Arduino::encryptMessage(char* message, int size)
     const string result = Uint8_tToHexString(encrypted, size);
 
     return result;
+}
+
+bool Arduino::checkRequestForTermination(byte* message)
+{
+    char aux[strlen(DONE_MESSAGE)+1];
+    aux[strlen(DONE_MESSAGE)] = '\0';
+
+    for (int i = 0; i < strlen(DONE_MESSAGE); i++) {
+        aux[i] = (char)message[i];
+    }
+
+    /* Verifica se a mensagem recebida é um DONE. */
+    if (strcmp(aux, DONE_MESSAGE) == 0) {
+        return true;
+    } else {
+        return false;
+    }
 }

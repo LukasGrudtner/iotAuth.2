@@ -28,7 +28,6 @@
 
 #include "sys/types.h"
 #include "sys/sysinfo.h"
-#include <fstream>
 
 using namespace std;
 
@@ -293,7 +292,7 @@ void recv_rsa_ack(States *state, int socket, struct sockaddr *client, socklen_t 
 
     /******************** Proof of Time ********************/
     // double limit = processingTime1 + networkTime + (processingTime1 + networkTime)*0.1;
-    double limit = 4000;
+    double limit = 0;
 
     if (totalTime <= limit) {
         /******************** Get Package ********************/
@@ -324,7 +323,7 @@ void recv_rsa_ack(States *state, int socket, struct sockaddr *client, socklen_t 
 
     } else {
         if (VERBOSE) time_limit_burst_verbose();
-        *state = SEND_SYN;
+        *state = DONE;
     }
 }
 
@@ -505,20 +504,19 @@ void send_dh_ack(States *state, int socket, struct sockaddr *client, socklen_t s
 */
 bool checkRequestForTermination(char* message)
 {
-    // char aux[strlen(DONE_MESSAGE)+1];
-    // aux[strlen(DONE_MESSAGE)] = '\0';
+    char aux[strlen(DONE_MESSAGE)+1];
+    aux[strlen(DONE_MESSAGE)] = '\0';
 
-    // for (int i = 0; i < strlen(DONE_MESSAGE); i++) {
-    //     aux[i] = message[i];
-    // }
+    for (int i = 0; i < strlen(DONE_MESSAGE); i++) {
+        aux[i] = message[i];
+    }
 
-    // /* Verifica se a mensagem recebida é um DONE. */
-    // if (strcmp(aux, DONE_MESSAGE) == 0) {
-    //     return true;
-    // } else {
-    //     return false;
-    // }
-
+    /* Verifica se a mensagem recebida é um DONE. */
+    if (strcmp(aux, DONE_MESSAGE) == 0) {
+        return true;
+    } else {
+        return false;
+    }
 }
 
 /*  Waiting Done Confirmation
@@ -528,14 +526,15 @@ bool checkRequestForTermination(char* message)
 */
 void wdc(States *state, int socket, struct sockaddr *client, socklen_t size)
 {
-    // char message[512];
-    // recvfrom(socket, message, sizeof(message), 0, client, &size);
+    char message[2];
+    recvfrom(socket, message, sizeof(message), 0, client, &size);
 
-    // if (message[0] == DONE_ACK_CHAR) {
-    //     *state = HELLO;
-    // } else {
-    //     *state = WDC;
-    // }
+    if (message[0] == DONE_ACK_CHAR) {
+        if (VERBOSE) wdc_verbose();
+        *state = RECV_SYN;
+    } else {
+        *state = WDC;
+    }
 }
 
 /*  Request for Termination
@@ -544,10 +543,10 @@ void wdc(States *state, int socket, struct sockaddr *client, socklen_t size)
 */
 void rft(States *state, int socket, struct sockaddr *client, socklen_t size)
 {
-    // sendto(socket, DONE_ACK, strlen(DONE_ACK), 0, client, size);
-    // *state = HELLO;
+    sendto(socket, DONE_ACK, strlen(DONE_ACK), 0, client, size);
+    *state = RECV_SYN;
 
-    // if (VERBOSE) {rft_verbose();}
+    if (VERBOSE) rft_verbose();
 }
 
 
@@ -563,6 +562,8 @@ void done(States *state, int socket, struct sockaddr *client, socklen_t size)
 {
     sendto(socket, DONE_MESSAGE, strlen(DONE_MESSAGE), 0, client, size);
     *state = WDC;
+
+    if (VERBOSE) done_verbose();
 }
 
 
@@ -651,7 +652,6 @@ void stateMachine(int socket, struct sockaddr *client, socklen_t size)
         /* Waiting Done Confirmation */
         case WDC:
         {
-            cout << "WAITING DONE CONFIRMATION" << endl;
             wdc(&state, socket, client, size);
             break;
         }
@@ -659,7 +659,6 @@ void stateMachine(int socket, struct sockaddr *client, socklen_t size)
         /* Request For Termination */
         case RFT:
         {
-            cout << "REQUEST FOR TERMINATION RECEIVED" << endl;
             rft(&state, socket, client, size);
             break;
         }
@@ -667,7 +666,6 @@ void stateMachine(int socket, struct sockaddr *client, socklen_t size)
         /* Done */
         case DONE:
         {
-            cout << "SEND DONE" << endl;
             done(&state, socket, client, size);
             break;
         }

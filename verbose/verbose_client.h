@@ -21,7 +21,10 @@ void send_dh_ack_verbose(DH_ACK *ack, bool isNonceTrue);
 
 void time_limit_burst_verbose();
 
+void wdc_verbose();
 void rft_verbose();
+void done_verbose();
+
 void sdh_verbose(DiffieHellmanPackage *dhPackage);
 void rdh_verbose1(DHStorage *dhStorage, DiffieHellmanPackage *dhPackage, string *hash);
 void rdh_verbose2();

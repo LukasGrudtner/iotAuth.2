@@ -143,8 +143,6 @@ bool IotAuth::isAnswerCorrect(FDR* fdr, int argument, int answerFdr)
 /* Verifica se o HASH dado é idêntico ao HASH da mensagem. */
 bool IotAuth::isHashValid(string *message, string *hash) {
     string hash2 = this->hash(message);
-    cout << "HASH RECEBIDO: " << *hash << endl;
-    cout << "HASH NORMAL: " << hash2 << endl;
     return *hash == hash2;
 }
 
