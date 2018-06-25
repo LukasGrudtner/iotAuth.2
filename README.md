@@ -29,10 +29,12 @@ $ ./client localhost
 ## CPU
 - <strong> Server </strong>
 ```sh
-23/06/18 - 3.24917 ms (average)
+23/06/18 - 3.24917 ms (localhost)
+25/03/18 - 21.8499 ms (local network | Raspberry Pi 3)
 ```
 
 - <strong> Client </strong>
 ```sh
-23/06/18 - 3.43704 ms (average)
+23/06/18 - 3.43704 ms (localhost)
+25/03/18 - 24.9951 ms (local network | Raspberry Pi 3)
 ```
