@@ -15,6 +15,11 @@ int DHStorage::getSessionKey()
     return sessionKey;
 }
 
+int DHStorage::getIV()
+{
+    return iv;
+}
+
 int DHStorage::calculateResult()
 {
     int aux = pow(base, exponent);
@@ -45,4 +50,9 @@ void DHStorage::setModulus(int modulus)
 void DHStorage::setExponent(int exponent)
 {
     this->exponent = exponent;
+}
+
+void DHStorage::setIV(int iv)
+{
+    this->iv = iv;
 }

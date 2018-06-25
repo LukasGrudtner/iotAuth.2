@@ -72,6 +72,7 @@ void send_dh_verbose(DiffieHellmanPackage *dhPackage, int sequence, double tp)
         cout << "p: " << dhPackage->getModulus() << endl;
         cout << "Sequence: " << sequence << endl;
         cout << "nB: " << dhPackage->getNonceB() << " (generated)" << endl;
+        cout << "IV: " << dhPackage->getIV() << endl;
         cout << "tp: " << tp << " ms" << endl;
         cout << "**************************************************************************\n" << endl;
 }

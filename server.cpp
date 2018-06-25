@@ -345,6 +345,9 @@ void send_dh(States *state, int socket, struct sockaddr *client, socklen_t size)
     /******************** Generate Nonce B ********************/
     generateNonce(nonceB);
 
+    /******************** Generate IV ********************/
+    int iv = iotAuth.randomNumber(9999);
+
     /***************** Mount Package ******************/
     DiffieHellmanPackage dhPackage;
     dhPackage.setResult(diffieHellmanStorage->calculateResult());
@@ -352,6 +355,7 @@ void send_dh(States *state, int socket, struct sockaddr *client, socklen_t size)
     dhPackage.setModulus(diffieHellmanStorage->getModulus());
     dhPackage.setNonceA(nonceA);
     dhPackage.setNonceB(nonceB);
+    dhPackage.setIV(iv);
 
     /******************** Get Hash ********************/
     string packageString = dhPackage.toString();
@@ -617,7 +621,7 @@ void data_transfer(States *state, int socket, struct sockaddr *client, socklen_t
 
         uint8_t iv[16];
         for (int i = 0; i < 16; i++) {
-            iv[i] = diffieHellmanStorage->getSessionKey();
+            iv[i] = diffieHellmanStorage->getIV();
         }
 
         /* Converte a mensagem recebida (HEXA) para o array de char ciphertextChar. */

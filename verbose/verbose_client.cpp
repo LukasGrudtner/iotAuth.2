@@ -70,6 +70,7 @@ void recv_dh_verbose(DiffieHellmanPackage *dhPackage, bool isHashValid, bool isN
     cout << "g: " << dhPackage->getBase() << endl;
     cout << "p: " << dhPackage->getModulus() << endl;
     cout << "nB: " << dhPackage->getNonceB() << " (stored)" << endl;
+    cout << "IV: " << dhPackage->getIV() << endl;
     cout << "Is Hash Valid? " << isHashValid << endl;
     cout << "Is Nonce True? " << isNonceTrue << endl;
     cout << "**************************************************************************\n" << endl;

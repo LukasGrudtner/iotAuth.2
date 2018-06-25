@@ -11,6 +11,8 @@ class DHStorage
         int getModulus();
         int getSessionKey();
 
+        int getIV();
+
         int calculateResult();
         int calculateSessionKey(int result);
 
@@ -19,11 +21,14 @@ class DHStorage
         void setModulus(int modulus);
         void setExponent(int exponent);
 
+        void setIV(int iv);
+
     private:
         int exponent;   /* a */
         int base;       /* g */
         int modulus;    /* p */
         int sessionKey;
+        int iv;
 };
 
 #endif

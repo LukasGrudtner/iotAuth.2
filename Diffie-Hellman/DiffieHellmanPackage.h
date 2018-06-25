@@ -18,6 +18,8 @@ class DiffieHellmanPackage
         char *getNonceA();
         char *getNonceB();
 
+        int getIV();
+
         /* Setters */
         void setResult(int r);
         void setBase(int base);
@@ -26,12 +28,16 @@ class DiffieHellmanPackage
         void setNonceA(char *nonce);
         void setNonceB(char *nonce);
 
+        void setIV(int iv);
+
         std::string toString();
 
     private:
         int result      = 0;
         int g           = 0;    // Base
         int p           = 0;    // Modulus
+
+        int iv;
 
         char nonceA[129];
         char nonceB[129];

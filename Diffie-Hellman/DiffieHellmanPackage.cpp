@@ -26,6 +26,11 @@ char *DiffieHellmanPackage::getNonceB()
     return nonceB;
 }
 
+int DiffieHellmanPackage::getIV()
+{
+    return iv;
+}
+
 void DiffieHellmanPackage::setNonceA(char *nonce)
 {
     strncpy(nonceA, nonce, sizeof(nonceA));
@@ -49,6 +54,11 @@ void DiffieHellmanPackage::setBase(int base)
 void DiffieHellmanPackage::setModulus(int modulus)
 {
     p = modulus;
+}
+
+void DiffieHellmanPackage::setIV(int iv)
+{
+    this->iv = iv;
 }
 
 std::string DiffieHellmanPackage::toString()
