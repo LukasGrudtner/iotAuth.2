@@ -55,6 +55,13 @@ char buffer[666];
 
 bool connected = false;
 
+typedef struct Socket
+{
+    int socket;
+    struct sockaddr *client;
+    socklen_t size;
+} t_socket;
+
 /*  Armazena o valor do nonce B em uma variável global. */
 void storeNonceA(char *nonce)
 {
@@ -112,10 +119,10 @@ bool checkRFT(T &object)
     fim de conexão enviado pelo Servidor (DONE_ACK).
     Em caso positivo, altera o estado para HELLO, senão, mantém em WDC. 7
 */
-void wdc(int socket, struct sockaddr *client, socklen_t size)
+void wdc(Socket *soc)
 {
     char message[2];
-    int recv = recvfrom(socket, message, sizeof(message), 0, client, &size);
+    int recv = recvfrom(soc->socket, message, sizeof(message), 0, soc->client, &soc->size);
 
     if (recv > 0)
     {
@@ -141,9 +148,9 @@ void wdc(int socket, struct sockaddr *client, socklen_t size)
     Envia uma confirmação (DONE_ACK) para o pedido de término de conexão
     vindo do Cliente, e seta o estado para HELLO.
 */
-void rft(int socket, struct sockaddr *client, socklen_t size)
+void rft(Socket *soc)
 {
-    sendto(socket, DONE_ACK, strlen(DONE_ACK), 0, client, size);
+    sendto(soc->socket, DONE_ACK, strlen(DONE_ACK), 0, soc->client, soc->size);
     connected = false;
 
     if (VERBOSE)
@@ -154,20 +161,20 @@ void rft(int socket, struct sockaddr *client, socklen_t size)
     Envia um pedido de término de conexão ao Cliente, e seta o estado atual
     para WDC (Waiting Done Confirmation).
 */
-void done(int socket, struct sockaddr *client, socklen_t size)
+void done(Socket *soc)
 {
-    sendto(socket, DONE_MESSAGE, sizeof(DONE_MESSAGE), 0, client, size);
+    sendto(soc->socket, DONE_MESSAGE, sizeof(DONE_MESSAGE), 0, soc->client, soc->size);
     
     if (VERBOSE)
         done_verbose();
         
-    wdc(socket, client, size);
+    wdc(soc);
 }
 
 /*  Step 8
     Envia confirmação para o Cliente referente ao recebimento dos dados Diffie-Hellman.
 */
-void send_dh_ack(int socket, struct sockaddr *client, socklen_t size)
+void send_dh_ack(Socket *soc)
 {
     /******************** Mount ACK ********************/
     DH_ACK ack;
@@ -183,7 +190,7 @@ void send_dh_ack(int socket, struct sockaddr *client, socklen_t size)
     delete[] ackBytes;
 
     /******************** Send ACK ********************/
-    sendto(socket, (int *)encryptedAck, sizeof(DH_ACK) * sizeof(int), 0, client, size);
+    sendto(soc->socket, (int *)encryptedAck, sizeof(DH_ACK) * sizeof(int), 0, soc->client, soc->size);
 
     delete[] encryptedAck;
 
@@ -199,18 +206,18 @@ void send_dh_ack(int socket, struct sockaddr *client, socklen_t size)
 
 /*  Step 7
     Recebe os dados Diffie-Hellman vindos do Cliente.   */
-int recv_dh(int socket, struct sockaddr *client, socklen_t size)
+int recv_dh(Socket *soc)
 {
     /******************** Recv Enc Packet ********************/
     DHEncPacket encPacket;
-    int recv = recvfrom(socket, &encPacket, sizeof(DHEncPacket), 0, client, &size);
+    int recv = recvfrom(soc->socket, &encPacket, sizeof(DHEncPacket), 0, soc->client, &soc->size);
 
     if (recv > 0)
     {
 
         if (checkRFT(encPacket))
         {
-            rft(socket, client, size);
+            rft(soc);
         }
         else
         {
@@ -254,7 +261,7 @@ int recv_dh(int socket, struct sockaddr *client, socklen_t size)
                     /******************** Calculate Session Key ********************/
                     diffieHellmanStorage->setSessionKey(diffieHellmanStorage->calculateSessionKey(dhPackage.getResult()));
 
-                    send_dh_ack(socket, client, size);
+                    send_dh_ack(soc);
                 }
                 else if (!isHashValid)
                 {
@@ -284,7 +291,7 @@ int recv_dh(int socket, struct sockaddr *client, socklen_t size)
 /*  Step 6
     Realiza o envio dos dados Diffie-Hellman para o Cliente.
 */
-void send_dh(int socket, struct sockaddr *client, socklen_t size)
+void send_dh(Socket *soc)
 {
     /******************** Start Processing Time 2 ********************/
     t_aux1 = currentTime();
@@ -342,7 +349,7 @@ void send_dh(int socket, struct sockaddr *client, socklen_t size)
     t1 = currentTime();
 
     /******************** Send Exchange ********************/
-    sendto(socket, (DHEncPacket *)&encPacket, sizeof(DHEncPacket), 0, client, size);
+    sendto(soc->socket, (DHEncPacket *)&encPacket, sizeof(DHEncPacket), 0, soc->client, soc->size);
 
     /******************** Verbose ********************/
     if (VERBOSE)
@@ -352,22 +359,22 @@ void send_dh(int socket, struct sockaddr *client, socklen_t size)
     delete[] encryptedHash;
     delete[] encryptedExchange;
 
-    recv_dh(socket, client, size);
+    recv_dh(soc);
 }
 
 /*  Step 5
     Recebe confirmação do Cliente referente ao recebimento dos dados RSA.
 */
-void recv_rsa_ack(int socket, struct sockaddr *client, socklen_t size)
+void recv_rsa_ack(Socket *soc)
 {
     RSAKeyExchange rsaReceived;
-    int recv = recvfrom(socket, &rsaReceived, sizeof(RSAKeyExchange), 0, client, &size);
+    int recv = recvfrom(soc->socket, &rsaReceived, sizeof(RSAKeyExchange), 0, soc->client, &soc->size);
 
     if (recv > 0)
     {
         if (checkRFT(rsaReceived))
         {
-            rft(socket, client, size);
+            rft(soc);
         }
         else
         {
@@ -401,7 +408,7 @@ void recv_rsa_ack(int socket, struct sockaddr *client, socklen_t size)
                 /******************** Validity ********************/
                 if (isHashValid && isNonceTrue && isAnswerCorrect)
                 {
-                    send_dh(socket, client, size);
+                    send_dh(soc);
                 }
                 else if (!isHashValid)
                 {
@@ -436,7 +443,7 @@ void recv_rsa_ack(int socket, struct sockaddr *client, socklen_t size)
 /*  Step 4
     Realiza o envio dos dados RSA para o Cliente.
 */
-void send_rsa(int socket, struct sockaddr *client, socklen_t size)
+void send_rsa(Socket *soc)
 {
     /******************** Start Auxiliar Time ********************/
     t_aux1 = currentTime();
@@ -487,7 +494,7 @@ void send_rsa(int socket, struct sockaddr *client, socklen_t size)
     t1 = currentTime();
 
     /******************** Send Exchange ********************/
-    sendto(socket, (RSAKeyExchange *)&rsaExchange, sizeof(RSAKeyExchange), 0, client, size);
+    sendto(soc->socket, (RSAKeyExchange *)&rsaExchange, sizeof(RSAKeyExchange), 0, soc->client, soc->size);
 
     /******************** Memory Release ********************/
     delete[] encryptedHash;
@@ -496,24 +503,24 @@ void send_rsa(int socket, struct sockaddr *client, socklen_t size)
     if (VERBOSE)
         send_rsa_verbose(rsaStorage, sequence, nonceB);
     
-    recv_rsa_ack(socket, client, size);
+    recv_rsa_ack(soc);
 }
 
 /*  Step 3
     Recebe os dados RSA vindos do Cliente.
 */
-void recv_rsa(int socket, struct sockaddr *client, socklen_t size)
+void recv_rsa(Socket *soc)
 {
     /******************** Receive Exchange ********************/
     RSAKeyExchange rsaReceived;
-    int recv = recvfrom(socket, &rsaReceived, sizeof(RSAKeyExchange), 0, client, &size);
+    int recv = recvfrom(soc->socket, &rsaReceived, sizeof(RSAKeyExchange), 0, soc->client, &soc->size);
 
     if (recv > 0)
     {
 
         if (checkRFT(rsaReceived))
         {
-            rft(socket, client, size);
+            rft(soc);
         }
         else
         {
@@ -551,7 +558,7 @@ void recv_rsa(int socket, struct sockaddr *client, socklen_t size)
 
             if (isHashValid && isNonceTrue)
             {
-                send_rsa(socket, client, size);
+                send_rsa(soc);
             }
             else if (!isHashValid)
             {
@@ -574,7 +581,7 @@ void recv_rsa(int socket, struct sockaddr *client, socklen_t size)
 /*  Step 2
     Envia confirmação ao Cliente referente ao pedido de início de conexão.
 */
-void send_ack(int socket, struct sockaddr *client, socklen_t size)
+void send_ack(Socket *soc)
 {
     /******************** Init Sequence ********************/
     sequence = iotAuth.randomNumber(9999);
@@ -591,22 +598,22 @@ void send_ack(int socket, struct sockaddr *client, socklen_t size)
     t1 = currentTime();
 
     /******************** Send Package ********************/
-    sendto(socket, &toSend, sizeof(ack), 0, client, size);
+    sendto(soc->socket, &toSend, sizeof(ack), 0, soc->client, soc->size);
 
     /******************** Verbose ********************/
     if (VERBOSE)
         send_ack_verbose(nonceB, sequence, serverIP, clientIP);
 
-    recv_rsa(socket, client, size);
+    recv_rsa(soc);
 }
 
 /*  Step 1
     Recebe um pedido de início de conexão por parte do Cliente.
 */
-void recv_syn(int socket, struct sockaddr *client, socklen_t size)
+void recv_syn(Socket *soc)
 {
     structSyn received;
-    recvfrom(socket, &received, sizeof(syn), 0, client, &size);
+    recvfrom(soc->socket, &received, sizeof(syn), 0, soc->client, &soc->size);
 
     start = currentTime();
 
@@ -621,7 +628,7 @@ void recv_syn(int socket, struct sockaddr *client, socklen_t size)
         if (VERBOSE)
             recv_syn_verbose(nonceA);
 
-        send_ack(socket, client, size);
+        send_ack(soc);
     }
     else
     {
@@ -633,19 +640,19 @@ void recv_syn(int socket, struct sockaddr *client, socklen_t size)
 /*  Data Transfer
     Realiza a transferência de dados cifrados para o Cliente.
 */
-void data_transfer(int socket, struct sockaddr *client, socklen_t size)
+void data_transfer(Socket *soc)
 {
     delete rsaStorage;
     /********************* Recebimento dos Dados Cifrados *********************/
     char message[1333];
     memset(message, '\0', sizeof(message));
-    recvfrom(socket, message, sizeof(message) - 1, 0, client, &size);
+    recvfrom(soc->socket, message, sizeof(message) - 1, 0, soc->client, &soc->size);
 
     /******************* Verifica Pedido de Fim de Conexão ********************/
 
     if (checkRFT(message))
     {
-        rft(socket, client, size);
+        rft(soc);
     }
     else
     {
@@ -684,7 +691,7 @@ void data_transfer(int socket, struct sockaddr *client, socklen_t size)
         /* Decifra a mensagem em um vetor de uint8_t. */
         uint8_t *decrypted = iotAuth.decryptAES(ciphertext, key, iv, encryptedMessage.length());
         cout << "Decrypted: " << decrypted << endl;
-        
+
         // delete[] decrypted;
     }
 }
@@ -720,9 +727,11 @@ int wait()
     client = gethostbyname(client_name);
     clientIP = inet_ntoa(*(struct in_addr *)*client->h_addr_list);
 
+    Socket soc = {meuSocket, (struct sockaddr *)&cliente, tam_cliente};
+
     try
     {
-        recv_syn(meuSocket, (struct sockaddr *)&cliente, tam_cliente);
+        recv_syn(&soc);
     }
     catch (Reply e)
     {

@@ -28,6 +28,13 @@ using namespace std;
 
 /* Simulação das funções executadas pelo Arduino. */
 
+typedef struct Socket
+{
+    int socket;
+    struct sockaddr *server;
+    socklen_t size;
+} t_socket;
+
 class Arduino
 {
     public:
@@ -50,89 +57,87 @@ class Arduino
         /*  Step 1
             Envia pedido de início de conexão ao Servidor.   
         */
-        void send_syn(int socket, struct sockaddr *server, const socklen_t size);
+        void send_syn(Socket *soc);
 
 
 
         /*  Step 2
             Recebe confirmação do Servidor referente ao pedido de início de conexão.    
         */
-        void recv_ack(int socket, struct sockaddr *server, socklen_t size);
+        void recv_ack(Socket *soc);
 
 
 
         /*  Step 3
             Realiza o envio dos dados RSA para o Servidor.  
         */
-        void send_rsa(int socket, struct sockaddr *server, socklen_t size);
+        void send_rsa(Socket *soc);
 
 
 
         /*  Step 4
             Recebe os dados RSA vindos do Servidor.
         */
-        void recv_rsa(int socket, struct sockaddr *server, socklen_t size);
+        void recv_rsa(Socket *soc);
 
 
 
         /*  Step 5
             Envia confirmação para o Servidor referente ao recebimento dos dados RSA.  
         */
-        void send_rsa_ack(int socket, struct sockaddr *server, socklen_t size);
+        void send_rsa_ack(Socket *soc);
 
 
         
         /*  Step 6
             Realiza o recebimento dos dados Diffie-Hellman vinda do Servidor.
         */
-        void recv_dh(int socket, struct sockaddr *server, socklen_t size);
+        void recv_dh(Socket *soc);
 
 
 
         /*  Step 7
             Realiza o envio dos dados Diffie-Hellman para o Servidor.
         */
-        void send_dh(int socket, struct sockaddr *client, socklen_t size);
+        void send_dh(Socket *soc);
 
 
 
         /*  Step 8
             Recebe a confirmação do Servidor referente aos dados Diffie-Hellman enviados.
         */
-        void recv_dh_ack(int socket, struct sockaddr *client, socklen_t size);
+        void recv_dh_ack(Socket *soc);
 
 
 
         /*  Step 9
             Realiza a transferência de dados cifrados para o Servidor.
         */
-        void data_transfer(int socket, struct sockaddr *client, socklen_t size);
+        void data_transfer(Socket *soc);
 
 
 
         /********************************************************************************************************/
-        // int stateMachine(int socket, struct sockaddr *client, socklen_t size);
 
         /*  Waiting Done Confirmation
             Verifica se a mensagem vinda do Cliente é uma confirmação do pedido de
             fim de conexão enviado pelo Servidor (DONE_ACK).
             Em caso positivo, altera o estado para HELLO, senão, mantém em WDC. 7
         */
-        void wdc(int socket, struct sockaddr *client, socklen_t size);
+        void wdc(Socket *soc);
 
         /*  Request for Termination
             Envia uma confirmação (DONE_ACK) para o pedido de término de conexão
             vindo do Cliente, e seta o estado para HELLO.
         */
-        void rft(int socket, struct sockaddr *client, socklen_t size);
+        void rft(Socket *soc);
 
         /*  Done
             Envia um pedido de término de conexão ao Cliente, e seta o estado atual
             para WDC (Waiting Done Confirmation).
         */
-        void done(int socket, struct sockaddr *client, socklen_t size);
+        void done(Socket *soc);
 
-        void finish(int socket, struct sockaddr *client, socklen_t size);
 
         template<typename T>
         bool checkRequestForTermination(T& object);

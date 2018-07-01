@@ -68,9 +68,11 @@ int connect(char *address)
     client = gethostbyname(client_name);
     arduino.clientIP = inet_ntoa(*(struct in_addr *)*client->h_addr_list);
 
+    Socket soc = {meuSocket, (struct sockaddr *)&servidor, sizeof(struct sockaddr_in)};
+
     try
     {
-        arduino.send_syn(meuSocket, (struct sockaddr *)&servidor, sizeof(struct sockaddr_in));
+        arduino.send_syn(&soc);
     }
     catch (Reply e)
     {
