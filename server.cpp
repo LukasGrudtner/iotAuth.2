@@ -735,7 +735,7 @@ int wait()
     }
     catch (Reply e)
     {
-        cerr << "Erro: " << e << endl;
+        reply_verbose(e);
         return e;
     }
 

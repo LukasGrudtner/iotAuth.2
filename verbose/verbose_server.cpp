@@ -127,3 +127,39 @@ void response_timeout_verbose()
         cout << "Exhausted response time." << endl;
         cout << "***********************************************************************\n" << endl; 
 }
+
+void reply_verbose(Reply reply)
+{
+        cout << "***********************************************************************" << endl;
+        cout << "Erro: ";
+        
+        switch (reply)
+        {
+                case OK:
+                        cout << "OK" << endl;
+                        break;
+                case DENIED:
+                        cout << "DENIED" << endl;
+                        break;
+                case TIMEOUT:
+                        cout << "TIMEOUT" << endl;
+                        break;
+                case NO_REPLY:
+                        cout << "NO_REPLY" << endl;
+                        break;
+                case NONCE_INVALID:
+                        cout << "NONCE_INVALID" << endl;
+                        break;
+                case FDR_INVALID:
+                        cout << "FDR_INVALID" << endl;
+                        break;
+                case HASH_INVALID:
+                        cout << "HASH_INVALID" << endl;
+                        break;
+                case FINISHED:
+                        cout << "FINISHED" << endl;
+                        break;
+        }
+
+        cout << "***********************************************************************\n" << endl; 
+}

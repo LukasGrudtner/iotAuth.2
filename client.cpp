@@ -76,7 +76,7 @@ int connect(char *address)
     }
     catch (Reply e)
     {
-        cerr << "Erro: " << e << endl;
+        reply_verbose(e);
         return e;
     }
 
