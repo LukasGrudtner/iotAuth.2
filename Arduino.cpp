@@ -505,7 +505,7 @@ void Arduino::data_transfer(int socket, struct sockaddr *server, socklen_t size)
     }
 }
 
-void Arduino::finish(States *state, int socket, struct sockaddr *client, socklen_t size)
+void Arduino::finish(int socket, struct sockaddr *client, socklen_t size)
 {
     // loop = false;
 }

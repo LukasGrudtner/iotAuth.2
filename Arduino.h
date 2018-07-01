@@ -132,7 +132,7 @@ class Arduino
         */
         void done(int socket, struct sockaddr *client, socklen_t size);
 
-        void finish(States *state, int socket, struct sockaddr *client, socklen_t size);
+        void finish(int socket, struct sockaddr *client, socklen_t size);
 
         template<typename T>
         bool checkRequestForTermination(T& object);

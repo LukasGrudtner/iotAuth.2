@@ -633,7 +633,7 @@ void recv_syn(int socket, struct sockaddr *client, socklen_t size)
 /*  Data Transfer
     Realiza a transferência de dados cifrados para o Cliente.
 */
-void data_transfer(States *state, int socket, struct sockaddr *client, socklen_t size)
+void data_transfer(int socket, struct sockaddr *client, socklen_t size)
 {
     delete rsaStorage;
     /********************* Recebimento dos Dados Cifrados *********************/
@@ -645,7 +645,7 @@ void data_transfer(States *state, int socket, struct sockaddr *client, socklen_t
 
     if (checkRFT(message))
     {
-        *state = RFT;
+        rft(socket, client, size);
     }
     else
     {
@@ -684,8 +684,7 @@ void data_transfer(States *state, int socket, struct sockaddr *client, socklen_t
         /* Decifra a mensagem em um vetor de uint8_t. */
         uint8_t *decrypted = iotAuth.decryptAES(ciphertext, key, iv, encryptedMessage.length());
         cout << "Decrypted: " << decrypted << endl;
-
-        *state = RECV_DATA;
+        
         // delete[] decrypted;
     }
 }

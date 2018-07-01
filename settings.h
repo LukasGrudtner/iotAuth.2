@@ -56,48 +56,6 @@ typedef struct rsa_key_pair
     RSAKey privateKey;
 } RSAKeyPair;
 
-/* Definição de todos os possíveis estados da FSM:
-    SEND_SYN        :   Envia pedido de início de conexão.
-    RECV_SYN        :   Recebe pedido de início de conexão.
-    SEND_ACK        :   Envia confirmação do início da conexão.
-    RECV_ACK        :   Recebe confirmação do início da conexão.
-    SEND_RSA        :   Envia informações RSA.
-    RECV_RSA        :   Recebe informações RSA.
-    SEND_RSA_ACK    :   Envia confirmação RSA.
-    RECV_RSA_ACK    :   Recebe confirmação RSA.
-    SEND_DH         :   Envia informações Diffie-Hellman.
-    RECV_DH         :   Recebe informações Diffie-Hellman.
-    SEND_DH_ACK     :   Envia confirmação Diffie-Hellman.
-    RECV_DH_ACK     :   Recebe confirmação Diffie-Hellman.
-    SEND_DATA       :   Envia dados cifrados.
-    RECV_DATA       :   Recebe dados cifrados.
-    DONE    :   Envia pedido de término de conexão.
-    RFT     :   Envia confirmação de término de conexão.        :   Request for Termination
-    WDC     :   Aguardando confirmação para término de conexão. :   Waiting Done Confirmation
-  
-
-*/
-typedef enum {
-    SEND_SYN, 
-    RECV_SYN,
-    SEND_ACK,
-    RECV_ACK,
-    SEND_RSA, 
-    RECV_RSA, 
-    SEND_RSA_ACK, 
-    RECV_RSA_ACK, 
-    SEND_DH, 
-    RECV_DH,
-    SEND_DH_ACK,
-    RECV_DH_ACK,
-    SEND_DATA, 
-    RECV_DATA, 
-    FINISH,
-    DONE, 
-    RFT, 
-    WDC
-} States;
-
 typedef enum {
     OK,
     DENIED,
