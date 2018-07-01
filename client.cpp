@@ -18,71 +18,79 @@ using namespace std;
 
 Arduino arduino;
 
-int main(int argc, char *argv[]){
+struct sockaddr_in servidor, cliente;
 
-    struct sockaddr_in servidor, cliente;
-    
-    int meuSocket;
-    socklen_t tam_cliente;
-    char envia[556];
-    char recebe[10000];
-    struct hostent *server;
+int meuSocket;
+socklen_t tam_cliente;
+char envia[556];
+char recebe[10000];
+struct hostent *server;
+char host_name[256];
+char client_name[256];
 
-    if (argv[1] == NULL) {
+int connect(char *address)
+{
+    if (*address == '\0')
+    {
         fprintf(stderr, "ERROR, no such host\n");
-        exit(0);
+        return DENIED;
     }
-    server = gethostbyname(argv[1]);
-    if (server == NULL) {
+
+    server = gethostbyname(address);
+    if (server == NULL)
+    {
         fprintf(stderr, "ERROR, no such host\n");
-        exit(0);
+        return DENIED;
     }
 
     bcopy((char *)server->h_addr,
-         (char *)&servidor.sin_addr.s_addr,
-         server->h_length);
+          (char *)&servidor.sin_addr.s_addr,
+          server->h_length);
 
-    meuSocket=socket(PF_INET,SOCK_DGRAM,0);
-    servidor.sin_family=AF_INET; // familia de endereços
-    servidor.sin_port=htons(DEFAULT_PORT); // porta
-    // para usar um ip qualquer use inet_addr("10.10.10.10"); ao invés de htonl(INADDR_ANY)
-    // servidor.sin_addr.s_addr=htonl(INADDR_ANY);
-    // servidor.sin_addr.s_addr=inet_addr("150.162.237.172");
-
-    memset(envia, 0, sizeof(envia));
-    memset(recebe, 0, sizeof(recebe));
-
-    tam_cliente=sizeof(struct sockaddr_in);
+    meuSocket = socket(PF_INET, SOCK_DGRAM, 0);
+    servidor.sin_family = AF_INET;           // familia de endereços
+    servidor.sin_port = htons(DEFAULT_PORT); // porta
 
     /* Set maximum wait time for response */
     struct timeval tv;
     tv.tv_sec = TIMEOUT_SEC;
     tv.tv_usec = TIMEOUT_MIC;
-    setsockopt(meuSocket, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv);
+    setsockopt(meuSocket, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof tv);
 
     /* Get IP Address Server */
-    char host_name[256];
     gethostname(host_name, sizeof(host_name));
     server = gethostbyname(host_name);
-    char *serverIP;
-    serverIP = inet_ntoa(*(struct in_addr *)*server->h_addr_list);
+    arduino.serverIP = inet_ntoa(*(struct in_addr *)*server->h_addr_list);
 
     /* Get IP Address Client */
     struct hostent *client;
-    char client_name[256];
     gethostname(client_name, sizeof(client_name));
     client = gethostbyname(client_name);
-    char *clientIP;
-    clientIP = inet_ntoa(*(struct in_addr *)*client->h_addr_list);
+    arduino.clientIP = inet_ntoa(*(struct in_addr *)*client->h_addr_list);
 
-    arduino.clientIP = clientIP;
-    arduino.serverIP = serverIP;
-
-    while(arduino.loop){
-        arduino.stateMachine(meuSocket, (struct sockaddr*)&servidor, tam_cliente);
+    try
+    {
+        arduino.send_syn(meuSocket, (struct sockaddr *)&servidor, sizeof(struct sockaddr_in));
     }
-    close(meuSocket);
+    catch (Reply e)
+    {
+        cerr << "Erro: " << e << endl;
+        return e;
+    }
+
+    return OK;
+}
+
+int main(int argc, char *argv[])
+{
+
+    memset(envia, 0, sizeof(envia));
+    memset(recebe, 0, sizeof(recebe));
+
+    double start = currentTime();
+
+    connect(argv[1]);
 
     double end = currentTime();
-    cout << "Elapsed Time: " << elapsedTime(arduino.start, end) << " ms." << endl;
+    cout << "Elapsed Time: " << elapsedTime(start, end) << " ms." << endl;
 }

@@ -9,7 +9,6 @@
 #define VERBOSE true
 #define DEFAULT_PORT 8080
 
-#define DONE_M "AB"
 #define DONE_MESSAGE "DONE"
 
 #define DONE_ACK "!"
@@ -19,7 +18,7 @@
 #define SYN false
 
 /* Maximum time wait for response */
-#define TIMEOUT_SEC 15
+#define TIMEOUT_SEC 5
 #define TIMEOUT_MIC 0
 
 typedef struct syn
@@ -72,10 +71,6 @@ typedef struct rsa_key_pair
     RECV_DH_ACK     :   Recebe confirmação Diffie-Hellman.
     SEND_DATA       :   Envia dados cifrados.
     RECV_DATA       :   Recebe dados cifrados.
-
-    /// Implementar estados de término de conexão
-
-    
     DONE    :   Envia pedido de término de conexão.
     RFT     :   Envia confirmação de término de conexão.        :   Request for Termination
     WDC     :   Aguardando confirmação para término de conexão. :   Waiting Done Confirmation
@@ -102,5 +97,16 @@ typedef enum {
     RFT, 
     WDC
 } States;
+
+typedef enum {
+    OK,
+    DENIED,
+    TIMEOUT,
+    NO_REPLY,
+    NONCE_INVALID,
+    FDR_INVALID,
+    HASH_INVALID,
+    FINISHED,
+} Reply;
 
 #endif

@@ -34,7 +34,7 @@ class Arduino
 
         Arduino();
         
-        bool loop = true;
+        bool connected = false;
         char *clientIP;     /*  Endereço IP do Cliente.                 */
         char *serverIP;     /*  Endereço IP do Servidor.                */
         char nonceA[129];   /*  Armazena o nonce gerado do Cliente.     */
@@ -50,87 +50,87 @@ class Arduino
         /*  Step 1
             Envia pedido de início de conexão ao Servidor.   
         */
-        void send_syn(States *state, int socket, struct sockaddr *server, const socklen_t size);
+        void send_syn(int socket, struct sockaddr *server, const socklen_t size);
 
 
 
         /*  Step 2
             Recebe confirmação do Servidor referente ao pedido de início de conexão.    
         */
-        void recv_ack(States *state, int socket, struct sockaddr *server, socklen_t size);
+        void recv_ack(int socket, struct sockaddr *server, socklen_t size);
 
 
 
         /*  Step 3
             Realiza o envio dos dados RSA para o Servidor.  
         */
-        void send_rsa(States *state, int socket, struct sockaddr *server, socklen_t size);
+        void send_rsa(int socket, struct sockaddr *server, socklen_t size);
 
 
 
         /*  Step 4
             Recebe os dados RSA vindos do Servidor.
         */
-        void recv_rsa(States *state, int socket, struct sockaddr *server, socklen_t size);
+        void recv_rsa(int socket, struct sockaddr *server, socklen_t size);
 
 
 
         /*  Step 5
             Envia confirmação para o Servidor referente ao recebimento dos dados RSA.  
         */
-        void send_rsa_ack(States *state, int socket, struct sockaddr *server, socklen_t size);
+        void send_rsa_ack(int socket, struct sockaddr *server, socklen_t size);
 
 
         
         /*  Step 6
             Realiza o recebimento dos dados Diffie-Hellman vinda do Servidor.
         */
-        void recv_dh(States *state, int socket, struct sockaddr *server, socklen_t size);
+        void recv_dh(int socket, struct sockaddr *server, socklen_t size);
 
 
 
         /*  Step 7
             Realiza o envio dos dados Diffie-Hellman para o Servidor.
         */
-        void send_dh(States *state, int socket, struct sockaddr *client, socklen_t size);
+        void send_dh(int socket, struct sockaddr *client, socklen_t size);
 
 
 
         /*  Step 8
             Recebe a confirmação do Servidor referente aos dados Diffie-Hellman enviados.
         */
-        void recv_dh_ack(States *state, int socket, struct sockaddr *client, socklen_t size);
+        void recv_dh_ack(int socket, struct sockaddr *client, socklen_t size);
 
 
 
         /*  Step 9
             Realiza a transferência de dados cifrados para o Servidor.
         */
-        void data_transfer(States *state, int socket, struct sockaddr *client, socklen_t size);
+        void data_transfer(int socket, struct sockaddr *client, socklen_t size);
 
 
 
         /********************************************************************************************************/
-        void stateMachine(int socket, struct sockaddr *client, socklen_t size);
+        // int stateMachine(int socket, struct sockaddr *client, socklen_t size);
 
         /*  Waiting Done Confirmation
             Verifica se a mensagem vinda do Cliente é uma confirmação do pedido de
             fim de conexão enviado pelo Servidor (DONE_ACK).
             Em caso positivo, altera o estado para HELLO, senão, mantém em WDC. 7
         */
-        void wdc(States *state, int socket, struct sockaddr *client, socklen_t size);
+        void wdc(int socket, struct sockaddr *client, socklen_t size);
 
         /*  Request for Termination
             Envia uma confirmação (DONE_ACK) para o pedido de término de conexão
             vindo do Cliente, e seta o estado para HELLO.
         */
-        void rft(States *state, int socket, struct sockaddr *client, socklen_t size);
+        void rft(int socket, struct sockaddr *client, socklen_t size);
 
         /*  Done
             Envia um pedido de término de conexão ao Cliente, e seta o estado atual
             para WDC (Waiting Done Confirmation).
         */
-        void done(States *state, int socket, struct sockaddr *client, socklen_t size);
+        void done(int socket, struct sockaddr *client, socklen_t size);
 
         void finish(States *state, int socket, struct sockaddr *client, socklen_t size);
 

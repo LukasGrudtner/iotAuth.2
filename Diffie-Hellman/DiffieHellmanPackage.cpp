@@ -63,9 +63,10 @@ void DiffieHellmanPackage::setIV(int iv)
 
 std::string DiffieHellmanPackage::toString()
 {
-    std::string result =    std::to_string(getResult())     + ":" +
-                            std::to_string(getBase())       + ":" +
-                            std::to_string(getModulus());
+    std::string result = std::to_string(getResult()) + ":" +
+                         std::to_string(getBase()) + ":" +
+                         std::to_string(getModulus()) + ":" +
+                         std::to_string(getIV());
 
     return result;
 }

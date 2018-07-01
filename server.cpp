@@ -523,7 +523,7 @@ void send_dh_ack(States *state, int socket, struct sockaddr *client, socklen_t s
 
     /******************** Send ACK ********************/
     sendto(socket, (int*)encryptedAck, sizeof(DH_ACK)*sizeof(int), 0, client, size);
-    *state = RECV_DATA;
+    *state = FINISH;
 
     delete[] encryptedAck;
 
