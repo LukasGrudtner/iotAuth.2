@@ -534,7 +534,7 @@ void Arduino::wdc(int socket, struct sockaddr *server, socklen_t size)
         {
             if (VERBOSE)
                 wdc_verbose();
-            /* Termina a conexão */
+            connected = false;
         }
         else
         {
@@ -554,6 +554,7 @@ void Arduino::wdc(int socket, struct sockaddr *server, socklen_t size)
 void Arduino::rft(int socket, struct sockaddr *server, socklen_t size)
 {
     sendto(socket, DONE_ACK, strlen(DONE_ACK), 0, server, size);
+    connected = false;
 
     if (VERBOSE)
         rft_verbose();

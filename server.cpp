@@ -48,14 +48,18 @@ double t1, t2;
 double t_aux1, t_aux2;
 double start;
 
+struct sockaddr_in cliente, servidor;
+int meuSocket, enviei = 0;
+socklen_t tam_cliente;
+char buffer[666];
+
+bool connected = false;
 
 /*  Armazena o valor do nonce B em uma variável global. */
 void storeNonceA(char *nonce)
 {
     strncpy(nonceA, nonce, sizeof(nonceA));
 }
-
-
 
 /*  Gera um valor para o nonce B.   */
 void generateNonce(char *nonce)
@@ -67,9 +71,6 @@ void generateNonce(char *nonce)
     strncpy(nonce, hash.c_str(), 128);
 }
 
-
-
-
 /*  Decifra o hash utilizando a chave pública do Cliente. */
 string decryptHash(int *encryptedHash)
 {
@@ -77,7 +78,8 @@ string decryptHash(int *encryptedHash)
 
     char aux;
     string decryptedHashString = "";
-    for (int i = 0; i < 128; i++) {
+    for (int i = 0; i < 128; i++)
+    {
         aux = decryptedHash[i];
         decryptedHashString += aux;
     }
@@ -87,279 +89,202 @@ string decryptHash(int *encryptedHash)
     return decryptedHashString;
 }
 
-
-
 /*  Inicializa os valores pertinentes a troca de chaves Diffie-Hellman:
     expoente, base, módulo, resultado e a chave de sessão.
 */
 void generateDiffieHellman()
 {
     diffieHellmanStorage = new DHStorage();
-    diffieHellmanStorage->setBase(iotAuth.randomNumber(100)+2);
-    diffieHellmanStorage->setExponent(iotAuth.randomNumber(3)+2);
-    diffieHellmanStorage->setModulus(iotAuth.randomNumber(100)+2);
+    diffieHellmanStorage->setBase(iotAuth.randomNumber(100) + 2);
+    diffieHellmanStorage->setExponent(iotAuth.randomNumber(3) + 2);
+    diffieHellmanStorage->setModulus(iotAuth.randomNumber(100) + 2);
 }
 
-
-
-
-template<typename T>
-bool checkRFT(T& object)
+template <typename T>
+bool checkRFT(T &object)
 {
     int cmp = memcmp(&object, DONE_MESSAGE, strlen(DONE_MESSAGE));
     return cmp == 0;
 }
 
-
-/*  Step 1
-    Recebe um pedido de início de conexão por parte do Cliente.
+/*  Waiting Done Confirmation
+    Verifica se a mensagem vinda do Cliente é uma confirmação do pedido de
+    fim de conexão enviado pelo Servidor (DONE_ACK).
+    Em caso positivo, altera o estado para HELLO, senão, mantém em WDC. 7
 */
-void recv_syn(States *state, int socket, struct sockaddr *client, socklen_t size)
+void wdc(int socket, struct sockaddr *client, socklen_t size)
 {
-    structSyn received;
-    recvfrom(socket, &received, sizeof(syn), 0, client, &size);
+    char message[2];
+    int recv = recvfrom(socket, message, sizeof(message), 0, client, &size);
 
-    start = currentTime();
-
-    /* Verifica se a mensagem recebida é um HELLO. */
-    if (received.message == SYN) {
-
-        /******************** Store Nonce A ********************/
-        storeNonceA(received.nonce);
-        *state = SEND_ACK;
-
-        /******************** Verbose ********************/
-        if (VERBOSE) recv_syn_verbose(nonceA);
-    } else {
-        *state = RECV_SYN;
-    }
-}
-
-
-
-
-/*  Step 2
-    Envia confirmação ao Cliente referente ao pedido de início de conexão.
-*/
-void send_ack(States *state, int socket, struct sockaddr *client, socklen_t size)
-{
-    /******************** Init Sequence ********************/
-    sequence = iotAuth.randomNumber(9999);
-
-    /******************** Generate Nounce B ********************/
-    generateNonce(nonceB);
-
-    /******************** Mount Package ********************/
-    structAck toSend;
-    strncpy(toSend.nonceA, nonceA, sizeof(toSend.nonceA));
-    strncpy(toSend.nonceB, nonceB, sizeof(toSend.nonceB));
-    
-    /******************** Start Network Time ********************/
-    t1 = currentTime();
-
-    /******************** Send Package ********************/
-    sendto(socket, &toSend, sizeof(ack), 0, client, size);
-    *state = RECV_RSA;
-
-    /******************** Verbose ********************/
-    if (VERBOSE) send_ack_verbose(nonceB, sequence, serverIP, clientIP);
-}
-
-
-
-
-/*  Step 3
-    Recebe os dados RSA vindos do Cliente.
-*/
-void recv_rsa(States *state, int socket, struct sockaddr *client, socklen_t size)
-{
-    /******************** Receive Exchange ********************/
-    RSAKeyExchange rsaReceived;
-    int recv = recvfrom(socket, &rsaReceived, sizeof(RSAKeyExchange), 0, client, &size);
-
-    if (recv > 0) {
-
-        if (checkRFT(rsaReceived)) {
-            *state = RFT;
-        } else {
-            /******************** Stop Network Time ********************/
-            t2 = currentTime();
-            networkTime = elapsedTime(t1, t2);
-
-            /******************** Start Processing Time ********************/
-            t1 = currentTime();
-
-            /******************** Store RSA Data ********************/
-            RSAPackage rsaPackage = *rsaReceived.getRSAPackage();
-
-            rsaStorage = new RSAStorage();
-            rsaStorage->setPartnerPublicKey(rsaPackage.getPublicKey());
-            rsaStorage->setPartnerFDR(rsaPackage.getFDR());
-
-            /******************** Decrypt Hash ********************/
-            string rsaString = rsaPackage.toString();
-            string decryptedHash = decryptHash(rsaReceived.getEncryptedHash());
-
-            /******************** Store TP ********************/
-            tp = rsaReceived.getProcessingTime();
-
-            /******************** Store Nonce A ********************/
-            storeNonceA(rsaPackage.getNonceA());
-
-            /******************** Validity Hash ********************/
-            bool isHashValid = iotAuth.isHashValid(&rsaString, &decryptedHash);
-            bool isNonceTrue = strcmp(rsaPackage.getNonceB(), nonceB) == 0;
-
-
-            if (isHashValid && isNonceTrue) {
-                *state = SEND_RSA;
-            } else {
-                *state = RECV_SYN;
-            }
-
-            /******************** Verbose ********************/
-            if (VERBOSE) recv_rsa_verbose(rsaStorage, nonceA, isHashValid, isNonceTrue);
+    if (recv > 0)
+    {
+        if (message[0] == DONE_ACK_CHAR)
+        {
+            if (VERBOSE)
+                wdc_verbose();
+            connected = false;
         }
-    
-    } else {
-        *state = SEND_SYN;
-        if (VERBOSE) response_timeout_verbose();
+        else
+        {
+            throw DENIED;
+        }
     }
+    else 
+    {
+        throw NO_REPLY;
+    }
+
 }
 
-
-
-
-/*  Step 4
-    Realiza o envio dos dados RSA para o Cliente.
+/*  Request for Termination
+    Envia uma confirmação (DONE_ACK) para o pedido de término de conexão
+    vindo do Cliente, e seta o estado para HELLO.
 */
-void send_rsa(States *state, int socket, struct sockaddr *client, socklen_t size)
+void rft(int socket, struct sockaddr *client, socklen_t size)
 {
-    /******************** Start Auxiliar Time ********************/
-    t_aux1 = currentTime();
+    sendto(socket, DONE_ACK, strlen(DONE_ACK), 0, client, size);
+    connected = false;
 
-    /******************** Get Answer FDR ********************/
-    int answerFdr = rsaStorage->getPartnerFDR()->getValue(rsaStorage->getPartnerPublicKey()->d);
+    if (VERBOSE)
+        rft_verbose();
+}
 
-    /******************** Generate RSA Keys and FDR ********************/
-    rsaStorage->setKeyPair(iotAuth.generateRSAKeyPair());
-    rsaStorage->setMyFDR(iotAuth.generateFDR());
+/*  Done
+    Envia um pedido de término de conexão ao Cliente, e seta o estado atual
+    para WDC (Waiting Done Confirmation).
+*/
+void done(int socket, struct sockaddr *client, socklen_t size)
+{
+    sendto(socket, DONE_MESSAGE, sizeof(DONE_MESSAGE), 0, client, size);
+    
+    if (VERBOSE)
+        done_verbose();
+        
+    wdc(socket, client, size);
+}
 
-    /******************** Generate Nonce ********************/
-    generateNonce(nonceB);
+/*  Step 8
+    Envia confirmação para o Cliente referente ao recebimento dos dados Diffie-Hellman.
+*/
+void send_dh_ack(int socket, struct sockaddr *client, socklen_t size)
+{
+    /******************** Mount ACK ********************/
+    DH_ACK ack;
+    ack.message = ACK;
+    strncpy(ack.nonce, nonceA, sizeof(ack.nonce));
 
-    /******************** Mount Package ********************/
-    RSAPackage rsaSent;
-    rsaSent.setPublicKey(*rsaStorage->getMyPublicKey());
-    rsaSent.setAnswerFDR(answerFdr);
-    rsaSent.setFDR(*rsaStorage->getMyFDR());
-    rsaSent.setNonceA(nonceA);
-    rsaSent.setNonceB(nonceB);
+    // /******************** Serialize ACK ********************/
+    byte *const ackBytes = new byte[sizeof(DH_ACK)];
+    ObjectToBytes(ack, ackBytes, sizeof(DH_ACK));
 
-    /******************** Get Hash ********************/
-    string packageString = rsaSent.toString();
-    string hash = iotAuth.hash(&packageString);
+    /******************** Encrypt ACK ********************/
+    int *const encryptedAck = iotAuth.encryptRSA(ackBytes, rsaStorage->getMyPrivateKey(), sizeof(DH_ACK));
+    delete[] ackBytes;
 
-    /******************** Encrypt Hash ********************/
-    int* const encryptedHash = iotAuth.encryptRSA(&hash, rsaStorage->getMyPrivateKey(), 128);
+    /******************** Send ACK ********************/
+    sendto(socket, (int *)encryptedAck, sizeof(DH_ACK) * sizeof(int), 0, client, size);
 
-    /******************** Stop Processing Time ********************/
-    t2 = currentTime();
-    processingTime1 = elapsedTime(t1, t2);
+    delete[] encryptedAck;
 
-    /******************** Stop Auxiliar Time ********************/
-    t_aux2 = currentTime();
-    auxiliarTime = elapsedTime(t_aux1, t_aux2);
-
-    /******************** Rectify Network Time ********************/
-    networkTime = networkTime - auxiliarTime;
-
-    /******************** Mount Exchange ********************/
-    RSAKeyExchange rsaExchange;
-    rsaExchange.setRSAPackage(&rsaSent);
-    rsaExchange.setEncryptedHash(encryptedHash);
-    rsaExchange.setProcessingTime(processingTime1);
-
-    /******************** Start Total Time ********************/
-    t1 = currentTime();
-
-    /******************** Send Exchange ********************/
-    sendto(socket, (RSAKeyExchange*)&rsaExchange, sizeof(RSAKeyExchange), 0, client, size);
-    *state = RECV_RSA_ACK;
-
-    /******************** Memory Release ********************/
-    delete[] encryptedHash;
+    if (MEM_TEST)
+        transfer_data = false;
 
     /******************** Verbose ********************/
-    if (VERBOSE) {send_rsa_verbose(rsaStorage, sequence, nonceB);}
+    if (VERBOSE)
+        send_dh_ack_verbose(&ack);
+
+    connected = true;
 }
 
-
-
-/*  Step 5
-    Recebe confirmação do Cliente referente ao recebimento dos dados RSA.
-*/
-void recv_rsa_ack(States *state, int socket, struct sockaddr *client, socklen_t size)
+/*  Step 7
+    Recebe os dados Diffie-Hellman vindos do Cliente.   */
+int recv_dh(int socket, struct sockaddr *client, socklen_t size)
 {
-    RSAKeyExchange rsaReceived;
-    int recv = recvfrom(socket, &rsaReceived, sizeof(RSAKeyExchange), 0, client, &size);
+    /******************** Recv Enc Packet ********************/
+    DHEncPacket encPacket;
+    int recv = recvfrom(socket, &encPacket, sizeof(DHEncPacket), 0, client, &size);
 
-    if (recv > 0) {
+    if (recv > 0)
+    {
 
-        if (checkRFT(rsaReceived)) {
-            *state = RFT;
-        } else {
-
+        if (checkRFT(encPacket))
+        {
+            rft(socket, client, size);
+        }
+        else
+        {
             /******************** Stop Total Time ********************/
             t2 = currentTime();
             totalTime = elapsedTime(t1, t2);
 
-            /******************** Proof of Time ********************/
-            // double limit = processingTime1 + networkTime + (processingTime1 + networkTime)*0.1;
-            double limit = 1000;
+            /******************** Time of Proof ********************/
+            // double limit = networkTime + processingTime2*2;
+            double limit = 4000;
 
-            if (totalTime <= limit) {
-                /******************** Get Package ********************/
-                RSAPackage rsaPackage = *rsaReceived.getRSAPackage();
+            if (totalTime <= limit)
+            {
+
+                /******************** Decrypt Exchange ********************/
+                DHKeyExchange dhKeyExchange;
+                int *const encryptedExchange = encPacket.getEncryptedExchange();
+                byte *const dhExchangeBytes = iotAuth.decryptRSA(encryptedExchange, rsaStorage->getMyPrivateKey(), sizeof(DHKeyExchange));
+
+                BytesToObject(dhExchangeBytes, dhKeyExchange, sizeof(DHKeyExchange));
+                delete[] dhExchangeBytes;
+
+                /******************** Get DH Package ********************/
+                DiffieHellmanPackage dhPackage = dhKeyExchange.getDiffieHellmanPackage();
 
                 /******************** Decrypt Hash ********************/
-                string rsaString = rsaPackage.toString();
-                string decryptedHash = decryptHash(rsaReceived.getEncryptedHash());
-
-                /******************** Store Nonce A ********************/
-                storeNonceA(rsaPackage.getNonceA());
-
-                bool isHashValid = iotAuth.isHashValid(&rsaString, &decryptedHash);
-                bool isNonceTrue = strcmp(rsaPackage.getNonceB(), nonceB) == 0;
-                bool isAnswerCorrect = iotAuth.isAnswerCorrect(rsaStorage->getMyFDR(), rsaStorage->getMyPublicKey()->d, rsaPackage.getAnswerFDR());
+                string decryptedHash = decryptHash(dhKeyExchange.getEncryptedHash());
 
                 /******************** Validity ********************/
-                if (isHashValid && isNonceTrue && isAnswerCorrect) {
-                    *state = SEND_DH;
-                } else {
-                    *state = RECV_SYN;
+                string dhString = dhPackage.toString();
+                const bool isHashValid = iotAuth.isHashValid(&dhString, &decryptedHash);
+                const bool isNonceTrue = strcmp(dhPackage.getNonceB(), nonceB) == 0;
+
+                if (VERBOSE)
+                    recv_dh_verbose(&dhPackage, diffieHellmanStorage->getSessionKey(), isHashValid, isNonceTrue);
+
+                if (isHashValid && isNonceTrue)
+                {
+                    /******************** Store Nounce A ********************/
+                    storeNonceA(dhPackage.getNonceA());
+                    /******************** Calculate Session Key ********************/
+                    diffieHellmanStorage->setSessionKey(diffieHellmanStorage->calculateSessionKey(dhPackage.getResult()));
+
+                    send_dh_ack(socket, client, size);
                 }
-
-                if (VERBOSE) recv_rsa_ack_verbose(nonceA, isHashValid, isAnswerCorrect, isNonceTrue);
-
-            } else {
-                if (VERBOSE) time_limit_burst_verbose();
-                *state = DONE;
+                else if (!isHashValid)
+                {
+                    throw HASH_INVALID;
+                }
+                else
+                {
+                    throw NONCE_INVALID;
+                }
+            }
+            else
+            {
+                if (VERBOSE)
+                    time_limit_burst_verbose();
+                throw TIMEOUT;
             }
         }
-    } else {
-        *state = RECV_SYN;
-        if (VERBOSE) response_timeout_verbose();
+    }
+    else
+    {
+        if (VERBOSE)
+            response_timeout_verbose();
+        throw NO_REPLY;
     }
 }
 
-
-
-
-/*  Step 7
+/*  Step 6
     Realiza o envio dos dados Diffie-Hellman para o Cliente.
 */
-void send_dh(States *state, int socket, struct sockaddr *client, socklen_t size)
+void send_dh(int socket, struct sockaddr *client, socklen_t size)
 {
     /******************** Start Processing Time 2 ********************/
     t_aux1 = currentTime();
@@ -388,7 +313,7 @@ void send_dh(States *state, int socket, struct sockaddr *client, socklen_t size)
     string hash = iotAuth.hash(&packageString);
 
     /******************** Encrypt Hash ********************/
-    int* const encryptedHash = iotAuth.encryptRSA(&hash, rsaStorage->getMyPrivateKey(), hash.length());
+    int *const encryptedHash = iotAuth.encryptRSA(&hash, rsaStorage->getMyPrivateKey(), hash.length());
 
     /******************** Mount Exchange ********************/
     DHKeyExchange dhSent;
@@ -396,13 +321,13 @@ void send_dh(States *state, int socket, struct sockaddr *client, socklen_t size)
     dhSent.setDiffieHellmanPackage(dhPackage);
 
     /********************** Serialization Exchange **********************/
-    byte* const dhExchangeBytes = new byte[sizeof(DHKeyExchange)];
+    byte *const dhExchangeBytes = new byte[sizeof(DHKeyExchange)];
     ObjectToBytes(dhSent, dhExchangeBytes, sizeof(DHKeyExchange));
 
     /******************** Encryption Exchange ********************/
-    int* const encryptedExchange = iotAuth.encryptRSA(dhExchangeBytes, rsaStorage->getPartnerPublicKey(), sizeof(DHKeyExchange));
+    int *const encryptedExchange = iotAuth.encryptRSA(dhExchangeBytes, rsaStorage->getPartnerPublicKey(), sizeof(DHKeyExchange));
     delete[] dhExchangeBytes;
-    
+
     /******************** Stop Processing Time 2 ********************/
     t_aux2 = currentTime();
     processingTime2 = elapsedTime(t1, t2);
@@ -410,197 +335,299 @@ void send_dh(States *state, int socket, struct sockaddr *client, socklen_t size)
     /******************** Mount Enc Packet ********************/
     DHEncPacket encPacket;
     encPacket.setEncryptedExchange(encryptedExchange);
-    
+
     encPacket.setTP(processingTime2);
 
     /******************** Start Total Time ********************/
     t1 = currentTime();
 
     /******************** Send Exchange ********************/
-    sendto(socket, (DHEncPacket*)&encPacket, sizeof(DHEncPacket), 0, client, size);
-    *state = RECV_DH;
+    sendto(socket, (DHEncPacket *)&encPacket, sizeof(DHEncPacket), 0, client, size);
 
     /******************** Verbose ********************/
-    if (VERBOSE) send_dh_verbose(&dhPackage, sequence, encPacket.getTP());
+    if (VERBOSE)
+        send_dh_verbose(&dhPackage, sequence, encPacket.getTP());
 
     /******************** Memory Release ********************/
     delete[] encryptedHash;
     delete[] encryptedExchange;
+
+    recv_dh(socket, client, size);
 }
 
-
-
-
-/*  Step 7
-    Recebe os dados Diffie-Hellman vindos do Cliente.   */
-int recv_dh(States *state, int socket, struct sockaddr *client, socklen_t size)
+/*  Step 5
+    Recebe confirmação do Cliente referente ao recebimento dos dados RSA.
+*/
+void recv_rsa_ack(int socket, struct sockaddr *client, socklen_t size)
 {
-    /******************** Recv Enc Packet ********************/
-    DHEncPacket encPacket;
-    int recv = recvfrom(socket, &encPacket, sizeof(DHEncPacket), 0, client, &size);
+    RSAKeyExchange rsaReceived;
+    int recv = recvfrom(socket, &rsaReceived, sizeof(RSAKeyExchange), 0, client, &size);
 
-    if (recv > 0) {
-
-        if (checkRFT(encPacket)) {
-            *state = RFT;
-        } else {
-
+    if (recv > 0)
+    {
+        if (checkRFT(rsaReceived))
+        {
+            rft(socket, client, size);
+        }
+        else
+        {
             /******************** Stop Total Time ********************/
             t2 = currentTime();
             totalTime = elapsedTime(t1, t2);
 
-            /******************** Time of Proof ********************/
-            // double limit = networkTime + processingTime2*2;
-            double limit = 4000;
+            /******************** Proof of Time ********************/
+            // double limit = processingTime1 + networkTime + (processingTime1 + networkTime)*0.1;
+            double limit = 1000;
 
-            if (totalTime <= limit) {
-
-                /******************** Decrypt Exchange ********************/
-                DHKeyExchange dhKeyExchange;
-                int* const encryptedExchange = encPacket.getEncryptedExchange();
-                byte* const dhExchangeBytes = iotAuth.decryptRSA(encryptedExchange, rsaStorage->getMyPrivateKey(), sizeof(DHKeyExchange));
-                
-                BytesToObject(dhExchangeBytes, dhKeyExchange, sizeof(DHKeyExchange));
-                delete[] dhExchangeBytes;
-
-                /******************** Get DH Package ********************/
-                DiffieHellmanPackage dhPackage = dhKeyExchange.getDiffieHellmanPackage();
+            if (totalTime <= limit)
+            {
+                /******************** Get Package ********************/
+                RSAPackage rsaPackage = *rsaReceived.getRSAPackage();
 
                 /******************** Decrypt Hash ********************/
-                string decryptedHash = decryptHash(dhKeyExchange.getEncryptedHash());
+                string rsaString = rsaPackage.toString();
+                string decryptedHash = decryptHash(rsaReceived.getEncryptedHash());
+
+                /******************** Store Nonce A ********************/
+                storeNonceA(rsaPackage.getNonceA());
+
+                bool isHashValid = iotAuth.isHashValid(&rsaString, &decryptedHash);
+                bool isNonceTrue = strcmp(rsaPackage.getNonceB(), nonceB) == 0;
+                bool isAnswerCorrect = iotAuth.isAnswerCorrect(rsaStorage->getMyFDR(), rsaStorage->getMyPublicKey()->d, rsaPackage.getAnswerFDR());
+
+                if (VERBOSE)
+                    recv_rsa_ack_verbose(nonceA, isHashValid, isAnswerCorrect, isNonceTrue);
 
                 /******************** Validity ********************/
-                string dhString = dhPackage.toString();
-                const bool isHashValid = iotAuth.isHashValid(&dhString, &decryptedHash);
-                const bool isNonceTrue = strcmp(dhPackage.getNonceB(), nonceB) == 0;
-
-                if (isHashValid && isNonceTrue) {
-                    /******************** Store Nounce A ********************/
-                    storeNonceA(dhPackage.getNonceA());
-
-                    /******************** Calculate Session Key ********************/
-                    diffieHellmanStorage->setSessionKey(diffieHellmanStorage->calculateSessionKey(dhPackage.getResult()));
-
-                    *state = SEND_DH_ACK;
-                } else {
-                    *state = SEND_SYN;
+                if (isHashValid && isNonceTrue && isAnswerCorrect)
+                {
+                    send_dh(socket, client, size);
                 }
-
-                if (VERBOSE) recv_dh_verbose(&dhPackage, diffieHellmanStorage->getSessionKey(), isHashValid, isNonceTrue);
-
-            } else {
-                if (VERBOSE) time_limit_burst_verbose();
-                *state = SEND_SYN;
+                else if (!isHashValid)
+                {
+                    throw HASH_INVALID;
+                }
+                else if (!isNonceTrue)
+                {
+                    throw NONCE_INVALID;
+                }
+                else
+                {
+                    throw FDR_INVALID;
+                }
+            }
+            else
+            {
+                if (VERBOSE)
+                    time_limit_burst_verbose();
+                throw TIMEOUT;
             }
         }
-    } else {
-        *state = SEND_SYN;
-        if (VERBOSE) response_timeout_verbose();
     }
+    else
+    {
+        if (VERBOSE)
+            response_timeout_verbose();
 
+        throw NO_REPLY;
+    }
 }
 
-
-
-
-/*  Step 8
-    Envia confirmação para o Cliente referente ao recebimento dos dados Diffie-Hellman.
+/*  Step 4
+    Realiza o envio dos dados RSA para o Cliente.
 */
-void send_dh_ack(States *state, int socket, struct sockaddr *client, socklen_t size)
+void send_rsa(int socket, struct sockaddr *client, socklen_t size)
 {
-    /******************** Mount ACK ********************/
-    DH_ACK ack;
-    ack.message = ACK;
-    strncpy(ack.nonce, nonceA, sizeof(ack.nonce));
+    /******************** Start Auxiliar Time ********************/
+    t_aux1 = currentTime();
 
-    // /******************** Serialize ACK ********************/
-    byte* const ackBytes = new byte[sizeof(DH_ACK)];
-    ObjectToBytes(ack, ackBytes, sizeof(DH_ACK));
+    /******************** Get Answer FDR ********************/
+    int answerFdr = rsaStorage->getPartnerFDR()->getValue(rsaStorage->getPartnerPublicKey()->d);
 
-    /******************** Encrypt ACK ********************/
-    int* const encryptedAck = iotAuth.encryptRSA(ackBytes, rsaStorage->getMyPrivateKey(), sizeof(DH_ACK));
-    delete[] ackBytes;
+    /******************** Generate RSA Keys and FDR ********************/
+    rsaStorage->setKeyPair(iotAuth.generateRSAKeyPair());
+    rsaStorage->setMyFDR(iotAuth.generateFDR());
 
-    /******************** Send ACK ********************/
-    sendto(socket, (int*)encryptedAck, sizeof(DH_ACK)*sizeof(int), 0, client, size);
-    *state = FINISH;
+    /******************** Generate Nonce ********************/
+    generateNonce(nonceB);
 
-    delete[] encryptedAck;
+    /******************** Mount Package ********************/
+    RSAPackage rsaSent;
+    rsaSent.setPublicKey(*rsaStorage->getMyPublicKey());
+    rsaSent.setAnswerFDR(answerFdr);
+    rsaSent.setFDR(*rsaStorage->getMyFDR());
+    rsaSent.setNonceA(nonceA);
+    rsaSent.setNonceB(nonceB);
 
-    if (MEM_TEST) transfer_data = false;
+    /******************** Get Hash ********************/
+    string packageString = rsaSent.toString();
+    string hash = iotAuth.hash(&packageString);
+
+    /******************** Encrypt Hash ********************/
+    int *const encryptedHash = iotAuth.encryptRSA(&hash, rsaStorage->getMyPrivateKey(), 128);
+
+    /******************** Stop Processing Time ********************/
+    t2 = currentTime();
+    processingTime1 = elapsedTime(t1, t2);
+
+    /******************** Stop Auxiliar Time ********************/
+    t_aux2 = currentTime();
+    auxiliarTime = elapsedTime(t_aux1, t_aux2);
+
+    /******************** Rectify Network Time ********************/
+    networkTime = networkTime - auxiliarTime;
+
+    /******************** Mount Exchange ********************/
+    RSAKeyExchange rsaExchange;
+    rsaExchange.setRSAPackage(&rsaSent);
+    rsaExchange.setEncryptedHash(encryptedHash);
+    rsaExchange.setProcessingTime(processingTime1);
+
+    /******************** Start Total Time ********************/
+    t1 = currentTime();
+
+    /******************** Send Exchange ********************/
+    sendto(socket, (RSAKeyExchange *)&rsaExchange, sizeof(RSAKeyExchange), 0, client, size);
+
+    /******************** Memory Release ********************/
+    delete[] encryptedHash;
 
     /******************** Verbose ********************/
-    if (VERBOSE) send_dh_ack_verbose(&ack);
+    if (VERBOSE)
+        send_rsa_verbose(rsaStorage, sequence, nonceB);
+    
+    recv_rsa_ack(socket, client, size);
 }
 
-
-
-
-
-
-/*  Waiting Done Confirmation
-    Verifica se a mensagem vinda do Cliente é uma confirmação do pedido de
-    fim de conexão enviado pelo Servidor (DONE_ACK).
-    Em caso positivo, altera o estado para HELLO, senão, mantém em WDC. 7
+/*  Step 3
+    Recebe os dados RSA vindos do Cliente.
 */
-void wdc(States *state, int socket, struct sockaddr *client, socklen_t size)
+void recv_rsa(int socket, struct sockaddr *client, socklen_t size)
 {
-    char message[2];
-    recvfrom(socket, message, sizeof(message), 0, client, &size);
+    /******************** Receive Exchange ********************/
+    RSAKeyExchange rsaReceived;
+    int recv = recvfrom(socket, &rsaReceived, sizeof(RSAKeyExchange), 0, client, &size);
 
-    if (message[0] == DONE_ACK_CHAR) {
-        if (VERBOSE) wdc_verbose();
-        *state = RECV_SYN;
-    } else {
-        *state = WDC;
+    if (recv > 0)
+    {
+
+        if (checkRFT(rsaReceived))
+        {
+            rft(socket, client, size);
+        }
+        else
+        {
+            /******************** Stop Network Time ********************/
+            t2 = currentTime();
+            networkTime = elapsedTime(t1, t2);
+
+            /******************** Start Processing Time ********************/
+            t1 = currentTime();
+
+            /******************** Store RSA Data ********************/
+            RSAPackage rsaPackage = *rsaReceived.getRSAPackage();
+
+            rsaStorage = new RSAStorage();
+            rsaStorage->setPartnerPublicKey(rsaPackage.getPublicKey());
+            rsaStorage->setPartnerFDR(rsaPackage.getFDR());
+
+            /******************** Decrypt Hash ********************/
+            string rsaString = rsaPackage.toString();
+            string decryptedHash = decryptHash(rsaReceived.getEncryptedHash());
+
+            /******************** Store TP ********************/
+            tp = rsaReceived.getProcessingTime();
+
+            /******************** Store Nonce A ********************/
+            storeNonceA(rsaPackage.getNonceA());
+
+            /******************** Validity Hash ********************/
+            bool isHashValid = iotAuth.isHashValid(&rsaString, &decryptedHash);
+            bool isNonceTrue = strcmp(rsaPackage.getNonceB(), nonceB) == 0;
+
+            /******************** Verbose ********************/
+            if (VERBOSE)
+                recv_rsa_verbose(rsaStorage, nonceA, isHashValid, isNonceTrue);
+
+            if (isHashValid && isNonceTrue)
+            {
+                send_rsa(socket, client, size);
+            }
+            else if (!isHashValid)
+            {
+                throw HASH_INVALID;
+            }
+            else
+            {
+                throw NONCE_INVALID;
+            }
+        }
+    }
+    else
+    {
+        if (VERBOSE)
+            response_timeout_verbose();
+        throw NO_REPLY;
     }
 }
 
-/*  Request for Termination
-    Envia uma confirmação (DONE_ACK) para o pedido de término de conexão
-    vindo do Cliente, e seta o estado para HELLO.
+/*  Step 2
+    Envia confirmação ao Cliente referente ao pedido de início de conexão.
 */
-void rft(States *state, int socket, struct sockaddr *client, socklen_t size)
+void send_ack(int socket, struct sockaddr *client, socklen_t size)
 {
-    sendto(socket, DONE_ACK, strlen(DONE_ACK), 0, client, size);
-    *state = RECV_SYN;
+    /******************** Init Sequence ********************/
+    sequence = iotAuth.randomNumber(9999);
 
-    if (VERBOSE) rft_verbose();
+    /******************** Generate Nounce B ********************/
+    generateNonce(nonceB);
+
+    /******************** Mount Package ********************/
+    structAck toSend;
+    strncpy(toSend.nonceA, nonceA, sizeof(toSend.nonceA));
+    strncpy(toSend.nonceB, nonceB, sizeof(toSend.nonceB));
+
+    /******************** Start Network Time ********************/
+    t1 = currentTime();
+
+    /******************** Send Package ********************/
+    sendto(socket, &toSend, sizeof(ack), 0, client, size);
+
+    /******************** Verbose ********************/
+    if (VERBOSE)
+        send_ack_verbose(nonceB, sequence, serverIP, clientIP);
+
+    recv_rsa(socket, client, size);
 }
 
-
-
-
-
-
-/*  Done
-    Envia um pedido de término de conexão ao Cliente, e seta o estado atual
-    para WDC (Waiting Done Confirmation).
+/*  Step 1
+    Recebe um pedido de início de conexão por parte do Cliente.
 */
-void done(States *state, int socket, struct sockaddr *client, socklen_t size)
+void recv_syn(int socket, struct sockaddr *client, socklen_t size)
 {
-    sendto(socket, DONE_MESSAGE, sizeof(DONE_MESSAGE), 0, client, size);
-    *state = WDC;
-    if (VERBOSE) done_verbose();
+    structSyn received;
+    recvfrom(socket, &received, sizeof(syn), 0, client, &size);
+
+    start = currentTime();
+
+    /* Verifica se a mensagem recebida é um HELLO. */
+    if (received.message == SYN)
+    {
+
+        /******************** Store Nonce A ********************/
+        storeNonceA(received.nonce);
+
+        /******************** Verbose ********************/
+        if (VERBOSE)
+            recv_syn_verbose(nonceA);
+
+        send_ack(socket, client, size);
+    }
+    else
+    {
+        throw DENIED;
+    }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 /*  Data Transfer
@@ -612,16 +639,19 @@ void data_transfer(States *state, int socket, struct sockaddr *client, socklen_t
     /********************* Recebimento dos Dados Cifrados *********************/
     char message[1333];
     memset(message, '\0', sizeof(message));
-    recvfrom(socket, message, sizeof(message)-1, 0, client, &size);
+    recvfrom(socket, message, sizeof(message) - 1, 0, client, &size);
 
     /******************* Verifica Pedido de Fim de Conexão ********************/
 
-    if (checkRFT(message)) {
+    if (checkRFT(message))
+    {
         *state = RFT;
-    } else {
+    }
+    else
+    {
 
         /* Converte o array de chars (buffer) em uma string. */
-        string encryptedMessage (message);
+        string encryptedMessage(message);
 
         /* Inicialização dos vetores ciphertext. */
         char ciphertextChar[encryptedMessage.length()];
@@ -634,12 +664,14 @@ void data_transfer(States *state, int socket, struct sockaddr *client, socklen_t
 
         /* Inicialização da chave e iv. */
         uint8_t key[32];
-        for (int i = 0; i < 32; i++) {
+        for (int i = 0; i < 32; i++)
+        {
             key[i] = diffieHellmanStorage->getSessionKey();
         }
 
         uint8_t iv[16];
-        for (int i = 0; i < 16; i++) {
+        for (int i = 0; i < 16; i++)
+        {
             iv[i] = diffieHellmanStorage->getIV();
         }
 
@@ -658,124 +690,22 @@ void data_transfer(States *state, int socket, struct sockaddr *client, socklen_t
     }
 }
 
-/*  State Machine
-    Realiza o controle do estado atual da FSM.
-*/
-void stateMachine(int socket, struct sockaddr *client, socklen_t size)
+int wait()
 {
-    static States state = RECV_SYN;
+    meuSocket = socket(PF_INET, SOCK_DGRAM, 0);
+    servidor.sin_family = AF_INET;
+    servidor.sin_port = htons(DEFAULT_PORT);
+    servidor.sin_addr.s_addr = INADDR_ANY;
 
+    bind(meuSocket, (struct sockaddr *)&servidor, sizeof(struct sockaddr_in));
 
-    switch (state) {
-
-        /* Waiting Done Confirmation */
-        case WDC:
-        {
-            wdc(&state, socket, client, size);
-            break;
-        }
-
-        /* Request For Termination */
-        case RFT:
-        {
-            rft(&state, socket, client, size);
-            break;
-        }
-
-        /* Done */
-        case DONE:
-        {
-            done(&state, socket, client, size);
-            break;
-        }
-
-        /* Hello */
-        case RECV_SYN:
-        {
-            recv_syn(&state, socket, client, size);
-            break;
-        }
-
-        case SEND_ACK:
-        {
-            send_ack(&state, socket, client, size);
-            break;
-        }
-
-        /* Receive RSA */
-        case RECV_RSA:
-        {
-            recv_rsa(&state, socket, client, size);
-            break;
-        }
-
-        /* Send RSA */
-        case SEND_RSA:
-        {
-            send_rsa(&state, socket, client, size);
-            break;
-        }
-
-        case RECV_RSA_ACK:
-        {
-            recv_rsa_ack(&state, socket, client, size);
-            break;
-        }
-
-        /* Send Diffie-Hellman */
-        case SEND_DH:
-        {
-            send_dh(&state, socket, client, size);
-            break;
-        }
-
-        /* Receive Diffie-Hellman */
-        case RECV_DH:
-        {
-            recv_dh(&state, socket, client, size);
-            break;
-        }
-
-        case SEND_DH_ACK:
-        {
-            send_dh_ack(&state, socket, client, size);
-            break;
-        }
-
-        /* Data Transfer */
-        case RECV_DATA:
-        {
-            data_transfer(&state, socket, client, size);
-            break;
-        }
-    }
-}
-
-int main(int argc, char *argv[])
-{
-
-    struct sockaddr_in cliente, servidor;
-    int meuSocket,enviei=0;
-    socklen_t tam_cliente;
-    // MTU padrão pela IETF
-    char buffer[666];
-
-    meuSocket=socket(PF_INET,SOCK_DGRAM,0);
-    servidor.sin_family=AF_INET;
-    servidor.sin_port=htons(DEFAULT_PORT);
-    servidor.sin_addr.s_addr=INADDR_ANY;
-
-    memset(buffer, 0, sizeof(buffer));
-
-    bind(meuSocket,(struct sockaddr*)&servidor,sizeof(struct sockaddr_in));
-
-    tam_cliente=sizeof(struct sockaddr_in);
+    tam_cliente = sizeof(struct sockaddr_in);
 
     /* Set maximum wait time for response */
     struct timeval tv;
     tv.tv_sec = TIMEOUT_SEC;
     tv.tv_usec = TIMEOUT_MIC;
-    setsockopt(meuSocket, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv);
+    setsockopt(meuSocket, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof tv);
 
     /* Get IP Address Server */
     struct hostent *server;
@@ -791,9 +721,24 @@ int main(int argc, char *argv[])
     client = gethostbyname(client_name);
     clientIP = inet_ntoa(*(struct in_addr *)*client->h_addr_list);
 
-    while(transfer_data){
-       stateMachine(meuSocket, (struct sockaddr*)&cliente, tam_cliente);
+    try
+    {
+        recv_syn(meuSocket, (struct sockaddr *)&cliente, tam_cliente);
     }
+    catch (Reply e)
+    {
+        cerr << "Erro: " << e << endl;
+        return e;
+    }
+
+    return OK;
+}
+
+int main(int argc, char *argv[])
+{
+    memset(buffer, 0, sizeof(buffer));
+
+    wait();
 
     close(meuSocket);
     double end = currentTime();
