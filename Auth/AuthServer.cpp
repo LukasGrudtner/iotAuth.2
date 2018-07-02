@@ -53,10 +53,10 @@ void AuthServer::generateDiffieHellman()
 /*  Step 1
     Recebe um pedido de início de conexão por parte do Cliente.
 */
-void AuthServer::recv_syn(Socket *soc)
+void AuthServer::recv_syn()
 {
     structSyn received;
-    recvfrom(soc->socket, &received, sizeof(syn), 0, soc->client, &soc->size);
+    recvfrom(soc.socket, &received, sizeof(syn), 0, soc.client, &soc.size);
 
     start = currentTime();
 
@@ -71,7 +71,7 @@ void AuthServer::recv_syn(Socket *soc)
         if (VERBOSE)
             recv_syn_verbose(nonceA);
 
-        send_ack(soc);
+        send_ack();
     }
     else
     {
@@ -82,7 +82,7 @@ void AuthServer::recv_syn(Socket *soc)
 /*  Step 2
     Envia confirmação ao Cliente referente ao pedido de início de conexão.
 */
-void AuthServer::send_ack(Socket *soc)
+void AuthServer::send_ack()
 {
     /******************** Init Sequence ********************/
     sequence = iotAuth.randomNumber(9999);
@@ -99,30 +99,29 @@ void AuthServer::send_ack(Socket *soc)
     t1 = currentTime();
 
     /******************** Send Package ********************/
-    sendto(soc->socket, &toSend, sizeof(ack), 0, soc->client, soc->size);
+    sendto(soc.socket, &toSend, sizeof(ack), 0, soc.client, soc.size);
 
     /******************** Verbose ********************/
     if (VERBOSE)
         send_ack_verbose(nonceB, sequence, serverIP, clientIP);
 
-    recv_rsa(soc);
+    recv_rsa();
 }
 
 /*  Step 3
     Recebe os dados RSA vindos do Cliente.
 */
-void AuthServer::recv_rsa(Socket *soc)
+void AuthServer::recv_rsa()
 {
     /******************** Receive Exchange ********************/
     RSAKeyExchange rsaReceived;
-    int recv = recvfrom(soc->socket, &rsaReceived, sizeof(RSAKeyExchange), 0, soc->client, &soc->size);
+    int recv = recvfrom(soc.socket, &rsaReceived, sizeof(RSAKeyExchange), 0, soc.client, &soc.size);
 
     if (recv > 0)
     {
-
         if (checkRFT(rsaReceived))
         {
-            rft(soc);
+            rft();
         }
         else
         {
@@ -160,7 +159,7 @@ void AuthServer::recv_rsa(Socket *soc)
 
             if (isHashValid && isNonceTrue)
             {
-                send_rsa(soc);
+                send_rsa();
             }
             else if (!isHashValid)
             {
@@ -183,7 +182,7 @@ void AuthServer::recv_rsa(Socket *soc)
 /*  Step 4
     Realiza o envio dos dados RSA para o Cliente.
 */
-void AuthServer::send_rsa(Socket *soc)
+void AuthServer::send_rsa()
 {
     /******************** Start Auxiliar Time ********************/
     t_aux1 = currentTime();
@@ -234,7 +233,7 @@ void AuthServer::send_rsa(Socket *soc)
     t1 = currentTime();
 
     /******************** Send Exchange ********************/
-    sendto(soc->socket, (RSAKeyExchange *)&rsaExchange, sizeof(RSAKeyExchange), 0, soc->client, soc->size);
+    sendto(soc.socket, (RSAKeyExchange *)&rsaExchange, sizeof(RSAKeyExchange), 0, soc.client, soc.size);
 
     /******************** Memory Release ********************/
     delete[] encryptedHash;
@@ -243,22 +242,22 @@ void AuthServer::send_rsa(Socket *soc)
     if (VERBOSE)
         send_rsa_verbose(rsaStorage, sequence, nonceB);
 
-    recv_rsa_ack(soc);
+    recv_rsa_ack();
 }
 
 /*  Step 5
     Recebe confirmação do Cliente referente ao recebimento dos dados RSA.
 */
-void AuthServer::recv_rsa_ack(Socket *soc)
+void AuthServer::recv_rsa_ack()
 {
     RSAKeyExchange rsaReceived;
-    int recv = recvfrom(soc->socket, &rsaReceived, sizeof(RSAKeyExchange), 0, soc->client, &soc->size);
+    int recv = recvfrom(soc.socket, &rsaReceived, sizeof(RSAKeyExchange), 0, soc.client, &soc.size);
 
     if (recv > 0)
     {
         if (checkRFT(rsaReceived))
         {
-            rft(soc);
+            rft();
         }
         else
         {
@@ -292,7 +291,7 @@ void AuthServer::recv_rsa_ack(Socket *soc)
                 /******************** Validity ********************/
                 if (isHashValid && isNonceTrue && isAnswerCorrect)
                 {
-                    send_dh(soc);
+                    send_dh();
                 }
                 else if (!isHashValid)
                 {
@@ -327,7 +326,7 @@ void AuthServer::recv_rsa_ack(Socket *soc)
 /*  Step 6
     Realiza o envio dos dados Diffie-Hellman para o Cliente.
 */
-void AuthServer::send_dh(Socket *soc)
+void AuthServer::send_dh()
 {
     /******************** Start Processing Time 2 ********************/
     t_aux1 = currentTime();
@@ -385,7 +384,7 @@ void AuthServer::send_dh(Socket *soc)
     t1 = currentTime();
 
     /******************** Send Exchange ********************/
-    sendto(soc->socket, (DHEncPacket *)&encPacket, sizeof(DHEncPacket), 0, soc->client, soc->size);
+    sendto(soc.socket, (DHEncPacket *)&encPacket, sizeof(DHEncPacket), 0, soc.client, soc.size);
 
     /******************** Verbose ********************/
     if (VERBOSE)
@@ -395,23 +394,23 @@ void AuthServer::send_dh(Socket *soc)
     delete[] encryptedHash;
     delete[] encryptedExchange;
 
-    recv_dh(soc);
+    recv_dh();
 }
 
 /*  Step 7
     Recebe os dados Diffie-Hellman vindos do Cliente.   */
-int AuthServer::recv_dh(Socket *soc)
+int AuthServer::recv_dh()
 {
     /******************** Recv Enc Packet ********************/
     DHEncPacket encPacket;
-    int recv = recvfrom(soc->socket, &encPacket, sizeof(DHEncPacket), 0, soc->client, &soc->size);
+    int recv = recvfrom(soc.socket, &encPacket, sizeof(DHEncPacket), 0, soc.client, &soc.size);
 
     if (recv > 0)
     {
 
         if (checkRFT(encPacket))
         {
-            rft(soc);
+            rft();
         }
         else
         {
@@ -455,7 +454,7 @@ int AuthServer::recv_dh(Socket *soc)
                     if (VERBOSE)
                         recv_dh_verbose(&dhPackage, diffieHellmanStorage->getSessionKey(), isHashValid, isNonceTrue);
 
-                    send_dh_ack(soc);
+                    send_dh_ack();
                 }
                 else if (!isHashValid)
                 {
@@ -485,7 +484,7 @@ int AuthServer::recv_dh(Socket *soc)
 /*  Step 8
     Envia confirmação para o Cliente referente ao recebimento dos dados Diffie-Hellman.
 */
-void AuthServer::send_dh_ack(Socket *soc)
+void AuthServer::send_dh_ack()
 {
     /******************** Mount ACK ********************/
     DH_ACK ack;
@@ -501,7 +500,7 @@ void AuthServer::send_dh_ack(Socket *soc)
     delete[] ackBytes;
 
     /******************** Send ACK ********************/
-    sendto(soc->socket, (int *)encryptedAck, sizeof(DH_ACK) * sizeof(int), 0, soc->client, soc->size);
+    sendto(soc.socket, (int *)encryptedAck, sizeof(DH_ACK) * sizeof(int), 0, soc.client, soc.size);
 
     delete[] encryptedAck;
 
@@ -518,23 +517,23 @@ void AuthServer::send_dh_ack(Socket *soc)
     Envia um pedido de término de conexão ao Cliente, e seta o estado atual
     para WDC (Waiting Done Confirmation).
 */
-void AuthServer::done(Socket *soc)
+void AuthServer::done()
 {
-    sendto(soc->socket, DONE_MESSAGE, sizeof(DONE_MESSAGE), 0, soc->client, soc->size);
+    sendto(soc.socket, DONE_MESSAGE, sizeof(DONE_MESSAGE), 0, soc.client, soc.size);
 
     if (VERBOSE)
         done_verbose();
 
-    wdc(soc);
+    wdc();
 }
 
 /*  Request for Termination
     Envia uma confirmação (DONE_ACK) para o pedido de término de conexão
     vindo do Cliente, e seta o estado para HELLO.
 */
-void AuthServer::rft(Socket *soc)
+void AuthServer::rft()
 {
-    sendto(soc->socket, DONE_ACK, strlen(DONE_ACK), 0, soc->client, soc->size);
+    sendto(soc.socket, DONE_ACK, strlen(DONE_ACK), 0, soc.client, soc.size);
     connected = false;
 
     if (VERBOSE)
@@ -546,10 +545,10 @@ void AuthServer::rft(Socket *soc)
     fim de conexão enviado pelo Servidor (DONE_ACK).
     Em caso positivo, altera o estado para HELLO, senão, mantém em WDC. 7
 */
-void AuthServer::wdc(Socket *soc)
+void AuthServer::wdc()
 {
     char message[2];
-    int recv = recvfrom(soc->socket, message, sizeof(message), 0, soc->client, &soc->size);
+    int recv = recvfrom(soc.socket, message, sizeof(message), 0, soc.client, &soc.size);
 
     if (recv > 0)
     {
@@ -605,7 +604,7 @@ int AuthServer::connect()
 
     try
     {
-        recv_syn(&soc);
+        recv_syn();
     }
     catch (Reply e)
     {
@@ -630,7 +629,7 @@ void AuthServer::rpublish()
 
         if (checkRFT(message))
         {
-            rft(&soc);
+            rft();
         }
         else
         {

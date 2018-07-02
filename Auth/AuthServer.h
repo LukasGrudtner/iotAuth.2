@@ -92,65 +92,60 @@ class AuthServer
     /*  Step 1
         Recebe um pedido de início de conexão por parte do Cliente.
     */
-    void recv_syn(Socket *soc);
+    void recv_syn();
 
     /*  Step 2
         Envia confirmação ao Cliente referente ao pedido de início de conexão.
     */
-    void send_ack(Socket *soc);
+    void send_ack();
 
     /*  Step 3
         Recebe os dados RSA vindos do Cliente.
     */
-    void recv_rsa(Socket *soc);
+    void recv_rsa();
 
     /*  Step 4
         Realiza o envio dos dados RSA para o Cliente.
     */
-    void send_rsa(Socket *soc);
+    void send_rsa();
 
     /*  Step 5
         Recebe confirmação do Cliente referente ao recebimento dos dados RSA.
     */
-    void recv_rsa_ack(Socket *soc);
+    void recv_rsa_ack();
 
     /*  Step 6
         Realiza o envio dos dados Diffie-Hellman para o Cliente.
     */
-    void send_dh(Socket *soc);
+    void send_dh();
 
     /*  Step 7
         Recebe os dados Diffie-Hellman vindos do Cliente.   */
-    int recv_dh(Socket *soc);
+    int recv_dh();
 
     /*  Step 8
         Envia confirmação para o Cliente referente ao recebimento dos dados Diffie-Hellman.
     */
-    void send_dh_ack(Socket *soc);
-
-    /*  Data Transfer
-        Realiza a transferência de dados cifrados para o Cliente.
-    */
-    void data_transfer(Socket *soc);
+    void send_dh_ack();
 
     /*  Waiting Done Confirmation
     Verifica se a mensagem vinda do Cliente é uma confirmação do pedido de
     fim de conexão enviado pelo Servidor (DONE_ACK).
     Em caso positivo, altera o estado para HELLO, senão, mantém em WDC. 7
     */
-    void wdc(Socket *soc);
+    void wdc();
 
     /*  Request for Termination
         Envia uma confirmação (DONE_ACK) para o pedido de término de conexão
         vindo do Cliente, e seta o estado para HELLO.
     */
-    void rft(Socket *soc);
+    void rft();
 
     /*  Done
         Envia um pedido de término de conexão ao Cliente, e seta o estado atual
         para WDC (Waiting Done Confirmation).
     */
-    void done(Socket *soc);
+    void done();
 };
 
 #endif
