@@ -1,12 +1,12 @@
 #ifndef IOT_AUTH_H
 #define IOT_AUTH_H
 
-#include "settings.h"
-#include "utils.h"
-#include "fdr.h"
-#include "RSA/RSA.h"
-#include "AES/AES.h"
-#include "SHA/sha512.h"
+#include "../settings.h"
+#include "../utils.h"
+#include "../fdr.h"
+#include "../RSA/RSA.h"
+#include "../AES/AES.h"
+#include "../SHA/sha512.h"
 
 using namespace std;
 

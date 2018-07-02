@@ -1,4 +1,4 @@
-#include "Arduino.h"
+#include "AuthClient.h"
 
 Arduino::Arduino()
 {

@@ -1,29 +1,29 @@
-#ifndef ARDUINO_H
-#define ARDUINO_H
+#ifndef AUTH_CLIENT_H
+#define AUTH_CLIENT_H
 
 #include "iotAuth.h"
-#include "settings.h"
-#include "utils.h"
+#include "../settings.h"
+#include "../utils.h"
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
 
-#include "time.h"
+#include "../time.h"
 
-#include "Diffie-Hellman/DHKeyExchange.h"
-#include "Diffie-Hellman/DiffieHellmanPackage.h"
-#include "Diffie-Hellman/DHStorage.h"
-#include "Diffie-Hellman/DHEncPacket.h"
+#include "../Diffie-Hellman/DHKeyExchange.h"
+#include "../Diffie-Hellman/DiffieHellmanPackage.h"
+#include "../Diffie-Hellman/DHStorage.h"
+#include "../Diffie-Hellman/DHEncPacket.h"
 
-#include "RSA/RSAStorage.h"
-#include "RSA/RSAKeyExchange.h"
-#include "RSA/RSAPackage.h"
+#include "../RSA/RSAStorage.h"
+#include "../RSA/RSAKeyExchange.h"
+#include "../RSA/RSAPackage.h"
 
 #include <unistd.h>
 
-#include "verbose/verbose_client.h"
+#include "../verbose/verbose_client.h"
 
 using namespace std;
 

@@ -1,5 +1,5 @@
-#ifndef AUTH_H
-#define AUTH_H
+#ifndef AUTH_SERVER_H
+#define AUTH_SERVER_H
 
 #include <unistd.h>
 #include <string.h>
@@ -10,20 +10,20 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
-#include "settings.h"
-#include "time.h"
+#include "../settings.h"
+#include "../time.h"
 #include "iotAuth.h"
 
-#include "RSA/RSAStorage.h"
-#include "RSA/RSAKeyExchange.h"
-#include "RSA/RSAPackage.h"
+#include "../RSA/RSAStorage.h"
+#include "../RSA/RSAKeyExchange.h"
+#include "../RSA/RSAPackage.h"
 
-#include "Diffie-Hellman/DiffieHellmanPackage.h"
-#include "Diffie-Hellman/DHKeyExchange.h"
-#include "Diffie-Hellman/DHStorage.h"
-#include "Diffie-Hellman/DHEncPacket.h"
+#include "../Diffie-Hellman/DiffieHellmanPackage.h"
+#include "../Diffie-Hellman/DHKeyExchange.h"
+#include "../Diffie-Hellman/DHStorage.h"
+#include "../Diffie-Hellman/DHEncPacket.h"
 
-#include "verbose/verbose_server.h"
+#include "../verbose/verbose_server.h"
 
 
 using namespace std;

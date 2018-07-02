@@ -1,13 +1,5 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <array>
 #include <iostream>
-#include "iotAuth.h"
-#include "utils.h"
-#include "settings.h"
-#include "Arduino.h"
+#include "Auth/AuthClient.h"
 
 using namespace std;
 
