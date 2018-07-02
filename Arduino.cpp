@@ -33,17 +33,17 @@ void Arduino::send_syn()
     if (VERBOSE)
         send_syn_verbose(nonceA);
 
-    recv_ack(&soc);
+    recv_ack();
 }
 
 /*  Step 2
     Recebe confirmação do Servidor referente ao pedido de início de conexão.    
 */
-void Arduino::recv_ack(Socket *soc)
+void Arduino::recv_ack()
 {
     /******************** Receive ACK ********************/
     structAck received;
-    int recv = recvfrom(soc->socket, &received, sizeof(ack), 0, soc->server, &soc->size);
+    int recv = recvfrom(soc.socket, &received, sizeof(ack), 0, soc.server, &soc.size);
 
     if (recv > 0)
     {
@@ -67,7 +67,7 @@ void Arduino::recv_ack(Socket *soc)
 
         if (isNonceTrue)
         {
-            send_rsa(soc);
+            send_rsa();
         }
         else
         {
@@ -85,7 +85,7 @@ void Arduino::recv_ack(Socket *soc)
 /*  Step 3
     Realiza o envio dos dados RSA para o Servidor.  
 */
-void Arduino::send_rsa(Socket *soc)
+void Arduino::send_rsa()
 {
     /******************** Generate RSA/FDR ********************/
     rsaStorage = new RSAStorage();
@@ -120,7 +120,7 @@ void Arduino::send_rsa(Socket *soc)
     t1 = currentTime();
 
     /******************** Send Exchange ********************/
-    sendto(soc->socket, (RSAKeyExchange *)&rsaExchange, sizeof(rsaExchange), 0, soc->server, soc->size);
+    sendto(soc.socket, (RSAKeyExchange *)&rsaExchange, sizeof(rsaExchange), 0, soc.server, soc.size);
 
     delete[] encryptedHash;
 
@@ -128,17 +128,17 @@ void Arduino::send_rsa(Socket *soc)
     if (VERBOSE)
         send_rsa_verbose(rsaStorage, sequence, nonceA);
 
-    recv_rsa(soc);
+    recv_rsa();
 }
 
 /*  Step 4
     Recebe os dados RSA vindos do Servidor.
 */
-void Arduino::recv_rsa(Socket *soc)
+void Arduino::recv_rsa()
 {
     /******************** Receive Exchange ********************/
     RSAKeyExchange rsaKeyExchange;
-    int recv = recvfrom(soc->socket, &rsaKeyExchange, sizeof(RSAKeyExchange), 0, soc->server, &soc->size);
+    int recv = recvfrom(soc.socket, &rsaKeyExchange, sizeof(RSAKeyExchange), 0, soc.server, &soc.size);
 
     if (recv > 0)
     {
@@ -148,7 +148,7 @@ void Arduino::recv_rsa(Socket *soc)
 
         if (checkRequestForTermination(rsaKeyExchange))
         {
-            rft(soc);
+            rft();
         }
         else
         {
@@ -180,7 +180,7 @@ void Arduino::recv_rsa(Socket *soc)
 
                 if (isHashValid && isNonceTrue && isAnswerCorrect)
                 {
-                    send_rsa_ack(soc);
+                    send_rsa_ack();
                 }
                 else if (!isHashValid)
                 {
@@ -214,7 +214,7 @@ void Arduino::recv_rsa(Socket *soc)
 /*  Step 5
     Envia confirmação para o Servidor referente ao recebimento dos dados RSA.  
 */
-void Arduino::send_rsa_ack(Socket *soc)
+void Arduino::send_rsa_ack()
 {
     /******************** Get Answer FDR ********************/
     const int answerFdr = rsaStorage->getPartnerFDR()->getValue(rsaStorage->getPartnerPublicKey()->d);
@@ -242,7 +242,7 @@ void Arduino::send_rsa_ack(Socket *soc)
     t1 = currentTime();
 
     /******************** Send Exchange ********************/
-    sendto(soc->socket, (RSAKeyExchange *)&rsaExchange, sizeof(rsaExchange), 0, soc->server, soc->size);
+    sendto(soc.socket, (RSAKeyExchange *)&rsaExchange, sizeof(rsaExchange), 0, soc.server, soc.size);
 
     delete[] encryptedHash;
 
@@ -250,17 +250,17 @@ void Arduino::send_rsa_ack(Socket *soc)
     if (VERBOSE)
         send_rsa_ack_verbose(sequence, nonceA);
 
-    recv_dh(soc);
+    recv_dh();
 }
 
 /*  Step 6
     Realiza o recebimento dos dados Diffie-Hellman vinda do Servidor.
 */
-void Arduino::recv_dh(Socket *soc)
+void Arduino::recv_dh()
 {
     /******************** Recv Enc Packet ********************/
     DHEncPacket encPacket;
-    int recv = recvfrom(soc->socket, &encPacket, sizeof(DHEncPacket), 0, soc->server, &soc->size);
+    int recv = recvfrom(soc.socket, &encPacket, sizeof(DHEncPacket), 0, soc.server, &soc.size);
 
     if (recv > 0)
     {
@@ -270,7 +270,7 @@ void Arduino::recv_dh(Socket *soc)
 
         if (checkRequestForTermination(encPacket))
         {
-            rft(soc);
+            rft();
         }
         else
         {
@@ -310,7 +310,7 @@ void Arduino::recv_dh(Socket *soc)
                     /******************** Store DH Package ********************/
                     storeDiffieHellman(&dhPackage);
 
-                    send_dh(soc);
+                    send_dh();
                 }
                 else if (!isHashValid)
                 {
@@ -340,7 +340,7 @@ void Arduino::recv_dh(Socket *soc)
 /*  Step 7
     Realiza o envio dos dados Diffie-Hellman para o Servidor.
 */
-void Arduino::send_dh(Socket *soc)
+void Arduino::send_dh()
 {
     /***************** Calculate DH ******************/
     const int sessionKey = dhStorage->calculateSessionKey(dhStorage->getSessionKey());
@@ -385,7 +385,7 @@ void Arduino::send_dh(Socket *soc)
     t1 = currentTime();
 
     /******************** Send Enc Packet ********************/
-    sendto(soc->socket, (DHEncPacket *)&encPacket, sizeof(DHEncPacket), 0, soc->server, soc->size);
+    sendto(soc.socket, (DHEncPacket *)&encPacket, sizeof(DHEncPacket), 0, soc.server, soc.size);
 
     /******************** Verbose ********************/
     if (VERBOSE)
@@ -395,17 +395,17 @@ void Arduino::send_dh(Socket *soc)
     delete[] encryptedHash;
     delete[] encryptedExchange;
 
-    recv_dh_ack(soc);
+    recv_dh_ack();
 }
 
 /*  Step 8
     Recebe a confirmação do Servidor referente aos dados Diffie-Hellman enviados.
 */
-void Arduino::recv_dh_ack(Socket *soc)
+void Arduino::recv_dh_ack()
 {
     /******************** Recv ACK ********************/
     int encryptedACK[sizeof(DH_ACK)];
-    int recv = recvfrom(soc->socket, encryptedACK, sizeof(DH_ACK) * sizeof(int), 0, soc->server, &soc->size);
+    int recv = recvfrom(soc.socket, encryptedACK, sizeof(DH_ACK) * sizeof(int), 0, soc.server, &soc.size);
 
     if (recv > 0)
     {
@@ -415,7 +415,7 @@ void Arduino::recv_dh_ack(Socket *soc)
 
         if (checkRequestForTermination(encryptedACK))
         {
-            rft(soc);
+            rft();
         }
         else
         {
@@ -468,7 +468,7 @@ void Arduino::recv_dh_ack(Socket *soc)
 /*  Step 9
     Realiza a transferência de dados cifrados para o Servidor.
 */
-void Arduino::data_transfer(Socket *soc)
+void Arduino::data_transfer()
 {
     delete rsaStorage;
 
@@ -501,7 +501,7 @@ void Arduino::data_transfer(Socket *soc)
         strncpy(encryptedMessageChar, encryptedMessage.c_str(), sizeof(encryptedMessageChar));
 
         /* Envia a mensagem cifrada ao Servidor. */
-        sendto(soc->socket, encryptedMessageChar, strlen(encryptedMessageChar), 0, soc->server, soc->size);
+        sendto(soc.socket, encryptedMessageChar, strlen(encryptedMessageChar), 0, soc.server, soc.size);
         memset(envia, '\0', sizeof(envia));
         // fgets(envia, 665, stdin);
         cin >> envia;
@@ -521,10 +521,10 @@ void Arduino::storeNonceB(char *nonce)
     fim de conexão enviado pelo Servidor (DONE_ACK).
     Em caso positivo, altera o estado para HELLO, senão, mantém em WDC.
 */
-void Arduino::wdc(Socket *soc)
+void Arduino::wdc()
 {
     char message[2];
-    int recv = recvfrom(soc->socket, message, sizeof(message), 0, soc->server, &soc->size);
+    int recv = recvfrom(soc.socket, message, sizeof(message), 0, soc.server, &soc.size);
 
     if (recv > 0)
     {
@@ -549,9 +549,9 @@ void Arduino::wdc(Socket *soc)
     Envia uma confirmação (DONE_ACK) para o pedido de término de conexão
     vindo do Cliente, e seta o estado para HELLO.
 */
-void Arduino::rft(Socket *soc)
+void Arduino::rft()
 {
-    sendto(soc->socket, DONE_ACK, strlen(DONE_ACK), 0, soc->server, soc->size);
+    sendto(soc.socket, DONE_ACK, strlen(DONE_ACK), 0, soc.server, soc.size);
     connected = false;
 
     if (VERBOSE)
@@ -562,13 +562,13 @@ void Arduino::rft(Socket *soc)
     Envia um pedido de término de conexão ao Cliente, e seta o estado atual
     para WDC (Waiting Done Confirmation).
 */
-void Arduino::done(Socket *soc)
+void Arduino::done()
 {
-    sendto(soc->socket, DONE_MESSAGE, sizeof(DONE_MESSAGE), 0, soc->server, soc->size);
+    sendto(soc.socket, DONE_MESSAGE, sizeof(DONE_MESSAGE), 0, soc.server, soc.size);
     if (VERBOSE)
         done_verbose();
 
-    wdc(soc);
+    wdc();
 }
 
 void Arduino::generateNonce(char *nonce)
@@ -736,7 +736,6 @@ int Arduino::publish(char *data)
 
         cout << "Encrypted Message: " << encrypted << endl;
         
-        // int sent = sendto(meuSocket, encrypted.c_str(), encrypted.length(), 0, (struct sockaddr*)&servidor, tam_cliente);
         int sent = sendto(soc.socket, encrypted.c_str(), encrypted.length(), 0, soc.server, soc.size);
 
         if (sent > 0)

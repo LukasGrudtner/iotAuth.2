@@ -28,7 +28,7 @@ int DHStorage::calculateResult()
 
 int DHStorage::calculateSessionKey(int result)
 {
-     int aux = pow(result, exponent);
+    int aux = pow(result, exponent);
     return aux % modulus;
 }
 
