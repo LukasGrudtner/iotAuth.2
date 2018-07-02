@@ -47,7 +47,6 @@ void AuthClient::recv_ack()
 
     if (recv > 0)
     {
-
         /******************** Stop Network Time ********************/
         t2 = currentTime();
         networkTime = elapsedTime(t1, t2);

@@ -511,72 +511,7 @@ void AuthServer::send_dh_ack(Socket *soc)
 
     connected = true;
 
-    data_transfer(soc);
-}
-
-/*  Data Transfer
-    Realiza a transferência de dados cifrados para o Cliente.
-*/
-void AuthServer::data_transfer(Socket *soc)
-{
     delete rsaStorage;
-
-    while (1)
-    {
-        /********************* Recebimento dos Dados Cifrados *********************/
-        char message[1333];
-        memset(message, '\0', sizeof(message));
-        int recv = recvfrom(soc->socket, message, sizeof(message) - 1, 0, soc->client, &soc->size);
-
-        if (recv > 0)
-        {
-            /******************* Verifica Pedido de Fim de Conexão ********************/
-            cout << "RECEIVED: " << message << endl;
-
-            if (checkRFT(message))
-            {
-                rft(soc);
-            }
-            else
-            {
-                /* Converte o array de chars (buffer) em uma string. */
-                string encryptedMessage(message);
-
-                /* Inicialização dos vetores ciphertext. */
-                char ciphertextChar[encryptedMessage.length()];
-                uint8_t ciphertext[encryptedMessage.length()];
-                memset(ciphertext, '\0', encryptedMessage.length());
-
-                /* Inicialização do vetor plaintext. */
-                uint8_t plaintext[encryptedMessage.length()];
-                memset(plaintext, '\0', encryptedMessage.length());
-
-                /* Inicialização da chave e iv. */
-                uint8_t key[32];
-                for (int i = 0; i < 32; i++)
-                {
-                    key[i] = diffieHellmanStorage->getSessionKey();
-                }
-
-                uint8_t iv[16];
-                for (int i = 0; i < 16; i++)
-                {
-                    iv[i] = diffieHellmanStorage->getIV();
-                }
-
-                /* Converte a mensagem recebida (HEXA) para o array de char ciphertextChar. */
-                HexStringToCharArray(&encryptedMessage, encryptedMessage.length(), ciphertextChar);
-
-                /* Converte ciphertextChar em um array de uint8_t (ciphertext). */
-                CharToUint8_t(ciphertextChar, ciphertext, encryptedMessage.length());
-
-                /* Decifra a mensagem em um vetor de uint8_t. */
-                uint8_t *decrypted = iotAuth.decryptAES(ciphertext, key, iv, encryptedMessage.length());
-                cout << "Decrypted: " << decrypted << endl
-                     << endl;
-            }
-        }
-    }
 }
 
 /*  Done
@@ -635,7 +570,7 @@ void AuthServer::wdc(Socket *soc)
     }
 }
 
-int AuthServer::wait()
+int AuthServer::connect()
 {
     meuSocket = socket(PF_INET, SOCK_DGRAM, 0);
     servidor.sin_family = AF_INET;
@@ -666,7 +601,7 @@ int AuthServer::wait()
     client = gethostbyname(client_name);
     clientIP = inet_ntoa(*(struct in_addr *)*client->h_addr_list);
 
-    Socket soc = {meuSocket, (struct sockaddr *)&cliente, tam_cliente};
+    soc = {meuSocket, (struct sockaddr *)&cliente, tam_cliente};
 
     try
     {
@@ -679,4 +614,79 @@ int AuthServer::wait()
     }
 
     return OK;
+}
+
+void AuthServer::rpublish()
+{
+    /********************* Recebimento dos Dados Cifrados *********************/
+    char message[1333];
+    memset(message, '\0', sizeof(message));
+    int recv = recvfrom(soc.socket, message, sizeof(message) - 1, 0, soc.client, &soc.size);
+
+    if (recv > 0)
+    {
+        /******************* Verifica Pedido de Fim de Conexão ********************/
+        cout << "RECEIVED: " << message << endl;
+
+        if (checkRFT(message))
+        {
+            rft(&soc);
+        }
+        else
+        {
+            /* Converte o array de chars (buffer) em uma string. */
+            string encryptedMessage(message);
+
+            /* Inicialização dos vetores ciphertext. */
+            char ciphertextChar[encryptedMessage.length()];
+            uint8_t ciphertext[encryptedMessage.length()];
+            memset(ciphertext, '\0', encryptedMessage.length());
+
+            /* Inicialização do vetor plaintext. */
+            uint8_t plaintext[encryptedMessage.length()];
+            memset(plaintext, '\0', encryptedMessage.length());
+
+            /* Inicialização da chave e iv. */
+            uint8_t key[32];
+            for (int i = 0; i < 32; i++)
+            {
+                key[i] = diffieHellmanStorage->getSessionKey();
+            }
+
+            uint8_t iv[16];
+            for (int i = 0; i < 16; i++)
+            {
+                iv[i] = diffieHellmanStorage->getIV();
+            }
+
+            /* Converte a mensagem recebida (HEXA) para o array de char ciphertextChar. */
+            HexStringToCharArray(&encryptedMessage, encryptedMessage.length(), ciphertextChar);
+
+            /* Converte ciphertextChar em um array de uint8_t (ciphertext). */
+            CharToUint8_t(ciphertextChar, ciphertext, encryptedMessage.length());
+
+            /* Decifra a mensagem em um vetor de uint8_t. */
+            uint8_t *decrypted = iotAuth.decryptAES(ciphertext, key, iv, encryptedMessage.length());
+            cout << "Decrypted: " << decrypted << endl
+                    << endl;
+        }
+    }
+}
+
+int AuthServer::wait()
+{
+    if (!connected) 
+    {
+        connect();
+    }
+    
+    if (connected)
+    {
+        while (true)
+        {
+            rpublish();
+        }
+    }
+    
+    return 0;
 }

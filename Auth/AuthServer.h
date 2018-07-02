@@ -41,14 +41,16 @@ class AuthServer
 
     AuthServer();
     int wait();
+    int connect();
+    void rpublish();
 
   private:
     RSAStorage *rsaStorage;
     DHStorage *diffieHellmanStorage;
     IotAuth iotAuth;
 
-    bool transfer_data = true;
-
+    Socket soc;
+    
     char *serverIP;
     char *clientIP;
     int sequence;
