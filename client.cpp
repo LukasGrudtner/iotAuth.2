@@ -17,6 +17,8 @@ int main(int argc, char *argv[])
     char data1[] = "teste2";
     auth.publish(data1);
 
+    auth.disconnect();
+
     double end = currentTime();
     cout << "Elapsed Time: " << elapsedTime(start, end) << " ms." << endl;
 }

@@ -746,3 +746,15 @@ int AuthClient::publish(char *data)
     }
 
 }
+
+int AuthClient::disconnect()
+{
+    if (isConnected())
+    {
+        done();
+    }
+    else
+    {
+        cout << "Não existe conexão com o servidor!" << endl;
+    }
+}

@@ -43,7 +43,7 @@ class AuthClient
 
     Socket soc;
     int connect(char *address, int port=DEFAULT_PORT);
-
+    int disconnect();
     int publish(char *data);
 
     bool isConnected();

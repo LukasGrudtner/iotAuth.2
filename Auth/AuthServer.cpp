@@ -56,7 +56,13 @@ void AuthServer::generateDiffieHellman()
 void AuthServer::recv_syn()
 {
     structSyn received;
-    recvfrom(soc.socket, &received, sizeof(syn), 0, soc.client, &soc.size);
+    
+    int recv = 0;
+
+    while (recv <= 0)
+    {
+        recv = recvfrom(soc.socket, &received, sizeof(syn), 0, soc.client, &soc.size);
+    }
 
     start = currentTime();
 
@@ -538,6 +544,8 @@ void AuthServer::rft()
 
     if (VERBOSE)
         rft_verbose();
+
+    close(soc.socket);
 }
 
 /*  Waiting Done Confirmation
@@ -674,14 +682,14 @@ void AuthServer::rpublish()
 
 int AuthServer::wait()
 {
-    if (!connected) 
+    while (true)
     {
-        connect();
-    }
-    
-    if (connected)
-    {
-        while (true)
+        if (!connected) 
+        {
+            connect();
+        }
+        
+        while (connected)
         {
             rpublish();
         }
