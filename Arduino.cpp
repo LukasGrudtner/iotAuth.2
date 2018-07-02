@@ -152,7 +152,6 @@ void Arduino::recv_rsa()
         }
         else
         {
-
             /******************** Proof of Time ********************/
             const double limit = processingTime1 + networkTime + (processingTime1 + networkTime) * 0.1;
 
