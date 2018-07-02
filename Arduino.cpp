@@ -4,12 +4,14 @@ Arduino::Arduino()
 {
     nonceA[128] = '\0';
     nonceB[128] = '\0';
+    memset(envia, 0, sizeof(envia));
+    memset(recebe, 0, sizeof(recebe));
 }
 
 /*  Step 1
     Envia pedido de início de conexão ao Servidor.   
 */
-void Arduino::send_syn(Socket *soc)
+void Arduino::send_syn()
 {
     /******************** Init Sequence ********************/
     sequence = iotAuth.randomNumber(9999);
@@ -25,13 +27,13 @@ void Arduino::send_syn(Socket *soc)
     t1 = currentTime();
 
     /******************** Send SYN ********************/
-    sendto(soc->socket, (syn *)&toSend, sizeof(syn), 0, soc->server, soc->size);
+    sendto(soc.socket, (syn *)&toSend, sizeof(syn), 0, soc.server, soc.size);
 
     /******************** Verbose ********************/
     if (VERBOSE)
         send_syn_verbose(nonceA);
 
-    recv_ack(soc);
+    recv_ack(&soc);
 }
 
 /*  Step 2
@@ -436,6 +438,7 @@ void Arduino::recv_dh_ack(Socket *soc)
                 if (isNonceTrue)
                 {
                     connected = true;
+                    // data_transfer(soc);
                 }
                 else
                 {
@@ -536,7 +539,7 @@ void Arduino::wdc(Socket *soc)
             throw DENIED;
         }
     }
-    else 
+    else
     {
         throw NO_REPLY;
     }
@@ -660,4 +663,89 @@ bool Arduino::checkRequestForTermination(T &object)
 {
     int cmp = memcmp(&object, DONE_MESSAGE, strlen(DONE_MESSAGE));
     return cmp == 0;
+}
+
+int Arduino::connect(char *address, int port)
+{
+    if (*address == '\0')
+    {
+        fprintf(stderr, "ERROR, no such host\n");
+        return DENIED;
+    }
+
+    server = gethostbyname(address);
+    if (server == NULL)
+    {
+        fprintf(stderr, "ERROR, no such host\n");
+        return DENIED;
+    }
+
+    bcopy((char *)server->h_addr,
+          (char *)&servidor.sin_addr.s_addr,
+          server->h_length);
+
+    meuSocket = socket(PF_INET, SOCK_DGRAM, 0);
+    servidor.sin_family = AF_INET;   // familia de endereços
+    servidor.sin_port = htons(port); // porta
+
+    /* Set maximum wait time for response */
+    struct timeval tv;
+    tv.tv_sec = TIMEOUT_SEC;
+    tv.tv_usec = TIMEOUT_MIC;
+    setsockopt(meuSocket, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof tv);
+
+    /* Get IP Address Server */
+    gethostname(host_name, sizeof(host_name));
+    server = gethostbyname(host_name);
+    serverIP = inet_ntoa(*(struct in_addr *)*server->h_addr_list);
+
+    /* Get IP Address Client */
+    struct hostent *client;
+    gethostname(client_name, sizeof(client_name));
+    client = gethostbyname(client_name);
+    clientIP = inet_ntoa(*(struct in_addr *)*client->h_addr_list);
+
+    soc = {meuSocket, (struct sockaddr *)&servidor, sizeof(struct sockaddr_in)};
+
+    try
+    {
+        send_syn();
+    }
+    catch (Reply e)
+    {
+        reply_verbose(e);
+        return e;
+    }
+
+    delete rsaStorage;
+    return OK;
+}
+
+bool Arduino::isConnected()
+{
+    return connected;
+}
+
+int Arduino::publish(char *data)
+{
+    if (isConnected()) {
+
+        cout << "\nPublish: " << data << endl;
+
+        string encrypted = encryptMessage(data, 666);
+
+        cout << "Encrypted Message: " << encrypted << endl;
+        
+        // int sent = sendto(meuSocket, encrypted.c_str(), encrypted.length(), 0, (struct sockaddr*)&servidor, tam_cliente);
+        int sent = sendto(soc.socket, encrypted.c_str(), encrypted.length(), 0, soc.server, soc.size);
+
+        if (sent > 0)
+            return OK;
+        else
+            return DENIED;
+    } else {
+        cout << "Não existe conexão com o servidor!" << endl;
+        return -1;
+    }
+
 }

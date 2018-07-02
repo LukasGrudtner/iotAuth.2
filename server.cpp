@@ -137,11 +137,10 @@ void wdc(Socket *soc)
             throw DENIED;
         }
     }
-    else 
+    else
     {
         throw NO_REPLY;
     }
-
 }
 
 /*  Request for Termination
@@ -164,11 +163,76 @@ void rft(Socket *soc)
 void done(Socket *soc)
 {
     sendto(soc->socket, DONE_MESSAGE, sizeof(DONE_MESSAGE), 0, soc->client, soc->size);
-    
+
     if (VERBOSE)
         done_verbose();
-        
+
     wdc(soc);
+}
+
+/*  Data Transfer
+    Realiza a transferência de dados cifrados para o Cliente.
+*/
+void data_transfer(Socket *soc)
+{
+    delete rsaStorage;
+
+    while (1)
+    {
+        /********************* Recebimento dos Dados Cifrados *********************/
+        char message[1333];
+        memset(message, '\0', sizeof(message));
+        int recv = recvfrom(soc->socket, message, sizeof(message) - 1, 0, soc->client, &soc->size);
+
+        if (recv > 0)
+        {
+            /******************* Verifica Pedido de Fim de Conexão ********************/
+            cout << "RECEIVED: " << message << endl;
+
+            if (checkRFT(message))
+            {
+                rft(soc);
+            }
+            else
+            {
+                /* Converte o array de chars (buffer) em uma string. */
+                string encryptedMessage(message);
+
+                /* Inicialização dos vetores ciphertext. */
+                char ciphertextChar[encryptedMessage.length()];
+                uint8_t ciphertext[encryptedMessage.length()];
+                memset(ciphertext, '\0', encryptedMessage.length());
+
+                /* Inicialização do vetor plaintext. */
+                uint8_t plaintext[encryptedMessage.length()];
+                memset(plaintext, '\0', encryptedMessage.length());
+
+                /* Inicialização da chave e iv. */
+                uint8_t key[32];
+                for (int i = 0; i < 32; i++)
+                {
+                    key[i] = diffieHellmanStorage->getSessionKey();
+                }
+
+                uint8_t iv[16];
+                for (int i = 0; i < 16; i++)
+                {
+                    iv[i] = diffieHellmanStorage->getIV();
+                }
+
+                /* Converte a mensagem recebida (HEXA) para o array de char ciphertextChar. */
+                HexStringToCharArray(&encryptedMessage, encryptedMessage.length(), ciphertextChar);
+
+                /* Converte ciphertextChar em um array de uint8_t (ciphertext). */
+                CharToUint8_t(ciphertextChar, ciphertext, encryptedMessage.length());
+
+                /* Decifra a mensagem em um vetor de uint8_t. */
+                uint8_t *decrypted = iotAuth.decryptAES(ciphertext, key, iv, encryptedMessage.length());
+                cout << "Decrypted: " << decrypted << endl
+                     << endl;
+            }
+        }
+    }
 }
 
 /*  Step 8
@@ -194,14 +258,13 @@ void send_dh_ack(Socket *soc)
 
     delete[] encryptedAck;
 
-    if (MEM_TEST)
-        transfer_data = false;
-
     /******************** Verbose ********************/
     if (VERBOSE)
         send_dh_ack_verbose(&ack);
 
     connected = true;
+
+    data_transfer(soc);
 }
 
 /*  Step 7
@@ -251,15 +314,15 @@ int recv_dh(Socket *soc)
                 const bool isHashValid = iotAuth.isHashValid(&dhString, &decryptedHash);
                 const bool isNonceTrue = strcmp(dhPackage.getNonceB(), nonceB) == 0;
 
-                if (VERBOSE)
-                    recv_dh_verbose(&dhPackage, diffieHellmanStorage->getSessionKey(), isHashValid, isNonceTrue);
-
                 if (isHashValid && isNonceTrue)
                 {
                     /******************** Store Nounce A ********************/
                     storeNonceA(dhPackage.getNonceA());
                     /******************** Calculate Session Key ********************/
                     diffieHellmanStorage->setSessionKey(diffieHellmanStorage->calculateSessionKey(dhPackage.getResult()));
+
+                    if (VERBOSE)
+                        recv_dh_verbose(&dhPackage, diffieHellmanStorage->getSessionKey(), isHashValid, isNonceTrue);
 
                     send_dh_ack(soc);
                 }
@@ -502,7 +565,7 @@ void send_rsa(Socket *soc)
     /******************** Verbose ********************/
     if (VERBOSE)
         send_rsa_verbose(rsaStorage, sequence, nonceB);
-    
+
     recv_rsa_ack(soc);
 }
 
@@ -633,66 +696,6 @@ void recv_syn(Socket *soc)
     else
     {
         throw DENIED;
-    }
-}
-
-
-/*  Data Transfer
-    Realiza a transferência de dados cifrados para o Cliente.
-*/
-void data_transfer(Socket *soc)
-{
-    delete rsaStorage;
-    /********************* Recebimento dos Dados Cifrados *********************/
-    char message[1333];
-    memset(message, '\0', sizeof(message));
-    recvfrom(soc->socket, message, sizeof(message) - 1, 0, soc->client, &soc->size);
-
-    /******************* Verifica Pedido de Fim de Conexão ********************/
-
-    if (checkRFT(message))
-    {
-        rft(soc);
-    }
-    else
-    {
-
-        /* Converte o array de chars (buffer) em uma string. */
-        string encryptedMessage(message);
-
-        /* Inicialização dos vetores ciphertext. */
-        char ciphertextChar[encryptedMessage.length()];
-        uint8_t ciphertext[encryptedMessage.length()];
-        memset(ciphertext, '\0', encryptedMessage.length());
-
-        /* Inicialização do vetor plaintext. */
-        uint8_t plaintext[encryptedMessage.length()];
-        memset(plaintext, '\0', encryptedMessage.length());
-
-        /* Inicialização da chave e iv. */
-        uint8_t key[32];
-        for (int i = 0; i < 32; i++)
-        {
-            key[i] = diffieHellmanStorage->getSessionKey();
-        }
-
-        uint8_t iv[16];
-        for (int i = 0; i < 16; i++)
-        {
-            iv[i] = diffieHellmanStorage->getIV();
-        }
-
-        /* Converte a mensagem recebida (HEXA) para o array de char ciphertextChar. */
-        HexStringToCharArray(&encryptedMessage, encryptedMessage.length(), ciphertextChar);
-
-        /* Converte ciphertextChar em um array de uint8_t (ciphertext). */
-        CharToUint8_t(ciphertextChar, ciphertext, encryptedMessage.length());
-
-        /* Decifra a mensagem em um vetor de uint8_t. */
-        uint8_t *decrypted = iotAuth.decryptAES(ciphertext, key, iv, encryptedMessage.length());
-        cout << "Decrypted: " << decrypted << endl;
-
-        // delete[] decrypted;
     }
 }
 
