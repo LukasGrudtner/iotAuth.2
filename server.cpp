@@ -3,7 +3,7 @@
 
 using namespace std;
 
-Auth auth;
+AuthServer auth;
 
 int main(int argc, char *argv[])
 {

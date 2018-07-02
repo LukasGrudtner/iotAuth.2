@@ -1,6 +1,6 @@
 #include "AuthClient.h"
 
-Arduino::Arduino()
+AuthClient::AuthClient()
 {
     nonceA[128] = '\0';
     nonceB[128] = '\0';
@@ -11,7 +11,7 @@ Arduino::Arduino()
 /*  Step 1
     Envia pedido de início de conexão ao Servidor.   
 */
-void Arduino::send_syn()
+void AuthClient::send_syn()
 {
     /******************** Init Sequence ********************/
     sequence = iotAuth.randomNumber(9999);
@@ -39,7 +39,7 @@ void Arduino::send_syn()
 /*  Step 2
     Recebe confirmação do Servidor referente ao pedido de início de conexão.    
 */
-void Arduino::recv_ack()
+void AuthClient::recv_ack()
 {
     /******************** Receive ACK ********************/
     structAck received;
@@ -85,7 +85,7 @@ void Arduino::recv_ack()
 /*  Step 3
     Realiza o envio dos dados RSA para o Servidor.  
 */
-void Arduino::send_rsa()
+void AuthClient::send_rsa()
 {
     /******************** Generate RSA/FDR ********************/
     rsaStorage = new RSAStorage();
@@ -134,7 +134,7 @@ void Arduino::send_rsa()
 /*  Step 4
     Recebe os dados RSA vindos do Servidor.
 */
-void Arduino::recv_rsa()
+void AuthClient::recv_rsa()
 {
     /******************** Receive Exchange ********************/
     RSAKeyExchange rsaKeyExchange;
@@ -213,7 +213,7 @@ void Arduino::recv_rsa()
 /*  Step 5
     Envia confirmação para o Servidor referente ao recebimento dos dados RSA.  
 */
-void Arduino::send_rsa_ack()
+void AuthClient::send_rsa_ack()
 {
     /******************** Get Answer FDR ********************/
     const int answerFdr = rsaStorage->getPartnerFDR()->getValue(rsaStorage->getPartnerPublicKey()->d);
@@ -255,7 +255,7 @@ void Arduino::send_rsa_ack()
 /*  Step 6
     Realiza o recebimento dos dados Diffie-Hellman vinda do Servidor.
 */
-void Arduino::recv_dh()
+void AuthClient::recv_dh()
 {
     /******************** Recv Enc Packet ********************/
     DHEncPacket encPacket;
@@ -339,7 +339,7 @@ void Arduino::recv_dh()
 /*  Step 7
     Realiza o envio dos dados Diffie-Hellman para o Servidor.
 */
-void Arduino::send_dh()
+void AuthClient::send_dh()
 {
     /***************** Calculate DH ******************/
     const int sessionKey = dhStorage->calculateSessionKey(dhStorage->getSessionKey());
@@ -400,7 +400,7 @@ void Arduino::send_dh()
 /*  Step 8
     Recebe a confirmação do Servidor referente aos dados Diffie-Hellman enviados.
 */
-void Arduino::recv_dh_ack()
+void AuthClient::recv_dh_ack()
 {
     /******************** Recv ACK ********************/
     int encryptedACK[sizeof(DH_ACK)];
@@ -467,7 +467,7 @@ void Arduino::recv_dh_ack()
 /*  Step 9
     Realiza a transferência de dados cifrados para o Servidor.
 */
-void Arduino::data_transfer()
+void AuthClient::data_transfer()
 {
     delete rsaStorage;
 
@@ -508,7 +508,7 @@ void Arduino::data_transfer()
 }
 
 /*  Armazena o valor do nonce B em uma variável global. */
-void Arduino::storeNonceB(char *nonce)
+void AuthClient::storeNonceB(char *nonce)
 {
     strncpy(nonceB, nonce, sizeof(nonceB));
 }
@@ -520,7 +520,7 @@ void Arduino::storeNonceB(char *nonce)
     fim de conexão enviado pelo Servidor (DONE_ACK).
     Em caso positivo, altera o estado para HELLO, senão, mantém em WDC.
 */
-void Arduino::wdc()
+void AuthClient::wdc()
 {
     char message[2];
     int recv = recvfrom(soc.socket, message, sizeof(message), 0, soc.server, &soc.size);
@@ -548,7 +548,7 @@ void Arduino::wdc()
     Envia uma confirmação (DONE_ACK) para o pedido de término de conexão
     vindo do Cliente, e seta o estado para HELLO.
 */
-void Arduino::rft()
+void AuthClient::rft()
 {
     sendto(soc.socket, DONE_ACK, strlen(DONE_ACK), 0, soc.server, soc.size);
     connected = false;
@@ -561,7 +561,7 @@ void Arduino::rft()
     Envia um pedido de término de conexão ao Cliente, e seta o estado atual
     para WDC (Waiting Done Confirmation).
 */
-void Arduino::done()
+void AuthClient::done()
 {
     sendto(soc.socket, DONE_MESSAGE, sizeof(DONE_MESSAGE), 0, soc.server, soc.size);
     if (VERBOSE)
@@ -570,7 +570,7 @@ void Arduino::done()
     wdc();
 }
 
-void Arduino::generateNonce(char *nonce)
+void AuthClient::generateNonce(char *nonce)
 {
     string message = stringTime() + *clientIP + *serverIP + to_string(sequence++);
     string hash = iotAuth.hash(&message);
@@ -579,7 +579,7 @@ void Arduino::generateNonce(char *nonce)
     strncpy(nonce, hash.c_str(), 128);
 }
 
-void Arduino::storeDiffieHellman(DiffieHellmanPackage *dhPackage)
+void AuthClient::storeDiffieHellman(DiffieHellmanPackage *dhPackage)
 {
     dhStorage = new DHStorage();
 
@@ -594,7 +594,7 @@ void Arduino::storeDiffieHellman(DiffieHellmanPackage *dhPackage)
     Decifra o pacote de troca Diffie-Hellman utilizando a chave privada do Servidor.
     Recebe por parâmetro a mensagem cifrada e retorna por parâmetro o pacote decifrado.
 */
-void Arduino::decryptDHKeyExchange(int *encryptedMessage, DHKeyExchange *dhKeyExchange)
+void AuthClient::decryptDHKeyExchange(int *encryptedMessage, DHKeyExchange *dhKeyExchange)
 {
     byte *const decryptedMessage = iotAuth.decryptRSA(encryptedMessage, rsaStorage->getMyPrivateKey(), sizeof(DHKeyExchange));
 
@@ -607,7 +607,7 @@ void Arduino::decryptDHKeyExchange(int *encryptedMessage, DHKeyExchange *dhKeyEx
     Decifra o hash obtido do pacote utilizando a chave pública do Cliente.
     Retorna o hash em uma string.
 */
-string Arduino::decryptHash(int *encryptedHash)
+string AuthClient::decryptHash(int *encryptedHash)
 {
     byte *const decryptedHash = iotAuth.decryptRSA(encryptedHash, rsaStorage->getPartnerPublicKey(), 128);
 
@@ -627,7 +627,7 @@ string Arduino::decryptHash(int *encryptedHash)
 /*  Encrypt Message
     Encripta a mensagem utilizando a chave de sessão.
 */
-string Arduino::encryptMessage(char *message, int size)
+string AuthClient::encryptMessage(char *message, int size)
 {
     /* Inicialização do vetor plaintext. */
     uint8_t plaintext[size];
@@ -658,13 +658,13 @@ string Arduino::encryptMessage(char *message, int size)
 }
 
 template <typename T>
-bool Arduino::checkRequestForTermination(T &object)
+bool AuthClient::checkRequestForTermination(T &object)
 {
     int cmp = memcmp(&object, DONE_MESSAGE, strlen(DONE_MESSAGE));
     return cmp == 0;
 }
 
-int Arduino::connect(char *address, int port)
+int AuthClient::connect(char *address, int port)
 {
     if (*address == '\0')
     {
@@ -720,12 +720,12 @@ int Arduino::connect(char *address, int port)
     return OK;
 }
 
-bool Arduino::isConnected()
+bool AuthClient::isConnected()
 {
     return connected;
 }
 
-int Arduino::publish(char *data)
+int AuthClient::publish(char *data)
 {
     if (isConnected()) {
 

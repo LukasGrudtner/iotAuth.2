@@ -36,10 +36,10 @@ typedef struct Socket
     socklen_t size;
 } t_socket;
 
-class Arduino
+class AuthClient
 {
   public:
-    Arduino();
+    AuthClient();
 
     Socket soc;
     int connect(char *address, int port=DEFAULT_PORT);

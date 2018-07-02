@@ -35,11 +35,11 @@ typedef struct Socket
     socklen_t size;
 } t_socket;
 
-class Auth
+class AuthServer
 {
   public:
 
-    Auth();
+    AuthServer();
     int wait();
 
   private:
