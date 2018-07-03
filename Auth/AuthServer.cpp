@@ -5,50 +5,146 @@ AuthServer::AuthServer()
     memset(buffer, 0, sizeof(buffer));
 }
 
-/*  Armazena o valor do nonce B em uma variável global. */
-void AuthServer::storeNonceA(char *nonce)
+
+
+
+/*  Aguarda conexão com algum Cliente. */
+bool AuthServer::wait_connection()
 {
-    strncpy(nonceA, nonce, sizeof(nonceA));
-}
-
-/*  Gera um valor para o nonce B.   */
-void AuthServer::generateNonce(char *nonce)
-{
-    string message = stringTime() + *serverIP + *clientIP + to_string(sequence++);
-    string hash = iotAuth.hash(&message);
-
-    memset(nonce, '\0', 129);
-    strncpy(nonce, hash.c_str(), 128);
-}
-
-/*  Decifra o hash utilizando a chave pública do Cliente. */
-string AuthServer::decryptHash(int *encryptedHash)
-{
-    byte *decryptedHash = iotAuth.decryptRSA(encryptedHash, rsaStorage->getPartnerPublicKey(), 128);
-
-    char aux;
-    string decryptedHashString = "";
-    for (int i = 0; i < 128; i++)
+    if (!isConnected()) 
     {
-        aux = decryptedHash[i];
-        decryptedHashString += aux;
+        connect();
+        return true;
     }
-
-    delete[] decryptedHash;
-
-    return decryptedHashString;
+    return false;
 }
 
-/*  Inicializa os valores pertinentes a troca de chaves Diffie-Hellman:
-    expoente, base, módulo, resultado e a chave de sessão.
-*/
-void AuthServer::generateDiffieHellman()
+
+
+
+/*  Entra em estado de espera por dados vindos do Cliente. */
+string AuthServer::listen()
 {
-    diffieHellmanStorage = new DHStorage();
-    diffieHellmanStorage->setBase(iotAuth.randomNumber(100) + 2);
-    diffieHellmanStorage->setExponent(iotAuth.randomNumber(3) + 2);
-    diffieHellmanStorage->setModulus(iotAuth.randomNumber(100) + 2);
+    if (isConnected())
+    {
+        /********************* Recebimento dos Dados Cifrados *********************/
+        char message[1333];
+        memset(message, '\0', sizeof(message));
+        int recv = 0;
+
+        while (recv <= 0)
+        {
+            recv = recvfrom(soc.socket, message, sizeof(message) - 1, 0, soc.client, &soc.size);
+        }
+
+        if (isDisconnectRequest(message))
+        {
+            rdisconnect();
+        }
+        else
+        {
+            /**************** RECEBE A MENSAGEM *****************************************/
+            /* Converte o array de chars (buffer) em uma string. */
+            string encryptedMessage(message);
+
+            /* Inicialização dos vetores ciphertext. */
+            char ciphertextChar[encryptedMessage.length()];
+            uint8_t ciphertext[encryptedMessage.length()];
+            memset(ciphertext, '\0', encryptedMessage.length());
+
+            /* Inicialização do vetor plaintext. */
+            uint8_t plaintext[encryptedMessage.length()];
+            memset(plaintext, '\0', encryptedMessage.length());
+
+            /* Inicialização da chave e iv. */
+            uint8_t key[32];
+            for (int i = 0; i < 32; i++)
+            {
+                key[i] = diffieHellmanStorage->getSessionKey();
+            }
+
+            uint8_t iv[16];
+            for (int i = 0; i < 16; i++)
+            {
+                iv[i] = diffieHellmanStorage->getIV();
+            }
+
+            /* Converte a mensagem recebida (HEXA) para o array de char ciphertextChar. */
+            HexStringToCharArray(&encryptedMessage, encryptedMessage.length(), ciphertextChar);
+
+            /* Converte ciphertextChar em um array de uint8_t (ciphertext). */
+            CharToUint8_t(ciphertextChar, ciphertext, encryptedMessage.length());
+
+            /* Decifra a mensagem em um vetor de uint8_t. */
+            uint8_t *decrypted = iotAuth.decryptAES(ciphertext, key, iv, encryptedMessage.length());
+            // cout << "Decrypted: " << decrypted << endl << endl;
+
+            /************************** ENVIA ACK CONFIRMANDO ********************************/
+            while (sack() == false);
+
+            return Uint8_tToString(decrypted, encryptedMessage.length());
+        }
+    }
 }
+
+
+
+
+/*  Envia dados para o Cliente. */
+Reply AuthServer::publish(char *data)
+{
+    if (isConnected()) {
+        string encrypted = encryptMessage(data, 666);
+
+        // cout << "Encrypted Message: " << encrypted << endl;
+        
+        int sent = sendto(soc.socket, encrypted.c_str(), encrypted.length(), 0, soc.client, soc.size);
+
+        if (sent > 0)
+        {
+            if (rack())
+            {
+                return OK;
+            }
+            return DENIED;
+        }
+        else
+            return DENIED;
+    } else {
+        cout << "Não existe conexão com o servidor!" << endl;
+        return NOT_CONNECTED;
+    }
+    return DENIED;
+}
+
+
+
+
+/*  Envia um pedido de término de conexão ao Cliente. */
+Reply AuthServer::disconnect()
+{
+    if (isConnected())
+    {
+        return done();
+    }
+    else
+    {
+        cout << "Não existe conexão com o cliente!" << endl;
+        return NOT_CONNECTED;
+    }
+}
+
+
+
+
+/*  Retorna um boolean para indicar se possui conexão com o Cliente. */
+bool AuthServer::isConnected()
+{
+    return connected;
+}
+
+
+
 
 /*  Step 1
     Recebe um pedido de início de conexão por parte do Cliente.
@@ -66,10 +162,9 @@ void AuthServer::recv_syn()
 
     start = currentTime();
 
-    /* Verifica se a mensagem recebida é um HELLO. */
+    /* Verifica se a mensagem recebida é um SYN. */
     if (received.message == SYN)
     {
-
         /******************** Store Nonce A ********************/
         storeNonceA(received.nonce);
 
@@ -84,6 +179,9 @@ void AuthServer::recv_syn()
         throw DENIED;
     }
 }
+
+
+
 
 /*  Step 2
     Envia confirmação ao Cliente referente ao pedido de início de conexão.
@@ -114,6 +212,9 @@ void AuthServer::send_ack()
     recv_rsa();
 }
 
+
+
+
 /*  Step 3
     Recebe os dados RSA vindos do Cliente.
 */
@@ -125,9 +226,9 @@ void AuthServer::recv_rsa()
 
     if (recv > 0)
     {
-        if (checkRFT(rsaReceived))
+        if (isDisconnectRequest(rsaReceived))
         {
-            rft();
+            rdisconnect();
         }
         else
         {
@@ -169,10 +270,12 @@ void AuthServer::recv_rsa()
             }
             else if (!isHashValid)
             {
+                disconnect();
                 throw HASH_INVALID;
             }
             else
             {
+                disconnect();
                 throw NONCE_INVALID;
             }
         }
@@ -184,6 +287,10 @@ void AuthServer::recv_rsa()
         throw NO_REPLY;
     }
 }
+
+
+
+
 
 /*  Step 4
     Realiza o envio dos dados RSA para o Cliente.
@@ -214,6 +321,7 @@ void AuthServer::send_rsa()
     /******************** Get Hash ********************/
     string packageString = rsaSent.toString();
     string hash = iotAuth.hash(&packageString);
+
 
     /******************** Encrypt Hash ********************/
     int *const encryptedHash = iotAuth.encryptRSA(&hash, rsaStorage->getMyPrivateKey(), 128);
@@ -251,6 +359,10 @@ void AuthServer::send_rsa()
     recv_rsa_ack();
 }
 
+
+
+
+
 /*  Step 5
     Recebe confirmação do Cliente referente ao recebimento dos dados RSA.
 */
@@ -261,9 +373,9 @@ void AuthServer::recv_rsa_ack()
 
     if (recv > 0)
     {
-        if (checkRFT(rsaReceived))
+        if (isDisconnectRequest(rsaReceived))
         {
-            rft();
+            rdisconnect();
         }
         else
         {
@@ -272,8 +384,8 @@ void AuthServer::recv_rsa_ack()
             totalTime = elapsedTime(t1, t2);
 
             /******************** Proof of Time ********************/
-            // double limit = processingTime1 + networkTime + (processingTime1 + networkTime)*0.1;
-            double limit = 1000;
+            double limit = processingTime1 + networkTime + (processingTime1 + networkTime)*0.1;
+            // double limit = 1000;
 
             if (totalTime <= limit)
             {
@@ -301,14 +413,17 @@ void AuthServer::recv_rsa_ack()
                 }
                 else if (!isHashValid)
                 {
+                    disconnect();
                     throw HASH_INVALID;
                 }
                 else if (!isNonceTrue)
                 {
+                    disconnect();
                     throw NONCE_INVALID;
                 }
                 else
                 {
+                    disconnect();
                     throw FDR_INVALID;
                 }
             }
@@ -316,6 +431,7 @@ void AuthServer::recv_rsa_ack()
             {
                 if (VERBOSE)
                     time_limit_burst_verbose();
+                disconnect();
                 throw TIMEOUT;
             }
         }
@@ -328,6 +444,9 @@ void AuthServer::recv_rsa_ack()
         throw NO_REPLY;
     }
 }
+
+
+
 
 /*  Step 6
     Realiza o envio dos dados Diffie-Hellman para o Cliente.
@@ -403,6 +522,9 @@ void AuthServer::send_dh()
     recv_dh();
 }
 
+
+
+
 /*  Step 7
     Recebe os dados Diffie-Hellman vindos do Cliente.   */
 int AuthServer::recv_dh()
@@ -414,9 +536,9 @@ int AuthServer::recv_dh()
     if (recv > 0)
     {
 
-        if (checkRFT(encPacket))
+        if (isDisconnectRequest(encPacket))
         {
-            rft();
+            rdisconnect();
         }
         else
         {
@@ -430,7 +552,6 @@ int AuthServer::recv_dh()
 
             if (totalTime <= limit)
             {
-
                 /******************** Decrypt Exchange ********************/
                 DHKeyExchange dhKeyExchange;
                 int *const encryptedExchange = encPacket.getEncryptedExchange();
@@ -464,10 +585,12 @@ int AuthServer::recv_dh()
                 }
                 else if (!isHashValid)
                 {
+                    disconnect();
                     throw HASH_INVALID;
                 }
                 else
                 {
+                    disconnect();
                     throw NONCE_INVALID;
                 }
             }
@@ -475,6 +598,7 @@ int AuthServer::recv_dh()
             {
                 if (VERBOSE)
                     time_limit_burst_verbose();
+                disconnect();
                 throw TIMEOUT;
             }
         }
@@ -486,6 +610,9 @@ int AuthServer::recv_dh()
         throw NO_REPLY;
     }
 }
+
+
+
 
 /*  Step 8
     Envia confirmação para o Cliente referente ao recebimento dos dados Diffie-Hellman.
@@ -519,41 +646,15 @@ void AuthServer::send_dh_ack()
     delete rsaStorage;
 }
 
-/*  Done
-    Envia um pedido de término de conexão ao Cliente, e seta o estado atual
-    para WDC (Waiting Done Confirmation).
-*/
-void AuthServer::done()
-{
-    sendto(soc.socket, DONE_MESSAGE, sizeof(DONE_MESSAGE), 0, soc.client, soc.size);
 
-    if (VERBOSE)
-        done_verbose();
 
-    wdc();
-}
-
-/*  Request for Termination
-    Envia uma confirmação (DONE_ACK) para o pedido de término de conexão
-    vindo do Cliente, e seta o estado para HELLO.
-*/
-void AuthServer::rft()
-{
-    sendto(soc.socket, DONE_ACK, strlen(DONE_ACK), 0, soc.client, soc.size);
-    connected = false;
-
-    if (VERBOSE)
-        rft_verbose();
-
-    close(soc.socket);
-}
 
 /*  Waiting Done Confirmation
     Verifica se a mensagem vinda do Cliente é uma confirmação do pedido de
     fim de conexão enviado pelo Servidor (DONE_ACK).
     Em caso positivo, altera o estado para HELLO, senão, mantém em WDC. 7
 */
-void AuthServer::wdc()
+Reply AuthServer::wdc()
 {
     char message[2];
     int recv = recvfrom(soc.socket, message, sizeof(message), 0, soc.client, &soc.size);
@@ -564,20 +665,74 @@ void AuthServer::wdc()
         {
             if (VERBOSE)
                 wdc_verbose();
+
             connected = false;
+            close(soc.socket);
+            return OK;
         }
         else
         {
-            throw DENIED;
+            connected = false;
+            close(soc.socket);
+            return DENIED;
         }
     }
     else
     {
-        throw NO_REPLY;
+        connected = false;
+        close(soc.socket);
+        return NO_REPLY;
     }
 }
 
-int AuthServer::connect()
+
+
+
+/*  Receive Disconnect
+    Envia uma confirmação (DONE_ACK) para o pedido de término de conexão
+    vindo do Cliente, e fecha o socket.
+*/
+void AuthServer::rdisconnect()
+{
+    int sent = 0;
+
+    do
+    {
+        sent = sendto(soc.socket, DONE_ACK, strlen(DONE_ACK), 0, soc.client, soc.size);
+    } while (sent <= 0);
+
+    connected = false;
+
+    if (VERBOSE)
+        rft_verbose();
+
+    close(soc.socket);
+}
+
+
+
+
+/*  Envia um pedido de fim de conexão para o Cliente. */
+Reply AuthServer::done()
+{
+    int sent = 0;
+    
+    do
+    {
+        sent = sendto(soc.socket, DONE_MESSAGE, sizeof(DONE_MESSAGE), 0, soc.client, soc.size);
+    } while (sent <= 0);
+
+    if (VERBOSE)
+        done_verbose();
+
+    return wdc();
+}
+
+
+
+
+/*  Realiza a conexão com o Cliente. */
+Reply AuthServer::connect()
 {
     meuSocket = socket(PF_INET, SOCK_DGRAM, 0);
     servidor.sin_family = AF_INET;
@@ -623,77 +778,141 @@ int AuthServer::connect()
     return OK;
 }
 
-void AuthServer::rpublish()
+
+
+
+/*  Envia ACK confirmando o recebimento da publicação. */
+bool AuthServer::sack()
 {
-    /********************* Recebimento dos Dados Cifrados *********************/
-    char message[1333];
-    memset(message, '\0', sizeof(message));
-    int recv = recvfrom(soc.socket, message, sizeof(message) - 1, 0, soc.client, &soc.size);
+    char ack = ACK_CHAR;
+    uint8_t sent = sendto(soc.socket, &ack, sizeof(ack), 0, soc.client, soc.size);
 
-    if (recv > 0)
+    if (send > 0)
     {
-        /******************* Verifica Pedido de Fim de Conexão ********************/
-        cout << "RECEIVED: " << message << endl;
-
-        if (checkRFT(message))
-        {
-            rft();
-        }
-        else
-        {
-            /* Converte o array de chars (buffer) em uma string. */
-            string encryptedMessage(message);
-
-            /* Inicialização dos vetores ciphertext. */
-            char ciphertextChar[encryptedMessage.length()];
-            uint8_t ciphertext[encryptedMessage.length()];
-            memset(ciphertext, '\0', encryptedMessage.length());
-
-            /* Inicialização do vetor plaintext. */
-            uint8_t plaintext[encryptedMessage.length()];
-            memset(plaintext, '\0', encryptedMessage.length());
-
-            /* Inicialização da chave e iv. */
-            uint8_t key[32];
-            for (int i = 0; i < 32; i++)
-            {
-                key[i] = diffieHellmanStorage->getSessionKey();
-            }
-
-            uint8_t iv[16];
-            for (int i = 0; i < 16; i++)
-            {
-                iv[i] = diffieHellmanStorage->getIV();
-            }
-
-            /* Converte a mensagem recebida (HEXA) para o array de char ciphertextChar. */
-            HexStringToCharArray(&encryptedMessage, encryptedMessage.length(), ciphertextChar);
-
-            /* Converte ciphertextChar em um array de uint8_t (ciphertext). */
-            CharToUint8_t(ciphertextChar, ciphertext, encryptedMessage.length());
-
-            /* Decifra a mensagem em um vetor de uint8_t. */
-            uint8_t *decrypted = iotAuth.decryptAES(ciphertext, key, iv, encryptedMessage.length());
-            cout << "Decrypted: " << decrypted << endl
-                    << endl;
-        }
+        return true;
     }
+    return false;
 }
 
-int AuthServer::wait()
+
+
+
+/*  Recebe ACK confirmando o recebimento da publicação. */
+bool AuthServer::rack()
 {
-    while (true)
+    char ack = 'a';
+    int recv;
+
+    while (recv <= 0 || ack != ACK_CHAR)
     {
-        if (!connected) 
-        {
-            connect();
-        }
-        
-        while (connected)
-        {
-            rpublish();
-        }
+        recv = recvfrom(soc.socket, &ack, sizeof(ack), 0, soc.client, &soc.size);
     }
-    
-    return 0;
+
+    if (ack == ACK)
+    {
+        return true;
+    } 
+    return false;
+}
+
+
+
+
+/*  Verifica se a mensagem recebida é um pedido de desconexão. */
+template <typename T>
+bool AuthServer::isDisconnectRequest(T &object)
+{
+    int cmp = memcmp(&object, DONE_MESSAGE, strlen(DONE_MESSAGE));
+    return cmp == 0;
+}
+
+
+
+
+/*  Armazena o valor do nonce B em uma variável global. */
+void AuthServer::storeNonceA(char *nonce)
+{
+    strncpy(nonceA, nonce, sizeof(nonceA));
+}
+
+
+
+
+/*  Gera um valor para o nonce B.   */
+void AuthServer::generateNonce(char *nonce)
+{
+    string message = stringTime() + *serverIP + *clientIP + to_string(sequence++);
+    string hash = iotAuth.hash(&message);
+
+    memset(nonce, '\0', 129);
+    strncpy(nonce, hash.c_str(), 128);
+}
+
+
+
+
+/*  Decifra o hash utilizando a chave pública do Cliente. */
+string AuthServer::decryptHash(int *encryptedHash)
+{
+    byte *decryptedHash = iotAuth.decryptRSA(encryptedHash, rsaStorage->getPartnerPublicKey(), 128);
+
+    char aux;
+    string decryptedHashString = "";
+    for (int i = 0; i < 128; i++)
+    {
+        aux = decryptedHash[i];
+        decryptedHashString += aux;
+    }
+
+    delete[] decryptedHash;
+
+    return decryptedHashString;
+}
+
+
+
+
+/*  Inicializa os valores pertinentes a troca de chaves Diffie-Hellman:
+    expoente, base, módulo, resultado e a chave de sessão.
+*/
+void AuthServer::generateDiffieHellman()
+{
+    diffieHellmanStorage = new DHStorage();
+    diffieHellmanStorage->setBase(iotAuth.randomNumber(100) + 2);
+    diffieHellmanStorage->setExponent(iotAuth.randomNumber(3) + 2);
+    diffieHellmanStorage->setModulus(iotAuth.randomNumber(100) + 2);
+}
+
+
+
+
+/*  Cifra a mensagem utilizando o algoritmo AES 256 e a chave de sessão. */
+string AuthServer::encryptMessage(char *message, int size)
+{
+    /* Inicialização do vetor plaintext. */
+    uint8_t plaintext[size];
+    memset(plaintext, 0, size);
+
+    /* Inicialização da chave e do IV. */
+    uint8_t key[32];
+    for (int i = 0; i < 32; i++)
+    {
+        key[i] = diffieHellmanStorage->getSessionKey();
+    }
+
+    uint8_t iv[16];
+    for (int i = 0; i < 16; i++)
+    {
+        iv[i] = diffieHellmanStorage->getIV();
+    }
+
+    /* Converte o array de char (message) para uint8_t. */
+    CharToUint8_t(message, plaintext, size);
+
+    /* Encripta a mensagem utilizando a chave e o iv declarados anteriormente. */
+    uint8_t *const encrypted = iotAuth.encryptAES(plaintext, key, iv, size);
+
+    const string result = Uint8_tToHexString(encrypted, size);
+
+    return result;
 }

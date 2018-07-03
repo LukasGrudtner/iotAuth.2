@@ -155,6 +155,7 @@ bool IotAuth::isHashValid(string *message, string *hash) {
 int *IotAuth::signedHash(string *message, RSAKey *key)
 {
     string h = hash(message);
+    cout << "HASH: " << h << endl;
     return encryptRSA(&h, key, h.length());
 }
 

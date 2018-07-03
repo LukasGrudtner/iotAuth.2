@@ -11,13 +11,15 @@ int main(int argc, char *argv[])
 
     auth.connect(argv[1]);
 
-    char data[] = "teste";
-    auth.publish(data);
+    char data[] = "oi";
 
-    char data1[] = "teste2";
-    auth.publish(data1);
-
-    auth.disconnect();
+    if (auth.isConnected())
+    {
+        cout << "Sent: " << data << endl;
+        auth.publish(data);
+        cout << "Received: " << auth.listen() << endl;
+        auth.disconnect();
+    }
 
     double end = currentTime();
     cout << "Elapsed Time: " << elapsedTime(start, end) << " ms." << endl;

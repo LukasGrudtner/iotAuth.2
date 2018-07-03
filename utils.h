@@ -69,12 +69,7 @@ void BytesToObject(byte byteArray[], T& object, int size)
     object = from_bytes(array_bytes, object);
 }
 
-// template<typename T>
-// bool isEqual(T& object, string* message, int size)
-// {
-//     int cmp = memcmp(&object, message, size);
-//     return cmp == 0;
-// }
+string Uint8_tToString(uint8_t* i, int quant);
 
 /*  Char to Uint_8t
     Converte um array de chars para um array de uint8_t.

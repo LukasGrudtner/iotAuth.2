@@ -10,9 +10,9 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include "iotAuth.h"
 #include "../settings.h"
 #include "../time.h"
-#include "iotAuth.h"
 
 #include "../RSA/RSAStorage.h"
 #include "../RSA/RSAKeyExchange.h"
@@ -24,7 +24,6 @@
 #include "../Diffie-Hellman/DHEncPacket.h"
 
 #include "../verbose/verbose_server.h"
-
 
 using namespace std;
 
@@ -40,11 +39,25 @@ class AuthServer
   public:
 
     AuthServer();
-    int wait();
-    int connect();
-    void rpublish();
 
+    /*  Aguarda conexão com algum Cliente. */
+    bool wait_connection();
+
+    /*  Entra em estado de espera por dados vindos do Cliente. */
+    string listen();
+    
+    /*  Envia dados para o Cliente. */
+    Reply publish(char *data);
+
+    /*  Envia um pedido de término de conexão ao Cliente. */
+    Reply disconnect();
+
+    /*  Retorna um boolean para indicar se possui conexão com o Cliente. */
+    bool isConnected();
+
+    
   private:
+
     RSAStorage *rsaStorage;
     DHStorage *diffieHellmanStorage;
     IotAuth iotAuth;
@@ -68,26 +81,6 @@ class AuthServer
     char buffer[666];
 
     bool connected = false;
-
-    /*  Armazena o valor do nonce B em uma variável global. */
-    void storeNonceA(char *nonce);
-
-    /*  Gera um valor para o nonce B.   */
-    void generateNonce(char *nonce);
-
-    /*  Decifra o hash utilizando a chave pública do Cliente. */
-    string decryptHash(int *encryptedHash);
-
-    /*  Inicializa os valores pertinentes à troca de chaves Diffie-Hellman:
-    expoente, base, módulo, resultado e a chave de sessão. */
-    void generateDiffieHellman();
-
-    template <typename T>
-    bool checkRFT(T &object)
-    {
-        int cmp = memcmp(&object, DONE_MESSAGE, strlen(DONE_MESSAGE));
-        return cmp == 0;
-    }
 
     /*  Step 1
         Recebe um pedido de início de conexão por parte do Cliente.
@@ -129,23 +122,49 @@ class AuthServer
     void send_dh_ack();
 
     /*  Waiting Done Confirmation
-    Verifica se a mensagem vinda do Cliente é uma confirmação do pedido de
-    fim de conexão enviado pelo Servidor (DONE_ACK).
-    Em caso positivo, altera o estado para HELLO, senão, mantém em WDC. 7
+        Verifica se a mensagem vinda do Cliente é uma confirmação do pedido de
+        fim de conexão enviado pelo Servidor (DONE_ACK).
     */
-    void wdc();
+    Reply wdc();
 
-    /*  Request for Termination
+    /*  Receive Disconnect
         Envia uma confirmação (DONE_ACK) para o pedido de término de conexão
-        vindo do Cliente, e seta o estado para HELLO.
+        vindo do Cliente.
     */
-    void rft();
+    void rdisconnect();
 
-    /*  Done
-        Envia um pedido de término de conexão ao Cliente, e seta o estado atual
-        para WDC (Waiting Done Confirmation).
+    /*  Envia um pedido de fim de conexão para o Cliente. */
+    Reply done();
+
+    /*  Realiza a conexão com o Cliente. */
+    Reply connect();
+    
+    /*  Envia ACK confirmando o recebimento da publicação. */
+    bool sack();
+
+    /*  Recebe ACK confirmando o recebimento da publicação. */
+    bool rack();
+
+    /*  Verifica se a mensagem recebida é um pedido de desconexão. */
+    template <typename T>
+    bool isDisconnectRequest(T &object);
+
+    /*  Armazena o valor do nonce B em uma variável global. */
+    void storeNonceA(char *nonce);
+
+    /*  Gera um valor para o nonce B.   */
+    void generateNonce(char *nonce);
+
+    /*  Decifra o hash utilizando a chave pública do Cliente. */
+    string decryptHash(int *encryptedHash);
+
+    /*  Inicializa os valores pertinentes à troca de chaves Diffie-Hellman:
+        expoente, base, módulo, resultado e a chave de sessão. 
     */
-    void done();
+    void generateDiffieHellman();
+
+    /*  Cifra a mensagem utilizando o algoritmo AES 256 e a chave de sessão. */
+    string encryptMessage(char *message, int size);
 };
 
 #endif

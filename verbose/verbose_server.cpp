@@ -24,9 +24,7 @@ void recv_rsa_verbose(RSAStorage *rsaStorage, char *nonceA, bool isHashValid, bo
         cout << "Step 3.2" << endl;
         cout << "************ RECV RSA *************************************************" << endl;
         cout << "Client Public Key: {(" << rsaStorage->getPartnerPublicKey()->d
-                << ", " << rsaStorage->getPartnerPublicKey()->n << "), ("
-                << rsaStorage->getPartnerPublicKey()->d << ", "
-                << rsaStorage->getPartnerPublicKey()->n << ")}" << endl;
+                << ", " << rsaStorage->getPartnerPublicKey()->n << ")" << endl;
         cout << "nA: " << nonceA << " (stored)" << endl;
         cout << "Is Hash Valid? " << isHashValid << endl;
         cout << "Is Nonce True? " << isNonceTrue << endl;
@@ -162,4 +160,35 @@ void reply_verbose(Reply reply)
         }
 
         cout << "***********************************************************************\n" << endl; 
+}
+
+void status_verbose(Reply reply)
+{
+        switch (reply)
+        {
+                case OK:
+                        cout << "OK" << endl;
+                        break;
+                case DENIED:
+                        cout << "DENIED" << endl;
+                        break;
+                case TIMEOUT:
+                        cout << "TIMEOUT" << endl;
+                        break;
+                case NO_REPLY:
+                        cout << "NO_REPLY" << endl;
+                        break;
+                case NONCE_INVALID:
+                        cout << "NONCE_INVALID" << endl;
+                        break;
+                case FDR_INVALID:
+                        cout << "FDR_INVALID" << endl;
+                        break;
+                case HASH_INVALID:
+                        cout << "HASH_INVALID" << endl;
+                        break;
+                case FINISHED:
+                        cout << "FINISHED" << endl;
+                        break;
+        }
 }

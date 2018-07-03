@@ -15,10 +15,11 @@
 #define DONE_ACK_CHAR '!'
 
 #define ACK true
+#define ACK_CHAR '*'
 #define SYN false
 
 /* Maximum time wait for response */
-#define TIMEOUT_SEC 15
+#define TIMEOUT_SEC 5
 #define TIMEOUT_MIC 0
 
 typedef struct syn
@@ -65,6 +66,7 @@ typedef enum {
     FDR_INVALID,
     HASH_INVALID,
     FINISHED,
+    NOT_CONNECTED,
 } Reply;
 
 #endif

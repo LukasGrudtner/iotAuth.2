@@ -35,4 +35,6 @@ void response_timeout_verbose();
 
 void reply_verbose(Reply reply);
 
+void status_verbose(Reply reply);
+
 #endif

@@ -25,6 +25,19 @@ string Uint8_tToHexString(uint8_t* i, int quant){
   return saida;
 }
 
+string Uint8_tToString(uint8_t* i, int quant)
+{
+    char buffer[quant+1];
+    buffer[quant] = '\0';
+    for (int j = 0; j < quant; j++)
+    {
+        buffer[j] = (char)i[j];
+    }
+
+    string result (buffer);
+    return result;
+}
+
 /*  Hex String to Char Array
     Converte uma string codificada em hexadecimal para um array de chars.
 */
