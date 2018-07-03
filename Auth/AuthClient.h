@@ -50,7 +50,7 @@ class AuthClient
     int publish(char *data);
 
     /*  Envia um pedido de término de conexão ao Servidor. */
-    Reply disconnect();
+    status disconnect();
 
     /*  Retorna um boolean para indicar se possui conexão com o Servidor. */
     bool isConnected();
@@ -133,7 +133,7 @@ class AuthClient
         Verifica se a mensagem vinda do Cliente é uma confirmação do pedido de
         fim de conexão enviado pelo Servidor (DONE_ACK).
     */
-    Reply wdc();
+    status wdc();
 
     /*  Receive Disconnect
         Envia uma confirmação (DONE_ACK) para o pedido de término de conexão
@@ -142,7 +142,7 @@ class AuthClient
     void rdisconnect();
 
     /*  Envia um pedido de fim de conexão para o Servidor. */
-    Reply done();
+    status done();
 
     /*  Envia ACK confirmando o recebimento da publicação. */
     bool sack();

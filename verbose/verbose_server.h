@@ -33,8 +33,8 @@ void sdh_verbose(DiffieHellmanPackage *dhPackage);
 
 void response_timeout_verbose();
 
-void reply_verbose(Reply reply);
+void reply_verbose(status s);
 
-void status_verbose(Reply reply);
+void status_verbose(status s);
 
 #endif

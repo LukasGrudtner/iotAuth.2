@@ -67,6 +67,6 @@ typedef enum {
     HASH_INVALID,
     FINISHED,
     NOT_CONNECTED,
-} Reply;
+} status;
 
 #endif

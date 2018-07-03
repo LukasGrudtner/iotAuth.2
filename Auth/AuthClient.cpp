@@ -58,7 +58,7 @@ int AuthClient::connect(char *address, int port)
     {
         send_syn();
     }
-    catch (Reply e)
+    catch (status e)
     {
         reply_verbose(e);
         return e;
@@ -170,7 +170,7 @@ int AuthClient::publish(char *data)
 
 
 /*  Envia um pedido de término de conexão ao Servidor. */
-Reply AuthClient::disconnect()
+status AuthClient::disconnect()
 {
     if (isConnected())
     {
@@ -665,7 +665,7 @@ void AuthClient::recv_dh_ack()
     Verifica se a mensagem vinda do Cliente é uma confirmação do pedido de
     fim de conexão enviado pelo Servidor (DONE_ACK).
 */
-Reply AuthClient::wdc()
+status AuthClient::wdc()
 {
     char message[2];
     int recv = recvfrom(soc.socket, message, sizeof(message), 0, soc.server, &soc.size);
@@ -724,7 +724,7 @@ void AuthClient::rdisconnect()
 
 
 /*  Envia um pedido de fim de conexão para o cliente. */
-Reply AuthClient::done()
+status AuthClient::done()
 {
     int sent = 0;
 

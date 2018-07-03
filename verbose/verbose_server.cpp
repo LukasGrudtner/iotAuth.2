@@ -126,12 +126,12 @@ void response_timeout_verbose()
         cout << "***********************************************************************\n" << endl; 
 }
 
-void reply_verbose(Reply reply)
+void reply_verbose(status s)
 {
         cout << "***********************************************************************" << endl;
         cout << "Erro: ";
         
-        switch (reply)
+        switch (s)
         {
                 case OK:
                         cout << "OK" << endl;
@@ -156,15 +156,18 @@ void reply_verbose(Reply reply)
                         break;
                 case FINISHED:
                         cout << "FINISHED" << endl;
+                        break;
+                case NOT_CONNECTED:
+                        cout << "NOT_CONNECTED" << endl;
                         break;
         }
 
         cout << "***********************************************************************\n" << endl; 
 }
 
-void status_verbose(Reply reply)
+void status_verbose(status s)
 {
-        switch (reply)
+        switch (s)
         {
                 case OK:
                         cout << "OK" << endl;
@@ -189,6 +192,9 @@ void status_verbose(Reply reply)
                         break;
                 case FINISHED:
                         cout << "FINISHED" << endl;
+                        break;
+                case NOT_CONNECTED:
+                        cout << "NOT_CONNECTED" << endl;
                         break;
         }
 }

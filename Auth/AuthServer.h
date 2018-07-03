@@ -47,10 +47,10 @@ class AuthServer
     string listen();
     
     /*  Envia dados para o Cliente. */
-    Reply publish(char *data);
+    status publish(char *data);
 
     /*  Envia um pedido de término de conexão ao Cliente. */
-    Reply disconnect();
+    status disconnect();
 
     /*  Retorna um boolean para indicar se possui conexão com o Cliente. */
     bool isConnected();
@@ -114,7 +114,7 @@ class AuthServer
 
     /*  Step 7
         Recebe os dados Diffie-Hellman vindos do Cliente.   */
-    int recv_dh();
+    void recv_dh();
 
     /*  Step 8
         Envia confirmação para o Cliente referente ao recebimento dos dados Diffie-Hellman.
@@ -125,7 +125,7 @@ class AuthServer
         Verifica se a mensagem vinda do Cliente é uma confirmação do pedido de
         fim de conexão enviado pelo Servidor (DONE_ACK).
     */
-    Reply wdc();
+    status wdc();
 
     /*  Receive Disconnect
         Envia uma confirmação (DONE_ACK) para o pedido de término de conexão
@@ -134,10 +134,10 @@ class AuthServer
     void rdisconnect();
 
     /*  Envia um pedido de fim de conexão para o Cliente. */
-    Reply done();
+    status done();
 
     /*  Realiza a conexão com o Cliente. */
-    Reply connect();
+    status connect();
     
     /*  Envia ACK confirmando o recebimento da publicação. */
     bool sack();

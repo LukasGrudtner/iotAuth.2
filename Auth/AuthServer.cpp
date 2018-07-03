@@ -91,7 +91,7 @@ string AuthServer::listen()
 
 
 /*  Envia dados para o Cliente. */
-Reply AuthServer::publish(char *data)
+status AuthServer::publish(char *data)
 {
     if (isConnected()) {
         string encrypted = encryptMessage(data, 666);
@@ -121,7 +121,7 @@ Reply AuthServer::publish(char *data)
 
 
 /*  Envia um pedido de término de conexão ao Cliente. */
-Reply AuthServer::disconnect()
+status AuthServer::disconnect()
 {
     if (isConnected())
     {
@@ -527,7 +527,7 @@ void AuthServer::send_dh()
 
 /*  Step 7
     Recebe os dados Diffie-Hellman vindos do Cliente.   */
-int AuthServer::recv_dh()
+void AuthServer::recv_dh()
 {
     /******************** Recv Enc Packet ********************/
     DHEncPacket encPacket;
@@ -654,7 +654,7 @@ void AuthServer::send_dh_ack()
     fim de conexão enviado pelo Servidor (DONE_ACK).
     Em caso positivo, altera o estado para HELLO, senão, mantém em WDC. 7
 */
-Reply AuthServer::wdc()
+status AuthServer::wdc()
 {
     char message[2];
     int recv = recvfrom(soc.socket, message, sizeof(message), 0, soc.client, &soc.size);
@@ -713,7 +713,7 @@ void AuthServer::rdisconnect()
 
 
 /*  Envia um pedido de fim de conexão para o Cliente. */
-Reply AuthServer::done()
+status AuthServer::done()
 {
     int sent = 0;
     
@@ -732,7 +732,7 @@ Reply AuthServer::done()
 
 
 /*  Realiza a conexão com o Cliente. */
-Reply AuthServer::connect()
+status AuthServer::connect()
 {
     meuSocket = socket(PF_INET, SOCK_DGRAM, 0);
     servidor.sin_family = AF_INET;
@@ -769,7 +769,7 @@ Reply AuthServer::connect()
     {
         recv_syn();
     }
-    catch (Reply e)
+    catch (status e)
     {
         reply_verbose(e);
         return e;

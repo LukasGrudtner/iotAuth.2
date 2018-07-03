@@ -35,6 +35,8 @@ void dt_verbose2(string *sent);
 
 void response_timeout_verbose();
 
-void reply_verbose(Reply reply);
+void reply_verbose(status s);
+
+void status_verbose(status s);
 
 #endif
