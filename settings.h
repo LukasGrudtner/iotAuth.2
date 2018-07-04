@@ -8,7 +8,7 @@
 #define COUNT 3 /* Limite de tempo que irá esperar pelo ACK */
 
 /* Definição de alguns atributos utilizados na comunicação */
-#define VERBOSE true
+#define VERBOSE false
 #define DEFAULT_PORT 8080
 
 #define DONE_MESSAGE "DONE"

@@ -126,8 +126,8 @@ string AuthClient::listen()
             // cout << "Decrypted: " << decrypted << endl << endl;
 
             /************************** ENVIA ACK CONFIRMANDO ********************************/
-            while (sack() == false)
-                ;
+            while (sack() == false);
+
 
             return Uint8_tToString(decrypted, encryptedMessage.length());
         }
@@ -268,11 +268,11 @@ void AuthClient::send_syn()
 */
 void AuthClient::recv_ack()
 {
-    // double p1 = currentTime();
     /******************** Receive ACK ********************/
     structAck received;
     int recv = recvfrom(soc.socket, &received, sizeof(ack), 0, soc.server, &soc.size);
 
+    // double p1 = currentTime();
     // ts2 = currentTime();
     // cout << "TIME TOTAL SENT (s1 and s2): " << elapsedTime(ts1, ts2) << "ms." << endl;
 
@@ -385,11 +385,11 @@ void AuthClient::send_rsa()
 */
 void AuthClient::recv_rsa()
 {
-    // double p1 = currentTime();
     /******************** Receive Exchange ********************/
     RSAKeyExchange rsaKeyExchange;
     int recv = recvfrom(soc.socket, &rsaKeyExchange, sizeof(RSAKeyExchange), 0, soc.server, &soc.size);
 
+    // double p1 = currentTime();
     // ts4 = currentTime();
     // cout << "TIME TOTAL SENT (s3 and s4): " << elapsedTime(ts3, ts4) << "ms." << endl;
 
@@ -533,10 +533,10 @@ void AuthClient::send_rsa_ack()
 */
 void AuthClient::recv_dh()
 {
-    // double p1 = currentTime();
     /******************** Recv Enc Packet ********************/
     DHEncPacket encPacket;
     int recv = recvfrom(soc.socket, &encPacket, sizeof(DHEncPacket), 0, soc.server, &soc.size);
+    // double p1 = currentTime();
 
     // ts6 = currentTime();
     // cout << "TIME TOTAL SENT (s5 and s6): " << elapsedTime(ts5, ts6) << "ms." << endl;
@@ -671,10 +671,10 @@ void AuthClient::send_dh()
     ObjectToBytes(dhSent, exchangeBytes, sizeof(DHKeyExchange));
 
     /********************** Encrypt Exchange **********************/
-    // double e1 = currentTime();
+    double e1 = currentTime();
     int *const encryptedExchange = iotAuth.encryptRSA(exchangeBytes, rsaStorage->getPartnerPublicKey(), sizeof(RSAKeyExchange));
-    // double e2 = currentTime();
-    // cout << "TIME ENCRYPTION (s7 and s8): " << elapsedTime(e1, e2) << "ms." << endl;
+    double e2 = currentTime();
+    cout << "TIME ENCRYPTION (s7 and s8): " << elapsedTime(e1, e2) << "ms." << endl;
     /********************** Mount Enc Packet **********************/
     DHEncPacket encPacket;
     encPacket.setEncryptedExchange(encryptedExchange);
@@ -708,12 +708,12 @@ void AuthClient::send_dh()
 */
 void AuthClient::recv_dh_ack()
 {
-    // double p1 = currentTime();
     /******************** Recv ACK ********************/
     char encrypted[257];
     memset(encrypted, '\0', sizeof(encrypted));
 
     int recv = recvfrom(soc.socket, encrypted, sizeof(encrypted)-1, 0, soc.server, &soc.size);
+    // double p1 = currentTime();
 
     // ts8 = currentTime();
     // cout << "TIME TOTAL SENT (s7 and s8): " << elapsedTime(ts7, ts8) << "ms." << endl;

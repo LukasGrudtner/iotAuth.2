@@ -282,11 +282,11 @@ void AuthServer::recv_rsa()
             storeNonceA(rsaPackage.getNonceA());
 
             /******************** Validity Hash ********************/
-            double v1 = currentTime();
+            // double v1 = currentTime();
             bool isHashValid = iotAuth.isHashValid(&rsaString, &decryptedHash);
             bool isNonceTrue = strcmp(rsaPackage.getNonceB(), nonceB) == 0;
-            double v2 = currentTime();
-            cout << "TIME VERIFICATION (s2 and s3): " << elapsedTime(v1, v2) << "ms." << endl;
+            // double v2 = currentTime();
+            // cout << "TIME VERIFICATION (s2 and s3): " << elapsedTime(v1, v2) << "ms." << endl;
 
             /******************** Verbose ********************/
             if (VERBOSE)
@@ -448,12 +448,12 @@ void AuthServer::recv_rsa_ack()
                 /******************** Store Nonce A ********************/
                 storeNonceA(rsaPackage.getNonceA());
 
-                double v1 = currentTime();
+                // double v1 = currentTime();
                 bool isHashValid = iotAuth.isHashValid(&rsaString, &decryptedHash);
                 bool isNonceTrue = strcmp(rsaPackage.getNonceB(), nonceB) == 0;
                 bool isAnswerCorrect = iotAuth.isAnswerCorrect(rsaStorage->getMyFDR(), rsaStorage->getMyPublicKey()->d, rsaPackage.getAnswerFDR());
-                double v2 = currentTime();
-                cout << "TIME VERIFICATION (s4 and s5): " << elapsedTime(v1, v2) << "ms." << endl;
+                // double v2 = currentTime();
+                // cout << "TIME VERIFICATION (s4 and s5): " << elapsedTime(v1, v2) << "ms." << endl;
 
                 if (VERBOSE)
                     recv_rsa_ack_verbose(nonceA, isHashValid, isAnswerCorrect, isNonceTrue);
@@ -554,10 +554,10 @@ void AuthServer::send_dh()
     ObjectToBytes(dhSent, dhExchangeBytes, sizeof(DHKeyExchange));
 
     /******************** Encryption Exchange ********************/
-    // double e1 = currentTime();
+    double e1 = currentTime();
     int *const encryptedExchange = iotAuth.encryptRSA(dhExchangeBytes, rsaStorage->getPartnerPublicKey(), sizeof(DHKeyExchange));
-    // double e2 = currentTime();
-    // cout << "TIME ENCRYPTION (s6 and s7): " << elapsedTime(e1, e2) << "ms." << endl;
+    double e2 = currentTime();
+    cout << "TIME ENCRYPTION (s6 and s7): " << elapsedTime(e1, e2) << "ms." << endl;
 
     delete[] dhExchangeBytes;
     /******************** Stop Processing Time 2 ********************/
@@ -645,11 +645,11 @@ void AuthServer::recv_dh()
                 /******************** Validity ********************/
                 string dhString = dhPackage.toString();
 
-                double v1 = currentTime();
+                // double v1 = currentTime();
                 const bool isHashValid = iotAuth.isHashValid(&dhString, &decryptedHash);
                 const bool isNonceTrue = strcmp(dhPackage.getNonceB(), nonceB) == 0;
-                double v2 = currentTime();
-                cout << "TIME VERIFICATION (s6 and s7): " << elapsedTime(v1, v2) << "ms." << endl;
+                // double v2 = currentTime();
+                // cout << "TIME VERIFICATION (s6 and s7): " << elapsedTime(v1, v2) << "ms." << endl;
 
                 if (isHashValid && isNonceTrue)
                 {
