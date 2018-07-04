@@ -761,10 +761,11 @@ bool AuthClient::sack()
 /*  Recebe ACK confirmando o recebimento da publicação. */
 bool AuthClient::rack()
 {
+    int count = COUNT;
     char ack = 'a';
     int recv;
 
-    while (recv <= 0 || ack != ACK_CHAR)
+    while ((recv <= 0 || ack != ACK_CHAR) && count--)
     {
         recv = recvfrom(soc.socket, &ack, sizeof(ack), 0, soc.server, &soc.size);
     }

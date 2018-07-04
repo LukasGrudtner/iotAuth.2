@@ -5,6 +5,8 @@
 
 #define MEM_TEST false
 
+#define COUNT 3 /* Limite de tempo que irá esperar pelo ACK */
+
 /* Definição de alguns atributos utilizados na comunicação */
 #define VERBOSE true
 #define DEFAULT_PORT 8080

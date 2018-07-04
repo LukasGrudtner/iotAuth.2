@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
         cout << "Sent: " << data << endl;
         auth.publish(data);
         cout << "Received: " << auth.listen() << endl;
-        auth.disconnect();
+        // auth.disconnect();
     }
 
     double end = currentTime();

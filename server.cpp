@@ -13,10 +13,18 @@ int main(int argc, char *argv[])
     
     if (auth.isConnected())
     {
-        sleep(5);
         cout << "Received: " << auth.listen() << endl;
         cout << "Sent: " << data << endl;
-        auth.publish(data);
-        auth.listen();
+        cout << "Publish: " << auth.publish(data) << endl;
+
+        try{
+            auth.listen();
+        }
+        catch (status e)
+        {
+            cerr << "Erro: " << e << endl;
+        }
+        
+        auth.disconnect();
     }
 }

@@ -31,10 +31,16 @@ string AuthServer::listen()
         char message[1333];
         memset(message, '\0', sizeof(message));
         int recv = 0;
+        int count = COUNT;
 
-        while (recv <= 0)
+        while (recv <= 0 && count--)
         {
             recv = recvfrom(soc.socket, message, sizeof(message) - 1, 0, soc.client, &soc.size);
+        }
+
+        if (count == 0)
+        {
+            throw TIMEOUT;
         }
 
         if (isDisconnectRequest(message))
@@ -657,7 +663,12 @@ void AuthServer::send_dh_ack()
 status AuthServer::wdc()
 {
     char message[2];
-    int recv = recvfrom(soc.socket, message, sizeof(message), 0, soc.client, &soc.size);
+    int count = COUNT;
+    int recv = 0;
+
+    do {
+        recv = recvfrom(soc.socket, message, sizeof(message), 0, soc.client, &soc.size);
+    } while (recv <= 0 && count--);
 
     if (recv > 0)
     {
@@ -801,9 +812,10 @@ bool AuthServer::sack()
 bool AuthServer::rack()
 {
     char ack = 'a';
+    int count = COUNT;
     int recv;
 
-    while (recv <= 0 || ack != ACK_CHAR)
+    while ((recv <= 0 || ack != ACK_CHAR) && count--)
     {
         recv = recvfrom(soc.socket, &ack, sizeof(ack), 0, soc.client, &soc.size);
     }
