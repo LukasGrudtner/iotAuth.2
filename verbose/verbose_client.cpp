@@ -87,12 +87,12 @@ void send_dh_verbose(DiffieHellmanPackage *dhPackage, int sessionKey, int sequen
         cout << "***********************************************************************\n" << endl;
 }
 
-void send_dh_ack_verbose(DH_ACK *ack, bool isNonceTrue)
+void send_dh_ack_verbose(string& nonce, bool isNonceTrue)
 {
         cout << "Step 8.2" << endl;
         cout << "************ RECV DH ACK **********************************************" << endl;
         cout << "ACK" << endl;
-        cout << "nA: " << ack->nonce << endl;
+        cout << "nA: " << nonce << endl;
         cout << "isNonceTrue? " << isNonceTrue << endl;
         cout << "***********************************************************************\n" << endl;
 }

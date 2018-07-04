@@ -6,8 +6,8 @@ AuthServer::AuthServer()
 }
 
 
-double pack, prsa, pdh;
-double ts2, ts3, ts4, ts5, ts6, ts7;
+// double pack, prsa, pdh;
+// double ts2, ts3, ts4, ts5, ts6, ts7;
 
 /*  Aguarda conexão com algum Cliente. */
 bool AuthServer::wait_connection()
@@ -29,7 +29,7 @@ string AuthServer::listen()
     if (isConnected())
     {
         /********************* Recebimento dos Dados Cifrados *********************/
-        char message[1333];
+        char message[500];
         memset(message, '\0', sizeof(message));
         int recv = 0;
         int count = COUNT;
@@ -195,33 +195,32 @@ void AuthServer::recv_syn()
 */
 void AuthServer::send_ack()
 {
-    double p1 = currentTime();
+    // double p1 = currentTime();
     /******************** Init Sequence ********************/
     sequence = iotAuth.randomNumber(9999);
 
-    double mp1 = currentTime();
+    // double mp1 = currentTime();
 
     /******************** Generate Nounce B ********************/
-    double n1 = currentTime();
+    // double n1 = currentTime();
     generateNonce(nonceB);
-    double n2 = currentTime();
-    cout << "TIME NONCE (s2 and s3): " << elapsedTime(n1, n2) << "ms." << endl;
+    // double n2 = currentTime();
+    // cout << "TIME NONCE (s2 and s3): " << elapsedTime(n1, n2) << "ms." << endl;
 
     /******************** Mount Package ********************/
     structAck toSend;
     strncpy(toSend.nonceA, nonceA, sizeof(toSend.nonceA));
     strncpy(toSend.nonceB, nonceB, sizeof(toSend.nonceB));
 
-    double mp2 = currentTime();
-    cout << "TIME MOUNT PACK (s2 and s3): " << elapsedTime(mp1, mp2) << "ms." << endl;
+    // double mp2 = currentTime();
+    // cout << "TIME MOUNT PACK (s2 and s3): " << elapsedTime(mp1, mp2) << "ms." << endl;
     /******************** Start Network Time ********************/
     t1 = currentTime();
 
-    double p2 = currentTime();
-    pack = elapsedTime(p1, p2);
-    cout << "TIME PROCESS (s2 and s3): " << pack << "ms." << endl;
+    // double p2 = currentTime();
+    // pack = elapsedTime(p1, p2);
 
-    ts2 = currentTime();
+    // ts2 = currentTime();
 
     /******************** Send Package ********************/
     sendto(soc.socket, &toSend, sizeof(ack), 0, soc.client, soc.size);
@@ -245,10 +244,10 @@ void AuthServer::recv_rsa()
     RSAKeyExchange rsaReceived;
     int recv = recvfrom(soc.socket, &rsaReceived, sizeof(RSAKeyExchange), 0, soc.client, &soc.size);
     
-    ts3 = currentTime();
-    cout << "TIME TOTAL SENT (s2 and s3): " << elapsedTime(ts2, ts3) << "ms." << endl;
+    // ts3 = currentTime();
+    // cout << "TIME TOTAL SENT (s2 and s3): " << elapsedTime(ts2, ts3) << "ms." << endl;
 
-    double p1 = currentTime();
+    // double p1 = currentTime();
 
     if (recv > 0)
     {
@@ -287,7 +286,6 @@ void AuthServer::recv_rsa()
             bool isHashValid = iotAuth.isHashValid(&rsaString, &decryptedHash);
             bool isNonceTrue = strcmp(rsaPackage.getNonceB(), nonceB) == 0;
             double v2 = currentTime();
-
             cout << "TIME VERIFICATION (s2 and s3): " << elapsedTime(v1, v2) << "ms." << endl;
 
             /******************** Verbose ********************/
@@ -296,9 +294,9 @@ void AuthServer::recv_rsa()
 
             if (isHashValid && isNonceTrue)
             {
-                double p2 = currentTime();
-                pack += elapsedTime(p1, p2);
-                cout << "TIME PROCESS (s2 and s3): " << pack << "ms." << endl;
+                // double p2 = currentTime();
+                // pack += elapsedTime(p1, p2);
+                // cout << "TIME PROCESS (s2 and s3): " << pack << "ms." << endl;
 
                 send_rsa();
             }
@@ -331,11 +329,11 @@ void AuthServer::recv_rsa()
 */
 void AuthServer::send_rsa()
 {
-    double p1 = currentTime();
+    // double p1 = currentTime();
     /******************** Start Auxiliar Time ********************/
     t_aux1 = currentTime();
 
-    double mp1 = currentTime();
+    // double mp1 = currentTime();
 
     /******************** Get Answer FDR ********************/
     int answerFdr = rsaStorage->getPartnerFDR()->getValue(rsaStorage->getPartnerPublicKey()->d);
@@ -345,10 +343,10 @@ void AuthServer::send_rsa()
     rsaStorage->setMyFDR(iotAuth.generateFDR());
 
     /******************** Generate Nonce ********************/
-    double n1 = currentTime();
+    // double n1 = currentTime();
     generateNonce(nonceB);
-    double n2 = currentTime();
-    cout << "TIME NONCE (s4 and s5): " << elapsedTime(n1, n2) << "ms." << endl;
+    // double n2 = currentTime();
+    // cout << "TIME NONCE (s4 and s5): " << elapsedTime(n1, n2) << "ms." << endl;
 
     /******************** Mount Package ********************/
     RSAPackage rsaSent;
@@ -359,12 +357,12 @@ void AuthServer::send_rsa()
     rsaSent.setNonceB(nonceB);
 
     /******************** Get Hash ********************/
-    double s1 = currentTime();
+    // double s1 = currentTime();
     string packageString = rsaSent.toString();
     string hash = iotAuth.hash(&packageString);
     int *const encryptedHash = iotAuth.encryptRSA(&hash, rsaStorage->getMyPrivateKey(), 128);
-    double s2 = currentTime();
-    cout << "TIME SIGNATURE (s4 and s5): " << elapsedTime(s1, s2) << "ms." << endl;
+    // double s2 = currentTime();
+    // cout << "TIME SIGNATURE (s4 and s5): " << elapsedTime(s1, s2) << "ms." << endl;
 
     /******************** Stop Processing Time ********************/
     t2 = currentTime();
@@ -383,15 +381,15 @@ void AuthServer::send_rsa()
     rsaExchange.setEncryptedHash(encryptedHash);
     rsaExchange.setProcessingTime(processingTime1);
 
-    double mp2 = currentTime();
-    cout << "TIME MOUNT PACK (s4 and s5): " << elapsedTime(mp1, mp2) << "ms." << endl;
+    // double mp2 = currentTime();
+    // cout << "TIME MOUNT PACK (s4 and s5): " << elapsedTime(mp1, mp2) << "ms." << endl;
     /******************** Start Total Time ********************/
     t1 = currentTime();
 
-    double p2 = currentTime();
-    prsa = elapsedTime(p1, p2);
+    // double p2 = currentTime();
+    // prsa = elapsedTime(p1, p2);
 
-    ts4 = currentTime();
+    // ts4 = currentTime();
     /******************** Send Exchange ********************/
     sendto(soc.socket, (RSAKeyExchange *)&rsaExchange, sizeof(RSAKeyExchange), 0, soc.client, soc.size);
 
@@ -417,10 +415,10 @@ void AuthServer::recv_rsa_ack()
     RSAKeyExchange rsaReceived;
     int recv = recvfrom(soc.socket, &rsaReceived, sizeof(RSAKeyExchange), 0, soc.client, &soc.size);
 
-    ts5 = currentTime();
-    cout << "TIME TOTAL SENT (s4 and s5): " << elapsedTime(ts4, ts5) << "ms." << endl;
+    // ts5 = currentTime();
+    // cout << "TIME TOTAL SENT (s4 and s5): " << elapsedTime(ts4, ts5) << "ms." << endl;
 
-    double p1 = currentTime();
+    // double p1 = currentTime();
 
     if (recv > 0)
     {
@@ -435,8 +433,8 @@ void AuthServer::recv_rsa_ack()
             totalTime = elapsedTime(t1, t2);
 
             /******************** Proof of Time ********************/
-            double limit = processingTime1 + networkTime + (processingTime1 + networkTime)*0.1;
-            // double limit = 1000;
+            // double limit = processingTime1 + networkTime + (processingTime1 + networkTime)*0.1;
+            double limit = 1000;
 
             if (totalTime <= limit)
             {
@@ -455,7 +453,6 @@ void AuthServer::recv_rsa_ack()
                 bool isNonceTrue = strcmp(rsaPackage.getNonceB(), nonceB) == 0;
                 bool isAnswerCorrect = iotAuth.isAnswerCorrect(rsaStorage->getMyFDR(), rsaStorage->getMyPublicKey()->d, rsaPackage.getAnswerFDR());
                 double v2 = currentTime();
-
                 cout << "TIME VERIFICATION (s4 and s5): " << elapsedTime(v1, v2) << "ms." << endl;
 
                 if (VERBOSE)
@@ -464,9 +461,9 @@ void AuthServer::recv_rsa_ack()
                 /******************** Validity ********************/
                 if (isHashValid && isNonceTrue && isAnswerCorrect)
                 {
-                    double p2 = currentTime();
-                    prsa += elapsedTime(p1, p2);
-                    cout << "TIME PROCESS (s4 and s5): " << prsa << "ms." << endl;
+                    // double p2 = currentTime();
+                    // prsa += elapsedTime(p1, p2);
+                    // cout << "TIME PROCESS (s4 and s5): " << prsa << "ms." << endl;
 
                     send_dh();
                 }
@@ -512,20 +509,20 @@ void AuthServer::recv_rsa_ack()
 */
 void AuthServer::send_dh()
 {
-    double p1 = currentTime();
+    // double p1 = currentTime();
     /******************** Start Processing Time 2 ********************/
     t_aux1 = currentTime();
 
-    double mp1 = currentTime();
+    // double mp1 = currentTime();
 
     /******************** Generate Diffie-Hellman ********************/
     generateDiffieHellman();
 
     /******************** Generate Nonce B ********************/
-    double n1 = currentTime();
+    // double n1 = currentTime();
     generateNonce(nonceB);
-    double n2 = currentTime();
-    cout << "TIME NONCE (s6 and s7): " << elapsedTime(n1, n2) << "ms." << endl;
+    // double n2 = currentTime();
+    // cout << "TIME NONCE (s6 and s7): " << elapsedTime(n1, n2) << "ms." << endl;
 
     /******************** Generate IV ********************/
     int iv = iotAuth.randomNumber(90);
@@ -541,12 +538,12 @@ void AuthServer::send_dh()
     dhPackage.setIV(iv);
 
     /******************** Get Hash ********************/
-    double s1 = currentTime();
+    // double s1 = currentTime();
     string packageString = dhPackage.toString();
     string hash = iotAuth.hash(&packageString);
     int *const encryptedHash = iotAuth.encryptRSA(&hash, rsaStorage->getMyPrivateKey(), hash.length());
-    double s2 = currentTime();
-    cout << "TIME SIGNATURE (s6 and s7): " << elapsedTime(s1, s2) << "ms." << endl;
+    // double s2 = currentTime();
+    // cout << "TIME SIGNATURE (s6 and s7): " << elapsedTime(s1, s2) << "ms." << endl;
     /******************** Mount Exchange ********************/
     DHKeyExchange dhSent;
     dhSent.setEncryptedHash(encryptedHash);
@@ -557,10 +554,10 @@ void AuthServer::send_dh()
     ObjectToBytes(dhSent, dhExchangeBytes, sizeof(DHKeyExchange));
 
     /******************** Encryption Exchange ********************/
-    double e1 = currentTime();
+    // double e1 = currentTime();
     int *const encryptedExchange = iotAuth.encryptRSA(dhExchangeBytes, rsaStorage->getPartnerPublicKey(), sizeof(DHKeyExchange));
-    double e2 = currentTime();
-    cout << "TIME ENCRYPTION (s6 and s7): " << elapsedTime(e1, e2) << "ms." << endl;
+    // double e2 = currentTime();
+    // cout << "TIME ENCRYPTION (s6 and s7): " << elapsedTime(e1, e2) << "ms." << endl;
 
     delete[] dhExchangeBytes;
     /******************** Stop Processing Time 2 ********************/
@@ -573,15 +570,15 @@ void AuthServer::send_dh()
 
     encPacket.setTP(processingTime2);
 
-    double mp2 = currentTime();
-    cout << "TIME MOUNT PACK (s6 and s7): " << elapsedTime(mp1, mp2) << "ms." << endl;
+    // double mp2 = currentTime();
+    // cout << "TIME MOUNT PACK (s6 and s7): " << elapsedTime(mp1, mp2) << "ms." << endl;
     /******************** Start Total Time ********************/
     t1 = currentTime();
 
-    double p2 = currentTime();
-    pdh = elapsedTime(p1, p2);
+    // double p2 = currentTime();
+    // pdh = elapsedTime(p1, p2);
 
-    ts6 = currentTime();
+    // ts6 = currentTime();
     /******************** Send Exchange ********************/
     sendto(soc.socket, (DHEncPacket *)&encPacket, sizeof(DHEncPacket), 0, soc.client, soc.size);
 
@@ -607,10 +604,10 @@ void AuthServer::recv_dh()
     DHEncPacket encPacket;
     int recv = recvfrom(soc.socket, &encPacket, sizeof(DHEncPacket), 0, soc.client, &soc.size);
 
-    ts7 = currentTime();
-    cout << "TIME TOTAL SENT (s6 and s7): " << elapsedTime(ts6, ts7) << "ms." << endl;
+    // ts7 = currentTime();
+    // cout << "TIME TOTAL SENT (s6 and s7): " << elapsedTime(ts6, ts7) << "ms." << endl;
 
-    double p1 = currentTime();
+    // double p1 = currentTime();
 
     if (recv > 0)
     {
@@ -664,9 +661,9 @@ void AuthServer::recv_dh()
                     if (VERBOSE)
                         recv_dh_verbose(&dhPackage, diffieHellmanStorage->getSessionKey(), isHashValid, isNonceTrue);
 
-                    double p2 = currentTime();
-                    pdh += elapsedTime(p1, p2);
-                    cout << "TIME PROCESS (s6 and s7): " << pdh << "ms." << endl;
+                    // double p2 = currentTime();
+                    // pdh += elapsedTime(p1, p2);
+                    // cout << "TIME PROCESS (s6 and s7): " << pdh << "ms." << endl;
 
                     send_dh_ack();
                 }
@@ -706,31 +703,13 @@ void AuthServer::recv_dh()
 */
 void AuthServer::send_dh_ack()
 {
-    /******************** Mount ACK ********************/
-    DH_ACK ack;
-    ack.message = ACK;
-    strncpy(ack.nonce, nonceA, sizeof(ack.nonce));
+    string ack (nonceA);
 
-    // /******************** Serialize ACK ********************/
-    byte *const ackBytes = new byte[sizeof(DH_ACK)];
-    ObjectToBytes(ack, ackBytes, sizeof(DH_ACK));
+    string encrypted = encryptMessage(ack.data(), 128);
 
-    /******************** Encrypt ACK ********************/
-    int *const encryptedAck = iotAuth.encryptRSA(ackBytes, rsaStorage->getMyPrivateKey(), sizeof(DH_ACK));
-    delete[] ackBytes;
-
-    /******************** Send ACK ********************/
-    sendto(soc.socket, (int *)encryptedAck, sizeof(DH_ACK) * sizeof(int), 0, soc.client, soc.size);
-
-    delete[] encryptedAck;
-
-    /******************** Verbose ********************/
-    if (VERBOSE)
-        send_dh_ack_verbose(&ack);
+    sendto(soc.socket, encrypted.data(), encrypted.length(), 0, soc.client, soc.size);
 
     connected = true;
-
-    delete rsaStorage;
 }
 
 

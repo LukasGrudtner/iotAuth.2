@@ -55,6 +55,8 @@ class AuthClient
     /*  Retorna um boolean para indicar se possui conexão com o Servidor. */
     bool isConnected();
 
+    string decryptMessage(char *message);
+
 
   private:
 
