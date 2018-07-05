@@ -7,7 +7,7 @@ AuthServer::AuthServer()
 
 
 // double tp1, tp2, tp3, tp4, tp5, tp6, tp7, tp8;
-// double ts2, ts3, ts4, ts5, ts6, ts7;
+double ts2, ts3, ts4, ts5, ts6, ts7;
 
 /*  Aguarda conexão com algum Cliente. */
 bool AuthServer::wait_connection()
@@ -203,7 +203,7 @@ void AuthServer::send_ack()
     /******************** Init Sequence ********************/
     sequence = iotAuth.randomNumber(9999);
 
-    double mp1 = currentTime();
+    // double mp1 = currentTime();
 
     /******************** Generate Nounce B ********************/
     // double n1 = currentTime();
@@ -216,8 +216,8 @@ void AuthServer::send_ack()
     strncpy(toSend.nonceA, nonceA, sizeof(toSend.nonceA));
     strncpy(toSend.nonceB, nonceB, sizeof(toSend.nonceB));
 
-    double mp2 = currentTime();
-    cout << "TIME MOUNT PACK (s2 and s3): " << elapsedTime(mp1, mp2) << "ms." << endl;
+    // double mp2 = currentTime();
+    // cout << "TIME MOUNT PACK (s2 and s3): " << elapsedTime(mp1, mp2) << "ms." << endl;
     /******************** Start Network Time ********************/
     t1 = currentTime();
 
@@ -225,7 +225,7 @@ void AuthServer::send_ack()
     // tp2 = elapsedTime(p1, p2);
     // cout << "TIME PROCESS (s2): " << tp2 << "ms." << endl;
 
-    // ts2 = currentTime();
+    ts2 = currentTime();
 
     /******************** Send Package ********************/
     sendto(soc.socket, &toSend, sizeof(ack), 0, soc.client, soc.size);
@@ -249,8 +249,8 @@ void AuthServer::recv_rsa()
     RSAKeyExchange rsaReceived;
     int recv = recvfrom(soc.socket, &rsaReceived, sizeof(RSAKeyExchange), 0, soc.client, &soc.size);
     
-    // ts3 = currentTime();
-    // cout << "TIME TOTAL SENT (s2 and s3): " << elapsedTime(ts2, ts3) << "ms." << endl;
+    ts3 = currentTime();
+    cout << "TIME TOTAL SEND (s2 and s3): " << elapsedTime(ts2, ts3) << "ms." << endl;
 
     // double p1 = currentTime();
 
@@ -338,7 +338,7 @@ void AuthServer::send_rsa()
     /******************** Start Auxiliar Time ********************/
     t_aux1 = currentTime();
 
-    double mp1 = currentTime();
+    // double mp1 = currentTime();
 
     /******************** Get Answer FDR ********************/
     int answerFdr = rsaStorage->getPartnerFDR()->getValue(rsaStorage->getPartnerPublicKey()->d);
@@ -386,8 +386,8 @@ void AuthServer::send_rsa()
     rsaExchange.setEncryptedHash(encryptedHash);
     rsaExchange.setProcessingTime(processingTime1);
 
-    double mp2 = currentTime();
-    cout << "TIME MOUNT PACK (s4 and s5): " << elapsedTime(mp1, mp2) << "ms." << endl;
+    // double mp2 = currentTime();
+    // cout << "TIME MOUNT PACK (s4 and s5): " << elapsedTime(mp1, mp2) << "ms." << endl;
     /******************** Start Total Time ********************/
     t1 = currentTime();
 
@@ -395,7 +395,7 @@ void AuthServer::send_rsa()
     // tp4 = elapsedTime(p1, p2);
     // cout << "TIME PROCESS (s4): " << tp4 << "ms." << endl;
 
-    // ts4 = currentTime();
+    ts4 = currentTime();
     /******************** Send Exchange ********************/
     sendto(soc.socket, (RSAKeyExchange *)&rsaExchange, sizeof(RSAKeyExchange), 0, soc.client, soc.size);
 
@@ -421,8 +421,8 @@ void AuthServer::recv_rsa_ack()
     RSAKeyExchange rsaReceived;
     int recv = recvfrom(soc.socket, &rsaReceived, sizeof(RSAKeyExchange), 0, soc.client, &soc.size);
 
-    // ts5 = currentTime();
-    // cout << "TIME TOTAL SENT (s4 and s5): " << elapsedTime(ts4, ts5) << "ms." << endl;
+    ts5 = currentTime();
+    cout << "TIME TOTAL SEND (s4 and s5): " << elapsedTime(ts4, ts5) << "ms." << endl;
 
     // double p1 = currentTime();
 
@@ -519,7 +519,7 @@ void AuthServer::send_dh()
     /******************** Start Processing Time 2 ********************/
     t_aux1 = currentTime();
 
-    double mp1 = currentTime();
+    // double mp1 = currentTime();
 
     /******************** Generate Diffie-Hellman ********************/
     generateDiffieHellman();
@@ -576,8 +576,8 @@ void AuthServer::send_dh()
 
     encPacket.setTP(processingTime2);
 
-    double mp2 = currentTime();
-    cout << "TIME MOUNT PACK (s6 and s7): " << elapsedTime(mp1, mp2) << "ms." << endl;
+    // double mp2 = currentTime();
+    // cout << "TIME MOUNT PACK (s6 and s7): " << elapsedTime(mp1, mp2) << "ms." << endl;
     /******************** Start Total Time ********************/
     t1 = currentTime();
 
@@ -585,7 +585,7 @@ void AuthServer::send_dh()
     // tp6 = elapsedTime(p1, p2);
     // cout << "TIME PROCESS (s6): " << tp6 << "ms." << endl;
 
-    // ts6 = currentTime();
+    ts6 = currentTime();
     /******************** Send Exchange ********************/
     sendto(soc.socket, (DHEncPacket *)&encPacket, sizeof(DHEncPacket), 0, soc.client, soc.size);
 
@@ -611,8 +611,8 @@ void AuthServer::recv_dh()
     DHEncPacket encPacket;
     int recv = recvfrom(soc.socket, &encPacket, sizeof(DHEncPacket), 0, soc.client, &soc.size);
 
-    // ts7 = currentTime();
-    // cout << "TIME TOTAL SENT (s6 and s7): " << elapsedTime(ts6, ts7) << "ms." << endl;
+    ts7 = currentTime();
+    cout << "TIME TOTAL SEND (s6 and s7): " << elapsedTime(ts6, ts7) << "ms." << endl;
 
     // double p1 = currentTime();
 
