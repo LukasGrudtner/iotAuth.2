@@ -8,7 +8,7 @@ AuthClient::AuthClient()
     memset(recebe, 0, sizeof(recebe));
 }
 
-double tp1, tp2, tp3, tp4, tp5, tp6, tp7, tp8;
+// double tp1, tp2, tp3, tp4, tp5, tp6, tp7, tp8;
 // double ts1, ts2, ts3, ts4, ts5, ts6, ts7, ts8;
 
 /*  Inicia conexão com o Servidor. */
@@ -227,7 +227,7 @@ bool AuthClient::isConnected()
 */
 void AuthClient::send_syn()
 {
-    double p1 = currentTime();
+    // double p1 = currentTime();
     /******************** Init Sequence ********************/
     sequence = iotAuth.randomNumber(9999);
 
@@ -249,9 +249,9 @@ void AuthClient::send_syn()
     /******************** Start Network Time ********************/
     t1 = currentTime();
 
-    double p2 = currentTime();
-    tp1 = elapsedTime(p1, p2);
-    cout << "TIME PROCESS (s1): " << tp1 << "ms." << endl;
+    // double p2 = currentTime();
+    // tp1 = elapsedTime(p1, p2);
+    // cout << "TIME PROCESS (s1): " << tp1 << "ms." << endl;
 
     // ts1 = currentTime();
     /******************** Send SYN ********************/
@@ -273,7 +273,7 @@ void AuthClient::recv_ack()
     structAck received;
     int recv = recvfrom(soc.socket, &received, sizeof(ack), 0, soc.server, &soc.size);
 
-    double p1 = currentTime();
+    // double p1 = currentTime();
     // ts2 = currentTime();
     // cout << "TIME TOTAL SENT (s1 and s2): " << elapsedTime(ts1, ts2) << "ms." << endl;
 
@@ -290,10 +290,10 @@ void AuthClient::recv_ack()
         storeNonceB(received.nonceB);
 
         /******************** Validity Message ********************/
-        // double v1 = currentTime();
+        double v1 = currentTime();
         const bool isNonceTrue = (strcmp(received.nonceA, nonceA) == 0);
-        // double v2 = currentTime();
-        // cout << "TIME VERIFICATION (s1 and s2): " << elapsedTime(v1, v2) << "ms." << endl;
+        double v2 = currentTime();
+        cout << "TIME VERIFICATION (s1 and s2): " << elapsedTime(v1, v2) << "ms." << endl;
 
         /******************** Verbose ********************/
         if (VERBOSE)
@@ -301,9 +301,9 @@ void AuthClient::recv_ack()
 
         if (isNonceTrue)
         {
-            double p2 = currentTime();
-            tp2 = elapsedTime(p1, p2);
-            cout << "TIME PROCESS (s2): " << tp2 << "ms." << endl;
+            // double p2 = currentTime();
+            // tp2 = elapsedTime(p1, p2);
+            // cout << "TIME PROCESS (s2): " << tp2 << "ms." << endl;
             send_rsa();
         }
         else
@@ -324,7 +324,7 @@ void AuthClient::recv_ack()
 */
 void AuthClient::send_rsa()
 {
-    double p1 = currentTime();
+    // double p1 = currentTime();
     // double mp1 = currentTime();
     /******************** Generate RSA/FDR ********************/
     rsaStorage = new RSAStorage();
@@ -365,9 +365,9 @@ void AuthClient::send_rsa()
     /******************** Start Total Time ********************/
     t1 = currentTime();
 
-    double p2 = currentTime();
-    tp3 = elapsedTime(p1, p2);
-    cout << "TIME PROCESS (s3): " << tp3 << "ms." << endl;
+    // double p2 = currentTime();
+    // tp3 = elapsedTime(p1, p2);
+    // cout << "TIME PROCESS (s3): " << tp3 << "ms." << endl;
 
     // ts3 = currentTime();
     /******************** Send Exchange ********************/
@@ -391,7 +391,7 @@ void AuthClient::recv_rsa()
     RSAKeyExchange rsaKeyExchange;
     int recv = recvfrom(soc.socket, &rsaKeyExchange, sizeof(RSAKeyExchange), 0, soc.server, &soc.size);
 
-    double p1 = currentTime();
+    // double p1 = currentTime();
     // ts4 = currentTime();
     // cout << "TIME TOTAL SENT (s3 and s4): " << elapsedTime(ts3, ts4) << "ms." << endl;
 
@@ -425,21 +425,21 @@ void AuthClient::recv_rsa()
                 string decryptedHash = decryptHash(rsaKeyExchange.getEncryptedHash());
 
                 /******************** Validity ********************/
-                // double v1 = currentTime();
+                double v1 = currentTime();
                 const bool isHashValid = iotAuth.isHashValid(&rsaString, &decryptedHash);
                 const bool isNonceTrue = strcmp(rsaPackage->getNonceA(), nonceA) == 0;
                 const bool isAnswerCorrect = iotAuth.isAnswerCorrect(rsaStorage->getMyFDR(), rsaStorage->getMyPublicKey()->d, rsaPackage->getAnswerFDR());
-                // double v2 = currentTime();
-                // cout << "TIME VERIFICATION (s3 and s4): " << elapsedTime(v1, v2) << "ms." << endl;
+                double v2 = currentTime();
+                cout << "TIME VERIFICATION (s3 and s4): " << elapsedTime(v1, v2) << "ms." << endl;
 
                 if (VERBOSE)
                     recv_rsa_verbose(rsaStorage, nonceB, isHashValid, isNonceTrue, isAnswerCorrect);
 
                 if (isHashValid && isNonceTrue && isAnswerCorrect)
                 {
-                    double p2 = currentTime();
-                    tp4 = elapsedTime(p1, p2);
-                    cout << "TIME PROCESS (s4): " << tp4 << "ms." << endl;
+                    // double p2 = currentTime();
+                    // tp4 = elapsedTime(p1, p2);
+                    // cout << "TIME PROCESS (s4): " << tp4 << "ms." << endl;
                     send_rsa_ack();
                 }
                 else if (!isHashValid)
@@ -479,7 +479,7 @@ void AuthClient::recv_rsa()
 */
 void AuthClient::send_rsa_ack()
 {
-    double p1 = currentTime();
+    // double p1 = currentTime();
     // double mp1 = currentTime();
     /******************** Get Answer FDR ********************/
     const int answerFdr = rsaStorage->getPartnerFDR()->getValue(rsaStorage->getPartnerPublicKey()->d);
@@ -514,9 +514,9 @@ void AuthClient::send_rsa_ack()
     /******************** Start Total Time ********************/
     t1 = currentTime();
 
-    double p2 = currentTime();
-    tp5 = elapsedTime(p1, p2);
-    cout << "TIME PROCESS (s5): " << tp5 << "ms." << endl;
+    // double p2 = currentTime();
+    // tp5 = elapsedTime(p1, p2);
+    // cout << "TIME PROCESS (s5): " << tp5 << "ms." << endl;
 
     // ts5 = currentTime();
     /******************** Send Exchange ********************/
@@ -539,7 +539,7 @@ void AuthClient::recv_dh()
     /******************** Recv Enc Packet ********************/
     DHEncPacket encPacket;
     int recv = recvfrom(soc.socket, &encPacket, sizeof(DHEncPacket), 0, soc.server, &soc.size);
-    double p1 = currentTime();
+    // double p1 = currentTime();
 
     // ts6 = currentTime();
     // cout << "TIME TOTAL SENT (s5 and s6): " << elapsedTime(ts5, ts6) << "ms." << endl;
@@ -579,11 +579,11 @@ void AuthClient::recv_dh()
 
                 /******************** Validity ********************/
                 string dhString = dhPackage.toString();
-                // double v1 = currentTime();
+                double v1 = currentTime();
                 const bool isHashValid = iotAuth.isHashValid(&dhString, &decryptedHash);
                 const bool isNonceTrue = strcmp(dhPackage.getNonceA(), nonceA) == 0;
-                // double v2 = currentTime();
-                // cout << "TIME VERIFICATION (s5 and s6): " << elapsedTime(v1, v2) << "ms." << endl;
+                double v2 = currentTime();
+                cout << "TIME VERIFICATION (s5 and s6): " << elapsedTime(v1, v2) << "ms." << endl;
 
                 if (VERBOSE)
                     recv_dh_verbose(&dhPackage, isHashValid, isNonceTrue);
@@ -595,9 +595,9 @@ void AuthClient::recv_dh()
                     /******************** Store DH Package ********************/
                     storeDiffieHellman(&dhPackage);
 
-                    double p2 = currentTime();
-                    tp6 = elapsedTime(p1, p2);
-                    cout << "TIME PROCESS (s6): " << tp6 << "ms." << endl;
+                    // double p2 = currentTime();
+                    // tp6 = elapsedTime(p1, p2);
+                    // cout << "TIME PROCESS (s6): " << tp6 << "ms." << endl;
 
                     send_dh();
                 }
@@ -634,7 +634,7 @@ void AuthClient::recv_dh()
 */
 void AuthClient::send_dh()
 {
-    double p1 = currentTime();
+    // double p1 = currentTime();
     // double mp1 = currentTime();
     /***************** Calculate DH ******************/
     const int sessionKey = dhStorage->calculateSessionKey(dhStorage->getSessionKey());
@@ -688,9 +688,9 @@ void AuthClient::send_dh()
     /******************** Start Total Time ********************/
     t1 = currentTime();
 
-    double p2 = currentTime();
-    tp7 = elapsedTime(p1, p2);
-    cout << "TIME PROCESS (s7): " << tp7 << "ms." << endl;
+    // double p2 = currentTime();
+    // tp7 = elapsedTime(p1, p2);
+    // cout << "TIME PROCESS (s7): " << tp7 << "ms." << endl;
 
     // ts7 = currentTime();
     /******************** Send Enc Packet ********************/
@@ -717,7 +717,7 @@ void AuthClient::recv_dh_ack()
     memset(encrypted, '\0', sizeof(encrypted));
 
     int recv = recvfrom(soc.socket, encrypted, sizeof(encrypted) - 1, 0, soc.server, &soc.size);
-    double p1 = currentTime();
+    // double p1 = currentTime();
 
     // ts8 = currentTime();
     // cout << "TIME TOTAL SENT (s7 and s8): " << elapsedTime(ts7, ts8) << "ms." << endl;
@@ -744,17 +744,17 @@ void AuthClient::recv_dh_ack()
                 ack.pop_back();
 
                 /******************** Validity ********************/
-                // double v1 = currentTime();
+                double v1 = currentTime();
                 const bool isNonceTrue = (ack == nonceA);
-                // double v2 = currentTime();
-                // cout << "TIME VERIFICATION (s7 and s8): " << elapsedTime(v1, v2) << "ms." << endl;
+                double v2 = currentTime();
+                cout << "TIME VERIFICATION (s7 and s8): " << elapsedTime(v1, v2) << "ms." << endl;
 
                 if (isNonceTrue)
                 {
                     connected = true;
-                    double p2 = currentTime();
-                    tp8 += elapsedTime(p1, p2);
-                    cout << "TIME PROCESS (s8): " << tp8 << "ms." << endl;
+                    // double p2 = currentTime();
+                    // tp8 += elapsedTime(p1, p2);
+                    // cout << "TIME PROCESS (s8): " << tp8 << "ms." << endl;
                 }
                 else
                 {
