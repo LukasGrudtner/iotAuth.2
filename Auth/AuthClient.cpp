@@ -8,8 +8,8 @@ AuthClient::AuthClient()
     memset(recebe, 0, sizeof(recebe));
 }
 
-// double psyn, prsa, prsaack, pdh;
-double ts1, ts2, ts3, ts4, ts5, ts6, ts7, ts8;
+double tp1, tp2, tp3, tp4, tp5, tp6, tp7, tp8;
+// double ts1, ts2, ts3, ts4, ts5, ts6, ts7, ts8;
 
 /*  Inicia conexão com o Servidor. */
 int AuthClient::connect(char *address, int port)
@@ -126,8 +126,8 @@ string AuthClient::listen()
             // cout << "Decrypted: " << decrypted << endl << endl;
 
             /************************** ENVIA ACK CONFIRMANDO ********************************/
-            while (sack() == false);
-
+            while (sack() == false)
+                ;
 
             return Uint8_tToString(decrypted, encryptedMessage.length());
         }
@@ -227,7 +227,7 @@ bool AuthClient::isConnected()
 */
 void AuthClient::send_syn()
 {
-    // double p1 = currentTime();
+    double p1 = currentTime();
     /******************** Init Sequence ********************/
     sequence = iotAuth.randomNumber(9999);
 
@@ -249,10 +249,11 @@ void AuthClient::send_syn()
     /******************** Start Network Time ********************/
     t1 = currentTime();
 
-    // double p2 = currentTime();
-    // psyn = elapsedTime(p1, p2);
+    double p2 = currentTime();
+    tp1 = elapsedTime(p1, p2);
+    cout << "TIME PROCESS (s1): " << tp1 << "ms." << endl;
 
-    ts1 = currentTime();
+    // ts1 = currentTime();
     /******************** Send SYN ********************/
     sendto(soc.socket, (syn *)&toSend, sizeof(syn), 0, soc.server, soc.size);
 
@@ -272,9 +273,9 @@ void AuthClient::recv_ack()
     structAck received;
     int recv = recvfrom(soc.socket, &received, sizeof(ack), 0, soc.server, &soc.size);
 
-    // double p1 = currentTime();
-    ts2 = currentTime();
-    cout << "TIME TOTAL SENT (s1 and s2): " << elapsedTime(ts1, ts2) << "ms." << endl;
+    double p1 = currentTime();
+    // ts2 = currentTime();
+    // cout << "TIME TOTAL SENT (s1 and s2): " << elapsedTime(ts1, ts2) << "ms." << endl;
 
     if (recv > 0)
     {
@@ -300,9 +301,9 @@ void AuthClient::recv_ack()
 
         if (isNonceTrue)
         {
-            // double p2 = currentTime();
-            // psyn += elapsedTime(p1, p2);
-            // cout << "TIME PROCESS (s1 and s2): " << psyn << "ms." << endl;
+            double p2 = currentTime();
+            tp2 = elapsedTime(p1, p2);
+            cout << "TIME PROCESS (s2): " << tp2 << "ms." << endl;
             send_rsa();
         }
         else
@@ -323,7 +324,7 @@ void AuthClient::recv_ack()
 */
 void AuthClient::send_rsa()
 {
-    // double p1 = currentTime();
+    double p1 = currentTime();
     // double mp1 = currentTime();
     /******************** Generate RSA/FDR ********************/
     rsaStorage = new RSAStorage();
@@ -364,10 +365,11 @@ void AuthClient::send_rsa()
     /******************** Start Total Time ********************/
     t1 = currentTime();
 
-    // double p2 = currentTime();
-    // prsa = elapsedTime(p1, p2);
+    double p2 = currentTime();
+    tp3 = elapsedTime(p1, p2);
+    cout << "TIME PROCESS (s3): " << tp3 << "ms." << endl;
 
-    ts3 = currentTime();
+    // ts3 = currentTime();
     /******************** Send Exchange ********************/
     sendto(soc.socket, (RSAKeyExchange *)&rsaExchange, sizeof(rsaExchange), 0, soc.server, soc.size);
 
@@ -389,9 +391,9 @@ void AuthClient::recv_rsa()
     RSAKeyExchange rsaKeyExchange;
     int recv = recvfrom(soc.socket, &rsaKeyExchange, sizeof(RSAKeyExchange), 0, soc.server, &soc.size);
 
-    // double p1 = currentTime();
-    ts4 = currentTime();
-    cout << "TIME TOTAL SENT (s3 and s4): " << elapsedTime(ts3, ts4) << "ms." << endl;
+    double p1 = currentTime();
+    // ts4 = currentTime();
+    // cout << "TIME TOTAL SENT (s3 and s4): " << elapsedTime(ts3, ts4) << "ms." << endl;
 
     if (recv > 0)
     {
@@ -435,9 +437,9 @@ void AuthClient::recv_rsa()
 
                 if (isHashValid && isNonceTrue && isAnswerCorrect)
                 {
-                    // double p2 = currentTime();
-                    // prsa += elapsedTime(p1, p2);
-                    // cout << "TIME PROCESS (s3 and s4): " << prsa << "ms." << endl;
+                    double p2 = currentTime();
+                    tp4 = elapsedTime(p1, p2);
+                    cout << "TIME PROCESS (s4): " << tp4 << "ms." << endl;
                     send_rsa_ack();
                 }
                 else if (!isHashValid)
@@ -477,7 +479,7 @@ void AuthClient::recv_rsa()
 */
 void AuthClient::send_rsa_ack()
 {
-    // double p1 = currentTime();
+    double p1 = currentTime();
     // double mp1 = currentTime();
     /******************** Get Answer FDR ********************/
     const int answerFdr = rsaStorage->getPartnerFDR()->getValue(rsaStorage->getPartnerPublicKey()->d);
@@ -512,10 +514,11 @@ void AuthClient::send_rsa_ack()
     /******************** Start Total Time ********************/
     t1 = currentTime();
 
-    // double p2 = currentTime();
-    // prsaack = elapsedTime(p1, p2);
+    double p2 = currentTime();
+    tp5 = elapsedTime(p1, p2);
+    cout << "TIME PROCESS (s5): " << tp5 << "ms." << endl;
 
-    ts5 = currentTime();
+    // ts5 = currentTime();
     /******************** Send Exchange ********************/
     sendto(soc.socket, (RSAKeyExchange *)&rsaExchange, sizeof(rsaExchange), 0, soc.server, soc.size);
 
@@ -536,10 +539,10 @@ void AuthClient::recv_dh()
     /******************** Recv Enc Packet ********************/
     DHEncPacket encPacket;
     int recv = recvfrom(soc.socket, &encPacket, sizeof(DHEncPacket), 0, soc.server, &soc.size);
-    // double p1 = currentTime();
+    double p1 = currentTime();
 
-    ts6 = currentTime();
-    cout << "TIME TOTAL SENT (s5 and s6): " << elapsedTime(ts5, ts6) << "ms." << endl;
+    // ts6 = currentTime();
+    // cout << "TIME TOTAL SENT (s5 and s6): " << elapsedTime(ts5, ts6) << "ms." << endl;
 
     if (recv > 0)
     {
@@ -592,9 +595,9 @@ void AuthClient::recv_dh()
                     /******************** Store DH Package ********************/
                     storeDiffieHellman(&dhPackage);
 
-                    // double p2 = currentTime();
-                    // prsaack += elapsedTime(p1, p2);
-                    // cout << "TIME PROCESS (s5 and s6): " << prsaack << "ms." << endl;
+                    double p2 = currentTime();
+                    tp6 = elapsedTime(p1, p2);
+                    cout << "TIME PROCESS (s6): " << tp6 << "ms." << endl;
 
                     send_dh();
                 }
@@ -631,7 +634,7 @@ void AuthClient::recv_dh()
 */
 void AuthClient::send_dh()
 {
-    // double p1 = currentTime();
+    double p1 = currentTime();
     // double mp1 = currentTime();
     /***************** Calculate DH ******************/
     const int sessionKey = dhStorage->calculateSessionKey(dhStorage->getSessionKey());
@@ -685,10 +688,11 @@ void AuthClient::send_dh()
     /******************** Start Total Time ********************/
     t1 = currentTime();
 
-    // double p2 = currentTime();
-    // pdh = elapsedTime(p1, p2);
+    double p2 = currentTime();
+    tp7 = elapsedTime(p1, p2);
+    cout << "TIME PROCESS (s7): " << tp7 << "ms." << endl;
 
-    ts7 = currentTime();
+    // ts7 = currentTime();
     /******************** Send Enc Packet ********************/
     sendto(soc.socket, (DHEncPacket *)&encPacket, sizeof(DHEncPacket), 0, soc.server, soc.size);
 
@@ -712,11 +716,11 @@ void AuthClient::recv_dh_ack()
     char encrypted[257];
     memset(encrypted, '\0', sizeof(encrypted));
 
-    int recv = recvfrom(soc.socket, encrypted, sizeof(encrypted)-1, 0, soc.server, &soc.size);
-    // double p1 = currentTime();
+    int recv = recvfrom(soc.socket, encrypted, sizeof(encrypted) - 1, 0, soc.server, &soc.size);
+    double p1 = currentTime();
 
-    ts8 = currentTime();
-    cout << "TIME TOTAL SENT (s7 and s8): " << elapsedTime(ts7, ts8) << "ms." << endl;
+    // ts8 = currentTime();
+    // cout << "TIME TOTAL SENT (s7 and s8): " << elapsedTime(ts7, ts8) << "ms." << endl;
 
     if (recv > 0)
     {
@@ -742,16 +746,15 @@ void AuthClient::recv_dh_ack()
                 /******************** Validity ********************/
                 // double v1 = currentTime();
                 const bool isNonceTrue = (ack == nonceA);
-              
                 // double v2 = currentTime();
                 // cout << "TIME VERIFICATION (s7 and s8): " << elapsedTime(v1, v2) << "ms." << endl;
 
                 if (isNonceTrue)
                 {
                     connected = true;
-                    // double p2 = currentTime();
-                    // pdh += elapsedTime(p1, p2);
-                    // cout << "TIME PROCESS (s7 and s8): " << pdh << "ms." << endl;
+                    double p2 = currentTime();
+                    tp8 += elapsedTime(p1, p2);
+                    cout << "TIME PROCESS (s8): " << tp8 << "ms." << endl;
                 }
                 else
                 {
