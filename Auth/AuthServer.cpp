@@ -287,11 +287,11 @@ void AuthServer::recv_rsa()
             storeNonceA(rsaPackage.getNonceA());
 
             /******************** Validity Hash ********************/
-            double v1 = currentTime();
+            // double v1 = currentTime();
             bool isHashValid = iotAuth.isHashValid(&rsaString, &decryptedHash);
             bool isNonceTrue = strcmp(rsaPackage.getNonceB(), nonceB) == 0;
-            double v2 = currentTime();
-            cout << "TIME VERIFICATION (s2 and s3): " << elapsedTime(v1, v2) << "ms." << endl;
+            // double v2 = currentTime();
+            // cout << "TIME VERIFICATION (s2 and s3): " << elapsedTime(v1, v2) << "ms." << endl;
 
             /******************** Verbose ********************/
             if (VERBOSE)
@@ -362,12 +362,12 @@ void AuthServer::send_rsa()
     rsaSent.setNonceB(nonceB);
 
     /******************** Get Hash ********************/
-    // double s1 = currentTime();
+    double s1 = currentTime();
     string packageString = rsaSent.toString();
     string hash = iotAuth.hash(&packageString);
     int *const encryptedHash = iotAuth.encryptRSA(&hash, rsaStorage->getMyPrivateKey(), 128);
-    // double s2 = currentTime();
-    // cout << "TIME SIGNATURE (s4 and s5): " << elapsedTime(s1, s2) << "ms." << endl;
+    double s2 = currentTime();
+    cout << "TIME SIGNATURE (s4 and s5): " << elapsedTime(s1, s2) << "ms." << endl;
 
     /******************** Stop Processing Time ********************/
     t2 = currentTime();
@@ -454,12 +454,12 @@ void AuthServer::recv_rsa_ack()
                 /******************** Store Nonce A ********************/
                 storeNonceA(rsaPackage.getNonceA());
 
-                double v1 = currentTime();
+                // double v1 = currentTime();
                 bool isHashValid = iotAuth.isHashValid(&rsaString, &decryptedHash);
                 bool isNonceTrue = strcmp(rsaPackage.getNonceB(), nonceB) == 0;
                 bool isAnswerCorrect = iotAuth.isAnswerCorrect(rsaStorage->getMyFDR(), rsaStorage->getMyPublicKey()->d, rsaPackage.getAnswerFDR());
-                double v2 = currentTime();
-                cout << "TIME VERIFICATION (s4 and s5): " << elapsedTime(v1, v2) << "ms." << endl;
+                // double v2 = currentTime();
+                // cout << "TIME VERIFICATION (s4 and s5): " << elapsedTime(v1, v2) << "ms." << endl;
 
                 if (VERBOSE)
                     recv_rsa_ack_verbose(nonceA, isHashValid, isAnswerCorrect, isNonceTrue);
@@ -544,12 +544,12 @@ void AuthServer::send_dh()
     dhPackage.setIV(iv);
 
     /******************** Get Hash ********************/
-    // double s1 = currentTime();
+    double s1 = currentTime();
     string packageString = dhPackage.toString();
     string hash = iotAuth.hash(&packageString);
     int *const encryptedHash = iotAuth.encryptRSA(&hash, rsaStorage->getMyPrivateKey(), hash.length());
-    // double s2 = currentTime();
-    // cout << "TIME SIGNATURE (s6 and s7): " << elapsedTime(s1, s2) << "ms." << endl;
+    double s2 = currentTime();
+    cout << "TIME SIGNATURE (s6 and s7): " << elapsedTime(s1, s2) << "ms." << endl;
     /******************** Mount Exchange ********************/
     DHKeyExchange dhSent;
     dhSent.setEncryptedHash(encryptedHash);
@@ -652,11 +652,11 @@ void AuthServer::recv_dh()
                 /******************** Validity ********************/
                 string dhString = dhPackage.toString();
 
-                double v1 = currentTime();
+                // double v1 = currentTime();
                 const bool isHashValid = iotAuth.isHashValid(&dhString, &decryptedHash);
                 const bool isNonceTrue = strcmp(dhPackage.getNonceB(), nonceB) == 0;
-                double v2 = currentTime();
-                cout << "TIME VERIFICATION (s6 and s7): " << elapsedTime(v1, v2) << "ms." << endl;
+                // double v2 = currentTime();
+                // cout << "TIME VERIFICATION (s6 and s7): " << elapsedTime(v1, v2) << "ms." << endl;
 
                 if (isHashValid && isNonceTrue)
                 {

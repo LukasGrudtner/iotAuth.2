@@ -290,10 +290,10 @@ void AuthClient::recv_ack()
         storeNonceB(received.nonceB);
 
         /******************** Validity Message ********************/
-        double v1 = currentTime();
+        // double v1 = currentTime();
         const bool isNonceTrue = (strcmp(received.nonceA, nonceA) == 0);
-        double v2 = currentTime();
-        cout << "TIME VERIFICATION (s1 and s2): " << elapsedTime(v1, v2) << "ms." << endl;
+        // double v2 = currentTime();
+        // cout << "TIME VERIFICATION (s1 and s2): " << elapsedTime(v1, v2) << "ms." << endl;
 
         /******************** Verbose ********************/
         if (VERBOSE)
@@ -344,11 +344,11 @@ void AuthClient::send_rsa()
     rsaSent.setNonceB(nonceB);
 
     /******************** Get Hash ********************/
-    // double s1 = currentTime();
+    double s1 = currentTime();
     string rsaString = rsaSent.toString();
     int *const encryptedHash = iotAuth.signedHash(&rsaString, rsaStorage->getMyPrivateKey());
-    // double s2 = currentTime();
-    // cout << "TIME SIGNATURE (s3 and s4): " << elapsedTime(s1, s2) << "ms." << endl;
+    double s2 = currentTime();
+    cout << "TIME SIGNATURE (s3 and s4): " << elapsedTime(s1, s2) << "ms." << endl;
 
     /******************** Stop Processing Time ********************/
     t2 = currentTime();
@@ -425,12 +425,12 @@ void AuthClient::recv_rsa()
                 string decryptedHash = decryptHash(rsaKeyExchange.getEncryptedHash());
 
                 /******************** Validity ********************/
-                double v1 = currentTime();
+                // double v1 = currentTime();
                 const bool isHashValid = iotAuth.isHashValid(&rsaString, &decryptedHash);
                 const bool isNonceTrue = strcmp(rsaPackage->getNonceA(), nonceA) == 0;
                 const bool isAnswerCorrect = iotAuth.isAnswerCorrect(rsaStorage->getMyFDR(), rsaStorage->getMyPublicKey()->d, rsaPackage->getAnswerFDR());
-                double v2 = currentTime();
-                cout << "TIME VERIFICATION (s3 and s4): " << elapsedTime(v1, v2) << "ms." << endl;
+                // double v2 = currentTime();
+                // cout << "TIME VERIFICATION (s3 and s4): " << elapsedTime(v1, v2) << "ms." << endl;
 
                 if (VERBOSE)
                     recv_rsa_verbose(rsaStorage, nonceB, isHashValid, isNonceTrue, isAnswerCorrect);
@@ -498,11 +498,11 @@ void AuthClient::send_rsa_ack()
     rsaSent.setACK();
 
     /******************** Get Hash ********************/
-    // double s1 = currentTime();
+    double s1 = currentTime();
     string rsaString = rsaSent.toString();
     int *const encryptedHash = iotAuth.signedHash(&rsaString, rsaStorage->getMyPrivateKey());
-    // double s2 = currentTime();
-    // cout << "TIME SIGNATURE (s5 and s6): " << elapsedTime(s1, s2) << "ms." << endl;
+    double s2 = currentTime();
+    cout << "TIME SIGNATURE (s5 and s6): " << elapsedTime(s1, s2) << "ms." << endl;
 
     /******************** Mount Exchange ********************/
     RSAKeyExchange rsaExchange;
@@ -579,11 +579,11 @@ void AuthClient::recv_dh()
 
                 /******************** Validity ********************/
                 string dhString = dhPackage.toString();
-                double v1 = currentTime();
+                // double v1 = currentTime();
                 const bool isHashValid = iotAuth.isHashValid(&dhString, &decryptedHash);
                 const bool isNonceTrue = strcmp(dhPackage.getNonceA(), nonceA) == 0;
-                double v2 = currentTime();
-                cout << "TIME VERIFICATION (s5 and s6): " << elapsedTime(v1, v2) << "ms." << endl;
+                // double v2 = currentTime();
+                // cout << "TIME VERIFICATION (s5 and s6): " << elapsedTime(v1, v2) << "ms." << endl;
 
                 if (VERBOSE)
                     recv_dh_verbose(&dhPackage, isHashValid, isNonceTrue);
@@ -654,11 +654,11 @@ void AuthClient::send_dh()
     diffieHellmanPackage.setNonceB(nonceB);
 
     /***************** Encrypt Hash ******************/
-    // double s1 = currentTime();
+    double s1 = currentTime();
     string dhString = diffieHellmanPackage.toString();
     int *const encryptedHash = iotAuth.signedHash(&dhString, rsaStorage->getMyPrivateKey());
-    // double s2 = currentTime();
-    // cout << "TIME SIGNATURE (s7 and s8): " << elapsedTime(s1, s2) << "ms." << endl;
+    double s2 = currentTime();
+    cout << "TIME SIGNATURE (s7 and s8): " << elapsedTime(s1, s2) << "ms." << endl;
 
     /***************** Stop Processing Time 2 ******************/
     t2 = currentTime();
@@ -744,10 +744,10 @@ void AuthClient::recv_dh_ack()
                 ack.pop_back();
 
                 /******************** Validity ********************/
-                double v1 = currentTime();
+                // double v1 = currentTime();
                 const bool isNonceTrue = (ack == nonceA);
-                double v2 = currentTime();
-                cout << "TIME VERIFICATION (s7 and s8): " << elapsedTime(v1, v2) << "ms." << endl;
+                // double v2 = currentTime();
+                // cout << "TIME VERIFICATION (s7 and s8): " << elapsedTime(v1, v2) << "ms." << endl;
 
                 if (isNonceTrue)
                 {
