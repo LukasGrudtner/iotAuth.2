@@ -231,7 +231,7 @@ void AuthClient::send_syn()
     /******************** Init Sequence ********************/
     sequence = iotAuth.randomNumber(9999);
 
-    // double mp1 = currentTime();
+    double mp1 = currentTime();
 
     /******************** Generate Nonce ********************/
     // double n1 = currentTime();
@@ -243,8 +243,8 @@ void AuthClient::send_syn()
     structSyn toSend;
     strncpy(toSend.nonce, nonceA, sizeof(toSend.nonce));
 
-    // double mp2 = currentTime();
-    // cout << "TIME MOUNT PACK (s1 and s2): " << elapsedTime(mp1, mp2) << "ms." << endl;
+    double mp2 = currentTime();
+    cout << "TIME MOUNT PACK (s1 and s2): " << elapsedTime(mp1, mp2) << "ms." << endl;
 
     /******************** Start Network Time ********************/
     t1 = currentTime();
@@ -325,7 +325,7 @@ void AuthClient::recv_ack()
 void AuthClient::send_rsa()
 {
     // double p1 = currentTime();
-    // double mp1 = currentTime();
+    double mp1 = currentTime();
     /******************** Generate RSA/FDR ********************/
     rsaStorage = new RSAStorage();
     rsaStorage->setKeyPair(iotAuth.generateRSAKeyPair());
@@ -360,8 +360,8 @@ void AuthClient::send_rsa()
     rsaExchange.setEncryptedHash(encryptedHash);
     rsaExchange.setProcessingTime(processingTime1);
 
-    // double mp2 = currentTime();
-    // cout << "TIME MOUNT PACK (s3 and s4): " << elapsedTime(mp1, mp2) << "ms." << endl;
+    double mp2 = currentTime();
+    cout << "TIME MOUNT PACK (s3 and s4): " << elapsedTime(mp1, mp2) << "ms." << endl;
     /******************** Start Total Time ********************/
     t1 = currentTime();
 
@@ -480,7 +480,7 @@ void AuthClient::recv_rsa()
 void AuthClient::send_rsa_ack()
 {
     // double p1 = currentTime();
-    // double mp1 = currentTime();
+    double mp1 = currentTime();
     /******************** Get Answer FDR ********************/
     const int answerFdr = rsaStorage->getPartnerFDR()->getValue(rsaStorage->getPartnerPublicKey()->d);
 
@@ -509,8 +509,8 @@ void AuthClient::send_rsa_ack()
     rsaExchange.setRSAPackage(&rsaSent);
     rsaExchange.setEncryptedHash(encryptedHash);
 
-    // double mp2 = currentTime();
-    // cout << "TIME MOUNT PACK (s5 and s6): " << elapsedTime(mp1, mp2) << "ms." << endl;
+    double mp2 = currentTime();
+    cout << "TIME MOUNT PACK (s5 and s6): " << elapsedTime(mp1, mp2) << "ms." << endl;
     /******************** Start Total Time ********************/
     t1 = currentTime();
 
@@ -635,7 +635,7 @@ void AuthClient::recv_dh()
 void AuthClient::send_dh()
 {
     // double p1 = currentTime();
-    // double mp1 = currentTime();
+    double mp1 = currentTime();
     /***************** Calculate DH ******************/
     const int sessionKey = dhStorage->calculateSessionKey(dhStorage->getSessionKey());
     const int result = dhStorage->calculateResult();
@@ -674,17 +674,17 @@ void AuthClient::send_dh()
     ObjectToBytes(dhSent, exchangeBytes, sizeof(DHKeyExchange));
 
     /********************** Encrypt Exchange **********************/
-    double e1 = currentTime();
+    // double e1 = currentTime();
     int *const encryptedExchange = iotAuth.encryptRSA(exchangeBytes, rsaStorage->getPartnerPublicKey(), sizeof(RSAKeyExchange));
-    double e2 = currentTime();
-    cout << "TIME ENCRYPTION (s7 and s8): " << elapsedTime(e1, e2) << "ms." << endl;
+    // double e2 = currentTime();
+    // cout << "TIME ENCRYPTION (s7 and s8): " << elapsedTime(e1, e2) << "ms." << endl;
     /********************** Mount Enc Packet **********************/
     DHEncPacket encPacket;
     encPacket.setEncryptedExchange(encryptedExchange);
     encPacket.setTP(processingTime2);
 
-    // double mp2 = currentTime();
-    // cout << "TIME MOUNT PACK (s7 and s8): " << elapsedTime(mp1, mp2) << "ms." << endl;
+    double mp2 = currentTime();
+    cout << "TIME MOUNT PACK (s7 and s8): " << elapsedTime(mp1, mp2) << "ms." << endl;
     /******************** Start Total Time ********************/
     t1 = currentTime();
 
