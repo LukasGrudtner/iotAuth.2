@@ -206,10 +206,10 @@ void AuthServer::send_ack()
     // double mp1 = currentTime();
 
     /******************** Generate Nounce B ********************/
-    // double n1 = currentTime();
+    double n1 = currentTime();
     generateNonce(nonceB);
-    // double n2 = currentTime();
-    // cout << "TIME NONCE (s2 and s3): " << elapsedTime(n1, n2) << "ms." << endl;
+    double n2 = currentTime();
+    cout << "TIME NONCE (s2 and s3): " << elapsedTime(n1, n2) << "ms." << endl;
 
     /******************** Mount Package ********************/
     structAck toSend;
@@ -348,10 +348,10 @@ void AuthServer::send_rsa()
     rsaStorage->setMyFDR(iotAuth.generateFDR());
 
     /******************** Generate Nonce ********************/
-    // double n1 = currentTime();
+    double n1 = currentTime();
     generateNonce(nonceB);
-    // double n2 = currentTime();
-    // cout << "TIME NONCE (s4 and s5): " << elapsedTime(n1, n2) << "ms." << endl;
+    double n2 = currentTime();
+    cout << "TIME NONCE (s4 and s5): " << elapsedTime(n1, n2) << "ms." << endl;
 
     /******************** Mount Package ********************/
     RSAPackage rsaSent;
@@ -362,12 +362,12 @@ void AuthServer::send_rsa()
     rsaSent.setNonceB(nonceB);
 
     /******************** Get Hash ********************/
-    double s1 = currentTime();
+    // double s1 = currentTime();
     string packageString = rsaSent.toString();
     string hash = iotAuth.hash(&packageString);
     int *const encryptedHash = iotAuth.encryptRSA(&hash, rsaStorage->getMyPrivateKey(), 128);
-    double s2 = currentTime();
-    cout << "TIME SIGNATURE (s4 and s5): " << elapsedTime(s1, s2) << "ms." << endl;
+    // double s2 = currentTime();
+    // cout << "TIME SIGNATURE (s4 and s5): " << elapsedTime(s1, s2) << "ms." << endl;
 
     /******************** Stop Processing Time ********************/
     t2 = currentTime();
@@ -525,10 +525,10 @@ void AuthServer::send_dh()
     generateDiffieHellman();
 
     /******************** Generate Nonce B ********************/
-    // double n1 = currentTime();
+    double n1 = currentTime();
     generateNonce(nonceB);
-    // double n2 = currentTime();
-    // cout << "TIME NONCE (s6 and s7): " << elapsedTime(n1, n2) << "ms." << endl;
+    double n2 = currentTime();
+    cout << "TIME NONCE (s6 and s7): " << elapsedTime(n1, n2) << "ms." << endl;
 
     /******************** Generate IV ********************/
     int iv = iotAuth.randomNumber(90);
@@ -544,12 +544,12 @@ void AuthServer::send_dh()
     dhPackage.setIV(iv);
 
     /******************** Get Hash ********************/
-    double s1 = currentTime();
+    // double s1 = currentTime();
     string packageString = dhPackage.toString();
     string hash = iotAuth.hash(&packageString);
     int *const encryptedHash = iotAuth.encryptRSA(&hash, rsaStorage->getMyPrivateKey(), hash.length());
-    double s2 = currentTime();
-    cout << "TIME SIGNATURE (s6 and s7): " << elapsedTime(s1, s2) << "ms." << endl;
+    // double s2 = currentTime();
+    // cout << "TIME SIGNATURE (s6 and s7): " << elapsedTime(s1, s2) << "ms." << endl;
     /******************** Mount Exchange ********************/
     DHKeyExchange dhSent;
     dhSent.setEncryptedHash(encryptedHash);
