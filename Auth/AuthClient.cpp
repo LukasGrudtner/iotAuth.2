@@ -9,7 +9,7 @@ AuthClient::AuthClient()
 }
 
 // double psyn, prsa, prsaack, pdh;
-// double ts1, ts2, ts3, ts4, ts5, ts6, ts7, ts8;
+double ts1, ts2, ts3, ts4, ts5, ts6, ts7, ts8;
 
 /*  Inicia conexão com o Servidor. */
 int AuthClient::connect(char *address, int port)
@@ -252,7 +252,7 @@ void AuthClient::send_syn()
     // double p2 = currentTime();
     // psyn = elapsedTime(p1, p2);
 
-    // ts1 = currentTime();
+    ts1 = currentTime();
     /******************** Send SYN ********************/
     sendto(soc.socket, (syn *)&toSend, sizeof(syn), 0, soc.server, soc.size);
 
@@ -273,8 +273,8 @@ void AuthClient::recv_ack()
     int recv = recvfrom(soc.socket, &received, sizeof(ack), 0, soc.server, &soc.size);
 
     // double p1 = currentTime();
-    // ts2 = currentTime();
-    // cout << "TIME TOTAL SENT (s1 and s2): " << elapsedTime(ts1, ts2) << "ms." << endl;
+    ts2 = currentTime();
+    cout << "TIME TOTAL SENT (s1 and s2): " << elapsedTime(ts1, ts2) << "ms." << endl;
 
     if (recv > 0)
     {
@@ -367,7 +367,7 @@ void AuthClient::send_rsa()
     // double p2 = currentTime();
     // prsa = elapsedTime(p1, p2);
 
-    // ts3 = currentTime();
+    ts3 = currentTime();
     /******************** Send Exchange ********************/
     sendto(soc.socket, (RSAKeyExchange *)&rsaExchange, sizeof(rsaExchange), 0, soc.server, soc.size);
 
@@ -390,8 +390,8 @@ void AuthClient::recv_rsa()
     int recv = recvfrom(soc.socket, &rsaKeyExchange, sizeof(RSAKeyExchange), 0, soc.server, &soc.size);
 
     // double p1 = currentTime();
-    // ts4 = currentTime();
-    // cout << "TIME TOTAL SENT (s3 and s4): " << elapsedTime(ts3, ts4) << "ms." << endl;
+    ts4 = currentTime();
+    cout << "TIME TOTAL SENT (s3 and s4): " << elapsedTime(ts3, ts4) << "ms." << endl;
 
     if (recv > 0)
     {
@@ -515,7 +515,7 @@ void AuthClient::send_rsa_ack()
     // double p2 = currentTime();
     // prsaack = elapsedTime(p1, p2);
 
-    // ts5 = currentTime();
+    ts5 = currentTime();
     /******************** Send Exchange ********************/
     sendto(soc.socket, (RSAKeyExchange *)&rsaExchange, sizeof(rsaExchange), 0, soc.server, soc.size);
 
@@ -538,8 +538,8 @@ void AuthClient::recv_dh()
     int recv = recvfrom(soc.socket, &encPacket, sizeof(DHEncPacket), 0, soc.server, &soc.size);
     // double p1 = currentTime();
 
-    // ts6 = currentTime();
-    // cout << "TIME TOTAL SENT (s5 and s6): " << elapsedTime(ts5, ts6) << "ms." << endl;
+    ts6 = currentTime();
+    cout << "TIME TOTAL SENT (s5 and s6): " << elapsedTime(ts5, ts6) << "ms." << endl;
 
     if (recv > 0)
     {
@@ -671,10 +671,10 @@ void AuthClient::send_dh()
     ObjectToBytes(dhSent, exchangeBytes, sizeof(DHKeyExchange));
 
     /********************** Encrypt Exchange **********************/
-    double e1 = currentTime();
+    // double e1 = currentTime();
     int *const encryptedExchange = iotAuth.encryptRSA(exchangeBytes, rsaStorage->getPartnerPublicKey(), sizeof(RSAKeyExchange));
-    double e2 = currentTime();
-    cout << "TIME ENCRYPTION (s7 and s8): " << elapsedTime(e1, e2) << "ms." << endl;
+    // double e2 = currentTime();
+    // cout << "TIME ENCRYPTION (s7 and s8): " << elapsedTime(e1, e2) << "ms." << endl;
     /********************** Mount Enc Packet **********************/
     DHEncPacket encPacket;
     encPacket.setEncryptedExchange(encryptedExchange);
@@ -688,7 +688,7 @@ void AuthClient::send_dh()
     // double p2 = currentTime();
     // pdh = elapsedTime(p1, p2);
 
-    // ts7 = currentTime();
+    ts7 = currentTime();
     /******************** Send Enc Packet ********************/
     sendto(soc.socket, (DHEncPacket *)&encPacket, sizeof(DHEncPacket), 0, soc.server, soc.size);
 
@@ -715,8 +715,8 @@ void AuthClient::recv_dh_ack()
     int recv = recvfrom(soc.socket, encrypted, sizeof(encrypted)-1, 0, soc.server, &soc.size);
     // double p1 = currentTime();
 
-    // ts8 = currentTime();
-    // cout << "TIME TOTAL SENT (s7 and s8): " << elapsedTime(ts7, ts8) << "ms." << endl;
+    ts8 = currentTime();
+    cout << "TIME TOTAL SENT (s7 and s8): " << elapsedTime(ts7, ts8) << "ms." << endl;
 
     if (recv > 0)
     {
