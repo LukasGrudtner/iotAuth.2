@@ -9,7 +9,7 @@ AuthClient::AuthClient()
 }
 
 // double tp1, tp2, tp3, tp4, tp5, tp6, tp7, tp8;
-double ts1, ts2, ts3, ts4, ts5, ts6, ts7, ts8;
+// double ts1, ts2, ts3, ts4, ts5, ts6, ts7, ts8;
 
 /*  Inicia conexão com o Servidor. */
 int AuthClient::connect(char *address, int port)
@@ -253,7 +253,7 @@ void AuthClient::send_syn()
     // tp1 = elapsedTime(p1, p2);
     // cout << "TIME PROCESS (s1): " << tp1 << "ms." << endl;
 
-    ts1 = currentTime();
+    // ts1 = currentTime();
     /******************** Send SYN ********************/
     sendto(soc.socket, (syn *)&toSend, sizeof(syn), 0, soc.server, soc.size);
 
@@ -274,8 +274,8 @@ void AuthClient::recv_ack()
     int recv = recvfrom(soc.socket, &received, sizeof(ack), 0, soc.server, &soc.size);
 
     // double p1 = currentTime();
-    ts2 = currentTime();
-    cout << "TIME TOTAL SEND (s1 and s2): " << elapsedTime(ts1, ts2) << "ms." << endl;
+    // ts2 = currentTime();
+    // cout << "TIME TOTAL SEND (s1 and s2): " << elapsedTime(ts1, ts2) << "ms." << endl;
 
     if (recv > 0)
     {
@@ -369,7 +369,7 @@ void AuthClient::send_rsa()
     // tp3 = elapsedTime(p1, p2);
     // cout << "TIME PROCESS (s3): " << tp3 << "ms." << endl;
 
-    ts3 = currentTime();
+    // ts3 = currentTime();
     /******************** Send Exchange ********************/
     sendto(soc.socket, (RSAKeyExchange *)&rsaExchange, sizeof(rsaExchange), 0, soc.server, soc.size);
 
@@ -392,8 +392,8 @@ void AuthClient::recv_rsa()
     int recv = recvfrom(soc.socket, &rsaKeyExchange, sizeof(RSAKeyExchange), 0, soc.server, &soc.size);
 
     // double p1 = currentTime();
-    ts4 = currentTime();
-    cout << "TIME TOTAL SENT (s3 and s4): " << elapsedTime(ts3, ts4) << "ms." << endl;
+    // ts4 = currentTime();
+    // cout << "TIME TOTAL SENT (s3 and s4): " << elapsedTime(ts3, ts4) << "ms." << endl;
 
     if (recv > 0)
     {
@@ -518,7 +518,7 @@ void AuthClient::send_rsa_ack()
     // tp5 = elapsedTime(p1, p2);
     // cout << "TIME PROCESS (s5): " << tp5 << "ms." << endl;
 
-    ts5 = currentTime();
+    // ts5 = currentTime();
     /******************** Send Exchange ********************/
     sendto(soc.socket, (RSAKeyExchange *)&rsaExchange, sizeof(rsaExchange), 0, soc.server, soc.size);
 
@@ -541,8 +541,8 @@ void AuthClient::recv_dh()
     int recv = recvfrom(soc.socket, &encPacket, sizeof(DHEncPacket), 0, soc.server, &soc.size);
     // double p1 = currentTime();
 
-    ts6 = currentTime();
-    cout << "TIME TOTAL SENT (s5 and s6): " << elapsedTime(ts5, ts6) << "ms." << endl;
+    // ts6 = currentTime();
+    // cout << "TIME TOTAL SENT (s5 and s6): " << elapsedTime(ts5, ts6) << "ms." << endl;
 
     if (recv > 0)
     {
@@ -692,7 +692,7 @@ void AuthClient::send_dh()
     // tp7 = elapsedTime(p1, p2);
     // cout << "TIME PROCESS (s7): " << tp7 << "ms." << endl;
 
-    ts7 = currentTime();
+    // ts7 = currentTime();
     /******************** Send Enc Packet ********************/
     sendto(soc.socket, (DHEncPacket *)&encPacket, sizeof(DHEncPacket), 0, soc.server, soc.size);
 
@@ -719,8 +719,8 @@ void AuthClient::recv_dh_ack()
     int recv = recvfrom(soc.socket, encrypted, sizeof(encrypted) - 1, 0, soc.server, &soc.size);
     // double p1 = currentTime();
 
-    ts8 = currentTime();
-    cout << "TIME TOTAL SENT (s7 and s8): " << elapsedTime(ts7, ts8) << "ms." << endl;
+    // ts8 = currentTime();
+    // cout << "TIME TOTAL SENT (s7 and s8): " << elapsedTime(ts7, ts8) << "ms." << endl;
 
     if (recv > 0)
     {

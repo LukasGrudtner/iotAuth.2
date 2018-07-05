@@ -38,6 +38,8 @@ class AuthServer
 {
   public:
 
+    double start;
+
     AuthServer();
 
     /*  Aguarda conexão com algum Cliente. */
@@ -73,7 +75,6 @@ class AuthServer
     double networkTime, processingTime1, processingTime2, tp, auxiliarTime, totalTime;
     double t1, t2;
     double t_aux1, t_aux2;
-    double start;
 
     struct sockaddr_in cliente, servidor;
     int meuSocket, enviei = 0;
