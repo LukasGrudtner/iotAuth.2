@@ -234,10 +234,10 @@ void AuthClient::send_syn()
     // double mp1 = currentTime();
 
     /******************** Generate Nonce ********************/
-    double n1 = currentTime();
+    // double n1 = currentTime();
     generateNonce(nonceA);
-    double n2 = currentTime();
-    cout << "TIME NONCE (s1 and s2): " << elapsedTime(n1, n2) << "ms." << endl;
+    // double n2 = currentTime();
+    // cout << "TIME NONCE (s1 and s2): " << elapsedTime(n1, n2) << "ms." << endl;
 
     /******************** Mount SYN Package ********************/
     structSyn toSend;
@@ -332,10 +332,10 @@ void AuthClient::send_rsa()
     rsaStorage->setMyFDR(iotAuth.generateFDR());
 
     /******************** Generate Nonce ********************/
-    double n1 = currentTime();
+    // double n1 = currentTime();
     generateNonce(nonceA);
-    double n2 = currentTime();
-    cout << "TIME NONCE (s3 and s4): " << elapsedTime(n1, n2) << "ms." << endl;
+    // double n2 = currentTime();
+    // cout << "TIME NONCE (s3 and s4): " << elapsedTime(n1, n2) << "ms." << endl;
     /******************** Mount Package ********************/
     RSAPackage rsaSent;
     rsaSent.setPublicKey(*rsaStorage->getMyPublicKey());
@@ -485,10 +485,10 @@ void AuthClient::send_rsa_ack()
     const int answerFdr = rsaStorage->getPartnerFDR()->getValue(rsaStorage->getPartnerPublicKey()->d);
 
     /******************** Generate Nonce ********************/
-    double n1 = currentTime();
+    // double n1 = currentTime();
     generateNonce(nonceA);
-    double n2 = currentTime();
-    cout << "TIME NONCE (s5 and s6): " << elapsedTime(n1, n2) << "ms." << endl;
+    // double n2 = currentTime();
+    // cout << "TIME NONCE (s5 and s6): " << elapsedTime(n1, n2) << "ms." << endl;
 
     /******************** Mount Package ********************/
     RSAPackage rsaSent;
@@ -642,10 +642,10 @@ void AuthClient::send_dh()
     dhStorage->setSessionKey(sessionKey);
 
     /***************** Generate Nonce A ******************/
-    double n1 = currentTime();
+    // double n1 = currentTime();
     generateNonce(nonceA);
-    double n2 = currentTime();
-    cout << "TIME NONCE (s7 and s8): " << elapsedTime(n1, n2) << "ms." << endl;
+    // double n2 = currentTime();
+    // cout << "TIME NONCE (s7 and s8): " << elapsedTime(n1, n2) << "ms." << endl;
 
     /***************** Mount Package ******************/
     DiffieHellmanPackage diffieHellmanPackage;
@@ -674,10 +674,10 @@ void AuthClient::send_dh()
     ObjectToBytes(dhSent, exchangeBytes, sizeof(DHKeyExchange));
 
     /********************** Encrypt Exchange **********************/
-    // double e1 = currentTime();
+    double e1 = currentTime();
     int *const encryptedExchange = iotAuth.encryptRSA(exchangeBytes, rsaStorage->getPartnerPublicKey(), sizeof(RSAKeyExchange));
-    // double e2 = currentTime();
-    // cout << "TIME ENCRYPTION (s7 and s8): " << elapsedTime(e1, e2) << "ms." << endl;
+    double e2 = currentTime();
+    cout << "TIME ENCRYPTION (s7 and s8): " << elapsedTime(e1, e2) << "ms." << endl;
     /********************** Mount Enc Packet **********************/
     DHEncPacket encPacket;
     encPacket.setEncryptedExchange(encryptedExchange);

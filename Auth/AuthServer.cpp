@@ -206,10 +206,10 @@ void AuthServer::send_ack()
     // double mp1 = currentTime();
 
     /******************** Generate Nounce B ********************/
-    double n1 = currentTime();
+    // double n1 = currentTime();
     generateNonce(nonceB);
-    double n2 = currentTime();
-    cout << "TIME NONCE (s2 and s3): " << elapsedTime(n1, n2) << "ms." << endl;
+    // double n2 = currentTime();
+    // cout << "TIME NONCE (s2 and s3): " << elapsedTime(n1, n2) << "ms." << endl;
 
     /******************** Mount Package ********************/
     structAck toSend;
@@ -348,10 +348,10 @@ void AuthServer::send_rsa()
     rsaStorage->setMyFDR(iotAuth.generateFDR());
 
     /******************** Generate Nonce ********************/
-    double n1 = currentTime();
+    // double n1 = currentTime();
     generateNonce(nonceB);
-    double n2 = currentTime();
-    cout << "TIME NONCE (s4 and s5): " << elapsedTime(n1, n2) << "ms." << endl;
+    // double n2 = currentTime();
+    // cout << "TIME NONCE (s4 and s5): " << elapsedTime(n1, n2) << "ms." << endl;
 
     /******************** Mount Package ********************/
     RSAPackage rsaSent;
@@ -525,10 +525,10 @@ void AuthServer::send_dh()
     generateDiffieHellman();
 
     /******************** Generate Nonce B ********************/
-    double n1 = currentTime();
+    // double n1 = currentTime();
     generateNonce(nonceB);
-    double n2 = currentTime();
-    cout << "TIME NONCE (s6 and s7): " << elapsedTime(n1, n2) << "ms." << endl;
+    // double n2 = currentTime();
+    // cout << "TIME NONCE (s6 and s7): " << elapsedTime(n1, n2) << "ms." << endl;
 
     /******************** Generate IV ********************/
     int iv = iotAuth.randomNumber(90);
@@ -560,10 +560,10 @@ void AuthServer::send_dh()
     ObjectToBytes(dhSent, dhExchangeBytes, sizeof(DHKeyExchange));
 
     /******************** Encryption Exchange ********************/
-    // double e1 = currentTime();
+    double e1 = currentTime();
     int *const encryptedExchange = iotAuth.encryptRSA(dhExchangeBytes, rsaStorage->getPartnerPublicKey(), sizeof(DHKeyExchange));
-    // double e2 = currentTime();
-    // cout << "TIME ENCRYPTION (s6 and s7): " << elapsedTime(e1, e2) << "ms." << endl;
+    double e2 = currentTime();
+    cout << "TIME ENCRYPTION (s6 and s7): " << elapsedTime(e1, e2) << "ms." << endl;
 
     delete[] dhExchangeBytes;
     /******************** Stop Processing Time 2 ********************/
