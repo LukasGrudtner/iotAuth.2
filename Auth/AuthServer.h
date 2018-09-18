@@ -1,14 +1,8 @@
 #ifndef AUTH_SERVER_H
 #define AUTH_SERVER_H
 
-#include <unistd.h>
 #include <string.h>
 #include <string>
-#include <netdb.h>
-#include <arpa/inet.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 
 #include "iotAuth.h"
 #include "../settings.h"
@@ -25,14 +19,9 @@
 
 #include "../verbose/verbose_server.h"
 
-using namespace std;
+#include "../Socket/UDPSocket.h"
 
-typedef struct Socket
-{
-    int socket;
-    struct sockaddr *client;
-    socklen_t size;
-} t_socket;
+using namespace std;
 
 class AuthServer
 {
@@ -62,7 +51,7 @@ class AuthServer
     DHStorage *diffieHellmanStorage;
     IotAuth iotAuth;
 
-    Socket soc;
+    UDPSocket soc;
     
     char *serverIP;
     char *clientIP;
@@ -75,9 +64,6 @@ class AuthServer
     double t_aux1, t_aux2;
     double start;
 
-    struct sockaddr_in cliente, servidor;
-    int meuSocket, enviei = 0;
-    socklen_t tam_cliente;
     char buffer[666];
 
     bool connected = false;

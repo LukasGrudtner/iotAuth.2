@@ -1,5 +1,22 @@
 #include "UDPSocket.h"
 
+/* For servers */
+int UDPSocket::connect()
+{
+    meuSocket = socket(PF_INET, SOCK_DGRAM, 0);
+    servidor.sin_family = AF_INET;
+    servidor.sin_port = htons(DEFAULT_PORT);
+    servidor.sin_addr.s_addr = INADDR_ANY;
+
+    bind(meuSocket, (struct sockaddr *)&servidor, sizeof(struct sockaddr_in));
+
+    tam_cliente = sizeof(struct sockaddr_in);
+
+    soc = {meuSocket, (struct sockaddr *)&cliente, tam_cliente};
+    return OK;
+}
+
+/* For clients */
 int UDPSocket::connect(char *address, int port)
 {
     if (*address == '\0')

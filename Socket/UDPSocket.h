@@ -22,6 +22,9 @@ class UDPSocket
 {
 
   public:
+    /* For servers */
+    int connect();
+    /* For clients */
     int connect(char *address, int port);
     void max_response_time(int seconds, int milliseconds);
     char *server_address();

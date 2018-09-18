@@ -35,7 +35,7 @@ string AuthServer::listen()
 
         while (recv <= 0 && count--)
         {
-            recv = recvfrom(soc.socket, message, sizeof(message) - 1, 0, soc.client, &soc.size);
+            recv = soc.recv(message, sizeof(message) - 1);
         }
 
         if (count == 0)
@@ -104,7 +104,7 @@ status AuthServer::publish(char *data)
 
         // cout << "Encrypted Message: " << encrypted << endl;
         
-        int sent = sendto(soc.socket, encrypted.c_str(), encrypted.length(), 0, soc.client, soc.size);
+        int sent = soc.send(encrypted.c_str(), encrypted.length());
 
         if (sent > 0)
         {
@@ -163,7 +163,7 @@ void AuthServer::recv_syn()
 
     while (recv <= 0)
     {
-        recv = recvfrom(soc.socket, &received, sizeof(syn), 0, soc.client, &soc.size);
+        recv = soc.recv(&received, sizeof(syn));
     }
 
     start = currentTime();
@@ -209,7 +209,7 @@ void AuthServer::send_ack()
     t1 = currentTime();
 
     /******************** Send Package ********************/
-    sendto(soc.socket, &toSend, sizeof(ack), 0, soc.client, soc.size);
+    soc.send(&toSend, sizeof(ack));
 
     /******************** Verbose ********************/
     if (VERBOSE)
@@ -228,7 +228,7 @@ void AuthServer::recv_rsa()
 {
     /******************** Receive Exchange ********************/
     RSAKeyExchange rsaReceived;
-    int recv = recvfrom(soc.socket, &rsaReceived, sizeof(RSAKeyExchange), 0, soc.client, &soc.size);
+    int recv = soc.recv(&rsaReceived, sizeof(RSAKeyExchange));
 
     if (recv > 0)
     {
@@ -353,7 +353,7 @@ void AuthServer::send_rsa()
     t1 = currentTime();
 
     /******************** Send Exchange ********************/
-    sendto(soc.socket, (RSAKeyExchange *)&rsaExchange, sizeof(RSAKeyExchange), 0, soc.client, soc.size);
+    soc.send((RSAKeyExchange *)&rsaExchange, sizeof(RSAKeyExchange));
 
     /******************** Memory Release ********************/
     delete[] encryptedHash;
@@ -375,7 +375,7 @@ void AuthServer::send_rsa()
 void AuthServer::recv_rsa_ack()
 {
     RSAKeyExchange rsaReceived;
-    int recv = recvfrom(soc.socket, &rsaReceived, sizeof(RSAKeyExchange), 0, soc.client, &soc.size);
+    int recv = soc.recv(&rsaReceived, sizeof(RSAKeyExchange));
 
     if (recv > 0)
     {
@@ -515,7 +515,7 @@ void AuthServer::send_dh()
     t1 = currentTime();
 
     /******************** Send Exchange ********************/
-    sendto(soc.socket, (DHEncPacket *)&encPacket, sizeof(DHEncPacket), 0, soc.client, soc.size);
+    soc.send((DHEncPacket *)&encPacket, sizeof(DHEncPacket));
 
     /******************** Verbose ********************/
     if (VERBOSE)
@@ -537,7 +537,7 @@ void AuthServer::recv_dh()
 {
     /******************** Recv Enc Packet ********************/
     DHEncPacket encPacket;
-    int recv = recvfrom(soc.socket, &encPacket, sizeof(DHEncPacket), 0, soc.client, &soc.size);
+    int recv = soc.recv(&encPacket, sizeof(DHEncPacket));
 
     if (recv > 0)
     {
@@ -639,7 +639,7 @@ void AuthServer::send_dh_ack()
     delete[] ackBytes;
 
     /******************** Send ACK ********************/
-    sendto(soc.socket, (int *)encryptedAck, sizeof(DH_ACK) * sizeof(int), 0, soc.client, soc.size);
+    soc.send((int *)encryptedAck, sizeof(DH_ACK) * sizeof(int));
 
     delete[] encryptedAck;
 
@@ -667,7 +667,7 @@ status AuthServer::wdc()
     int recv = 0;
 
     do {
-        recv = recvfrom(soc.socket, message, sizeof(message), 0, soc.client, &soc.size);
+        recv = soc.recv(message, sizeof(message));
     } while (recv <= 0 && count--);
 
     if (recv > 0)
@@ -678,20 +678,20 @@ status AuthServer::wdc()
                 wdc_verbose();
 
             connected = false;
-            close(soc.socket);
+            soc.finish();
             return OK;
         }
         else
         {
             connected = false;
-            close(soc.socket);
+            soc.finish();
             return DENIED;
         }
     }
     else
     {
         connected = false;
-        close(soc.socket);
+        soc.finish();
         return NO_REPLY;
     }
 }
@@ -709,7 +709,7 @@ void AuthServer::rdisconnect()
 
     do
     {
-        sent = sendto(soc.socket, DONE_ACK, strlen(DONE_ACK), 0, soc.client, soc.size);
+        sent = soc.send(DONE_ACK, strlen(DONE_ACK));
     } while (sent <= 0);
 
     connected = false;
@@ -717,7 +717,7 @@ void AuthServer::rdisconnect()
     if (VERBOSE)
         rft_verbose();
 
-    close(soc.socket);
+    soc.finish();
 }
 
 
@@ -730,7 +730,7 @@ status AuthServer::done()
     
     do
     {
-        sent = sendto(soc.socket, DONE_MESSAGE, sizeof(DONE_MESSAGE), 0, soc.client, soc.size);
+        sent = soc.send(DONE_MESSAGE, sizeof(DONE_MESSAGE));
     } while (sent <= 0);
 
     if (VERBOSE)
@@ -745,36 +745,16 @@ status AuthServer::done()
 /*  Realiza a conexão com o Cliente. */
 status AuthServer::connect()
 {
-    meuSocket = socket(PF_INET, SOCK_DGRAM, 0);
-    servidor.sin_family = AF_INET;
-    servidor.sin_port = htons(DEFAULT_PORT);
-    servidor.sin_addr.s_addr = INADDR_ANY;
-
-    bind(meuSocket, (struct sockaddr *)&servidor, sizeof(struct sockaddr_in));
-
-    tam_cliente = sizeof(struct sockaddr_in);
+    soc.connect();
 
     /* Set maximum wait time for response */
-    struct timeval tv;
-    tv.tv_sec = TIMEOUT_SEC;
-    tv.tv_usec = TIMEOUT_MIC;
-    setsockopt(meuSocket, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof tv);
+    soc.max_response_time(TIMEOUT_SEC, TIMEOUT_MIC);
 
     /* Get IP Address Server */
-    struct hostent *server;
-    char host_name[256];
-    gethostname(host_name, sizeof(host_name));
-    server = gethostbyname(host_name);
-    serverIP = inet_ntoa(*(struct in_addr *)*server->h_addr_list);
+    serverIP = soc.server_address();
 
     /* Get IP Address Client */
-    struct hostent *client;
-    char client_name[256];
-    gethostname(client_name, sizeof(client_name));
-    client = gethostbyname(client_name);
-    clientIP = inet_ntoa(*(struct in_addr *)*client->h_addr_list);
-
-    soc = {meuSocket, (struct sockaddr *)&cliente, tam_cliente};
+    clientIP = soc.client_address();
 
     try
     {
@@ -796,7 +776,7 @@ status AuthServer::connect()
 bool AuthServer::sack()
 {
     char ack = ACK_CHAR;
-    uint8_t sent = sendto(soc.socket, &ack, sizeof(ack), 0, soc.client, soc.size);
+    uint8_t sent = soc.send(&ack, sizeof(ack));
 
     if (send > 0)
     {
@@ -817,7 +797,7 @@ bool AuthServer::rack()
 
     while ((recv <= 0 || ack != ACK_CHAR) && count--)
     {
-        recv = recvfrom(soc.socket, &ack, sizeof(ack), 0, soc.client, &soc.size);
+        recv = soc.recv(&ack, sizeof(ack));
     }
 
     if (ack == ACK)

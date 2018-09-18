@@ -1,13 +1,6 @@
 #ifndef AUTH_CLIENT_H
 #define AUTH_CLIENT_H
 
-#include <arpa/inet.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netdb.h>
-#include <unistd.h>
-
 #include "iotAuth.h"
 #include "../time.h"
 #include "../settings.h"
