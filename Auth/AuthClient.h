@@ -24,16 +24,11 @@
 
 #include "../verbose/verbose_client.h"
 
+#include "../Socket/UDPSocket.h"
+
 using namespace std;
 
 /* Simulação das funções executadas pelo Arduino. */
-
-typedef struct Socket
-{
-    int socket;
-    struct sockaddr *server;
-    socklen_t size;
-} t_socket;
 
 class AuthClient
 {
@@ -64,17 +59,12 @@ class AuthClient
     RSAStorage *rsaStorage;
     DHStorage *dhStorage;
 
-    Socket soc;
+    UDPSocket soc;
 
     struct sockaddr_in servidor, cliente;
 
-    int meuSocket;
-    socklen_t tam_cliente;
     char envia[556];
     char recebe[10000];
-    struct hostent *server;
-    char host_name[256];
-    char client_name[256];
 
     bool connected = false;
     char *clientIP;   /*  Endereço IP do Cliente.                 */
