@@ -1,6 +1,8 @@
 #include <iostream>
 #include "Auth/AuthServer.h"
 
+#include "Socket/UDPSocket.h"
+
 using namespace std;
 
 AuthServer auth;
@@ -27,4 +29,16 @@ int main(int argc, char *argv[])
         
         auth.disconnect();
     }
+
+    // UDPSocket udp;
+    // udp.connect();
+    
+    // structSyn recv;
+    // udp.recv(&recv, sizeof(recv));
+
+    // char *str = new char[100];
+    // ByteArrayToHexString(recv.nonce, 33, str, 65);
+
+    // cout << "Recv: " << str << endl;
+
 }

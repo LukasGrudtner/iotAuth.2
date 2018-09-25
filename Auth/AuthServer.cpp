@@ -5,22 +5,16 @@ AuthServer::AuthServer()
     memset(buffer, 0, sizeof(buffer));
 }
 
-
-
-
 /*  Aguarda conexão com algum Cliente. */
 bool AuthServer::wait_connection()
 {
-    if (!isConnected()) 
+    if (!isConnected())
     {
         connect();
         return true;
     }
     return false;
 }
-
-
-
 
 /*  Entra em estado de espera por dados vindos do Cliente. */
 string AuthServer::listen()
@@ -86,24 +80,23 @@ string AuthServer::listen()
             // cout << "Decrypted: " << decrypted << endl << endl;
 
             /************************** ENVIA ACK CONFIRMANDO ********************************/
-            while (sack() == false);
+            while (sack() == false)
+                ;
 
             return Uint8_tToString(decrypted, encryptedMessage.length());
         }
     }
 }
 
-
-
-
 /*  Envia dados para o Cliente. */
 status AuthServer::publish(char *data)
 {
-    if (isConnected()) {
+    if (isConnected())
+    {
         string encrypted = encryptMessage(data, 666);
 
         // cout << "Encrypted Message: " << encrypted << endl;
-        
+
         int sent = soc.send(encrypted.c_str(), encrypted.length());
 
         if (sent > 0)
@@ -116,15 +109,14 @@ status AuthServer::publish(char *data)
         }
         else
             return DENIED;
-    } else {
+    }
+    else
+    {
         cout << "Não existe conexão com o servidor!" << endl;
         return NOT_CONNECTED;
     }
     return DENIED;
 }
-
-
-
 
 /*  Envia um pedido de término de conexão ao Cliente. */
 status AuthServer::disconnect()
@@ -140,17 +132,11 @@ status AuthServer::disconnect()
     }
 }
 
-
-
-
 /*  Retorna um boolean para indicar se possui conexão com o Cliente. */
 bool AuthServer::isConnected()
 {
     return connected;
 }
-
-
-
 
 /*  Step 1
     Recebe um pedido de início de conexão por parte do Cliente.
@@ -158,7 +144,7 @@ bool AuthServer::isConnected()
 void AuthServer::recv_syn()
 {
     structSyn received;
-    
+
     int recv = 0;
 
     while (recv <= 0)
@@ -178,16 +164,13 @@ void AuthServer::recv_syn()
         if (VERBOSE)
             recv_syn_verbose(nonceA);
 
-        send_ack();
+        // send_ack();
     }
     else
     {
         throw DENIED;
     }
 }
-
-
-
 
 /*  Step 2
     Envia confirmação ao Cliente referente ao pedido de início de conexão.
@@ -217,9 +200,6 @@ void AuthServer::send_ack()
 
     recv_rsa();
 }
-
-
-
 
 /*  Step 3
     Recebe os dados RSA vindos do Cliente.
@@ -294,10 +274,6 @@ void AuthServer::recv_rsa()
     }
 }
 
-
-
-
-
 /*  Step 4
     Realiza o envio dos dados RSA para o Cliente.
 */
@@ -327,7 +303,6 @@ void AuthServer::send_rsa()
     /******************** Get Hash ********************/
     string packageString = rsaSent.toString();
     string hash = iotAuth.hash(&packageString);
-
 
     /******************** Encrypt Hash ********************/
     int *const encryptedHash = iotAuth.encryptRSA(&hash, rsaStorage->getMyPrivateKey(), 128);
@@ -365,10 +340,6 @@ void AuthServer::send_rsa()
     recv_rsa_ack();
 }
 
-
-
-
-
 /*  Step 5
     Recebe confirmação do Cliente referente ao recebimento dos dados RSA.
 */
@@ -390,7 +361,7 @@ void AuthServer::recv_rsa_ack()
             totalTime = elapsedTime(t1, t2);
 
             /******************** Proof of Time ********************/
-            double limit = processingTime1 + networkTime + (processingTime1 + networkTime)*0.1;
+            double limit = processingTime1 + networkTime + (processingTime1 + networkTime) * 0.1;
             // double limit = 1000;
 
             if (totalTime <= limit)
@@ -450,9 +421,6 @@ void AuthServer::recv_rsa_ack()
         throw NO_REPLY;
     }
 }
-
-
-
 
 /*  Step 6
     Realiza o envio dos dados Diffie-Hellman para o Cliente.
@@ -527,9 +495,6 @@ void AuthServer::send_dh()
 
     recv_dh();
 }
-
-
-
 
 /*  Step 7
     Recebe os dados Diffie-Hellman vindos do Cliente.   */
@@ -617,9 +582,6 @@ void AuthServer::recv_dh()
     }
 }
 
-
-
-
 /*  Step 8
     Envia confirmação para o Cliente referente ao recebimento dos dados Diffie-Hellman.
 */
@@ -652,9 +614,6 @@ void AuthServer::send_dh_ack()
     delete rsaStorage;
 }
 
-
-
-
 /*  Waiting Done Confirmation
     Verifica se a mensagem vinda do Cliente é uma confirmação do pedido de
     fim de conexão enviado pelo Servidor (DONE_ACK).
@@ -666,7 +625,8 @@ status AuthServer::wdc()
     int count = COUNT;
     int recv = 0;
 
-    do {
+    do
+    {
         recv = soc.recv(message, sizeof(message));
     } while (recv <= 0 && count--);
 
@@ -696,9 +656,6 @@ status AuthServer::wdc()
     }
 }
 
-
-
-
 /*  Receive Disconnect
     Envia uma confirmação (DONE_ACK) para o pedido de término de conexão
     vindo do Cliente, e fecha o socket.
@@ -720,14 +677,11 @@ void AuthServer::rdisconnect()
     soc.finish();
 }
 
-
-
-
 /*  Envia um pedido de fim de conexão para o Cliente. */
 status AuthServer::done()
 {
     int sent = 0;
-    
+
     do
     {
         sent = soc.send(DONE_MESSAGE, sizeof(DONE_MESSAGE));
@@ -738,9 +692,6 @@ status AuthServer::done()
 
     return wdc();
 }
-
-
-
 
 /*  Realiza a conexão com o Cliente. */
 status AuthServer::connect()
@@ -769,9 +720,6 @@ status AuthServer::connect()
     return OK;
 }
 
-
-
-
 /*  Envia ACK confirmando o recebimento da publicação. */
 bool AuthServer::sack()
 {
@@ -784,9 +732,6 @@ bool AuthServer::sack()
     }
     return false;
 }
-
-
-
 
 /*  Recebe ACK confirmando o recebimento da publicação. */
 bool AuthServer::rack()
@@ -803,12 +748,9 @@ bool AuthServer::rack()
     if (ack == ACK)
     {
         return true;
-    } 
+    }
     return false;
 }
-
-
-
 
 /*  Verifica se a mensagem recebida é um pedido de desconexão. */
 template <typename T>
@@ -818,17 +760,17 @@ bool AuthServer::isDisconnectRequest(T &object)
     return cmp == 0;
 }
 
-
-
-
 /*  Armazena o valor do nonce B em uma variável global. */
 void AuthServer::storeNonceA(char *nonce)
 {
     strncpy(nonceA, nonce, sizeof(nonceA));
 }
 
-
-
+/*  Armazena o valor do nonce B em uma variável global. */
+void AuthServer::storeNonceA(uint8_t *nonce)
+{
+    ByteArrayToHexString(nonce, 33, nonceA, 65);
+}
 
 /*  Gera um valor para o nonce B.   */
 void AuthServer::generateNonce(char *nonce)
@@ -839,9 +781,6 @@ void AuthServer::generateNonce(char *nonce)
     memset(nonce, '\0', 129);
     strncpy(nonce, hash.c_str(), 128);
 }
-
-
-
 
 /*  Decifra o hash utilizando a chave pública do Cliente. */
 string AuthServer::decryptHash(int *encryptedHash)
@@ -861,9 +800,6 @@ string AuthServer::decryptHash(int *encryptedHash)
     return decryptedHashString;
 }
 
-
-
-
 /*  Inicializa os valores pertinentes a troca de chaves Diffie-Hellman:
     expoente, base, módulo, resultado e a chave de sessão.
 */
@@ -874,9 +810,6 @@ void AuthServer::generateDiffieHellman()
     diffieHellmanStorage->setExponent(iotAuth.randomNumber(3) + 2);
     diffieHellmanStorage->setModulus(iotAuth.randomNumber(100) + 2);
 }
-
-
-
 
 /*  Cifra a mensagem utilizando o algoritmo AES 256 e a chave de sessão. */
 string AuthServer::encryptMessage(char *message, int size)

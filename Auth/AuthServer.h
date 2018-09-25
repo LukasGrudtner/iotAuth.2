@@ -138,6 +138,9 @@ class AuthServer
     /*  Armazena o valor do nonce B em uma variável global. */
     void storeNonceA(char *nonce);
 
+    /*  Armazena o valor do nonce B em uma variável global. */
+    void storeNonceA(uint8_t *nonce);
+
     /*  Gera um valor para o nonce B.   */
     void generateNonce(char *nonce);
 

@@ -27,7 +27,7 @@
 typedef struct syn
 {
     bool message = SYN;
-    char nonce[129];    /* HASH(time | idDestino | idOrigem | seq) */
+    uint8_t nonce[32];    /* HASH(time | idDestino | idOrigem | seq) */
 } structSyn;
 
 typedef struct ack
